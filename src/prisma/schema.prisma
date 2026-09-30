@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum ProductStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum EventType {
+  VIEW
+  CLICK
+}
+
+model User {
+  id          String    @id @default(cuid())
+  clerkUserId String    @unique
+  name        String?
+  username    String?   @unique
+  email       String    @unique
+  avatarUrl   String?
+  createdAt   DateTime  @default(now())
+  products    Product[]
+  votes       Vote[]
+  comments    Comment[]
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  slug     String    @unique
+  products Product[]
+}
+
+model Product {
+  id          String        @id @default(cuid())
+  name        String
+  slug        String        @unique
+  tagline     String
+  description String
+  websiteUrl  String
+  logoUrl     String?
+  screenshots String[]
+  pricing     String?
+  status      ProductStatus @default(PENDING)
+  featured    Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  votes    Vote[]
+  comments Comment[]
+  events   ProductEvent[]
+
+  @@index([status, createdAt])
+}
+
+model Vote {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  body      String
+  createdAt DateTime @default(now())
+  userId    String
+  productId String
+  user      User     @relation(fields: [userId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model ProductEvent {
+  id        String    @id @default(cuid())
+  type      EventType
+  productId String
+  createdAt DateTime  @default(now())
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, type])
+}
