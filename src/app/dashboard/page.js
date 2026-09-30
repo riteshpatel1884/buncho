@@ -50,7 +50,7 @@ export default async function Dashboard({ searchParams }) {
       </div>
 
       {submitted && (
-        <p role="status" className="rounded-xl bg-peacock-soft p-4 text-sm font-medium text-peacock-dark">
+        <p role="status" className="rounded-xl bg-mint-soft p-4 text-sm font-medium text-mint">
           Submitted. Your product is in review and will appear publicly once approved.
         </p>
       )}

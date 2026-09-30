@@ -59,7 +59,7 @@ export default async function ProductPage({ params }) {
           <h1 className="font-display text-3xl font-bold leading-tight">{product.name}</h1>
           <p className="mt-1 text-lg text-muted">{product.tagline}</p>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-medium">
-            <span className="rounded-full bg-peacock-soft px-3 py-1 text-peacock">{product.category.name}</span>
+            <span className="rounded-full bg-mint-soft px-3 py-1 text-mint">{product.category.name}</span>
             {product.pricing && <span className="rounded-full border border-line px-3 py-1 text-muted">{product.pricing}</span>}
             <span className="rounded-full border border-line px-3 py-1 text-muted">🇮🇳 Built in India</span>
           </div>
@@ -75,7 +75,7 @@ export default async function ProductPage({ params }) {
           {product.screenshots.length > 0 && (
             <div className="flex gap-3 overflow-x-auto pb-2">
               {product.screenshots.map((s) => (
-                <img key={s} src={s} alt={`${product.name} screenshot`} className="h-64 shrink-0 rounded-2xl border border-line bg-white" />
+                <img key={s} src={s} alt={`${product.name} screenshot`} className="h-64 shrink-0 rounded-2xl border border-line bg-surface" />
               ))}
             </div>
           )}
@@ -97,7 +97,7 @@ export default async function ProductPage({ params }) {
               </form>
             </Show>
             <Show when="signed-out">
-              <div className="mt-4 rounded-xl bg-paper p-4 text-sm text-muted">
+              <div className="mt-4 rounded-xl bg-surface-2 p-4 text-sm text-muted">
                 <SignInButton mode="redirect">
                   <button className="font-semibold text-brand">Sign in</button>
                 </SignInButton>{" "}
@@ -111,7 +111,7 @@ export default async function ProductPage({ params }) {
               <ul className="mt-6 space-y-5">
                 {product.comments.map((c) => (
                   <li key={c.id} className="flex gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-peacock-soft text-sm font-bold text-peacock">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-mint-soft text-sm font-bold text-mint">
                       {(c.user.name || "M")[0].toUpperCase()}
                     </span>
                     <div className="min-w-0">

@@ -60,20 +60,20 @@ export default async function Home({ searchParams }) {
     return `/?${p.toString()}`;
   };
   const tabs = [["week", "This week"], ["all", "All time"], ["new", "Newest"]];
-  const medal = ["bg-gold text-ink", "bg-[#cfd9d7] text-ink", "bg-[#e3a877] text-ink"];
+  const medal = ["bg-gold text-on-brand", "bg-[#d5dbea] text-on-brand", "bg-[#f0b58a] text-on-brand"];
 
   return (
     <div className="space-y-12">
       {/* Hero */}
       <section
-        className="grid gap-10 rounded-3xl bg-peacock-dark p-8 text-white sm:p-12 lg:grid-cols-[1.2fr_1fr] lg:items-center"
-        style={{ backgroundImage: "radial-gradient(circle at 88% 8%, rgba(216,27,96,0.38), transparent 42%)" }}
+        className="grid gap-10 rounded-3xl bg-navy p-8 text-white sm:p-12 lg:grid-cols-[1.2fr_1fr] lg:items-center"
+        style={{ backgroundImage: "radial-gradient(circle at 88% 8%, rgba(52,214,123,0.22), transparent 42%)" }}
       >
         <div>
           <h1 className="font-display text-4xl font-bold leading-[1.05] sm:text-5xl">
             Discover what India is building.
           </h1>
-          <p className="mt-4 max-w-md text-lg text-[#b9dcda]">
+          <p className="mt-4 max-w-md text-lg text-on-navy">
             Upvote the tools you like, talk to the founders behind them, and launch your own.
           </p>
           <form data-nav className="mt-7 flex max-w-md gap-2">
@@ -82,16 +82,16 @@ export default async function Home({ searchParams }) {
               defaultValue={q}
               placeholder="Search products"
               aria-label="Search products"
-              className="w-full rounded-full bg-white px-5 py-3 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand"
+              className="w-full rounded-full bg-surface px-5 py-3 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-white/60"
             />
             <button className="btn-primary shrink-0">Search</button>
           </form>
-          <p className="mt-6 text-sm text-[#b9dcda]">
+          <p className="mt-6 text-sm text-on-navy">
             {all.length} products, {voteCount} upvotes and {clickCount} visits sent to founders so far.
           </p>
         </div>
 
-        <div className="rounded-2xl bg-white p-5 text-ink shadow-xl">
+        <div className="rounded-2xl bg-surface p-5 text-ink shadow-xl">
           <div className="mb-3 flex items-baseline justify-between">
             <h2 className="font-display text-lg font-bold">Top this week</h2>
             <span className="text-xs text-muted">Rolling 7 days</span>
@@ -102,7 +102,7 @@ export default async function Home({ searchParams }) {
             <ol className="space-y-1">
               {podium.map((p, i) => (
                 <li key={p.id}>
-                  <Link href={`/products/${p.slug}`} className="flex items-center gap-3 rounded-xl p-2 hover:bg-paper">
+                  <Link href={`/products/${p.slug}`} className="flex items-center gap-3 rounded-xl p-2 hover:bg-surface-2">
                     <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold ${medal[i]}`}>{i + 1}</span>
                     <ProductLogo product={p} size={40} />
                     <span className="min-w-0 flex-1">
@@ -127,12 +127,12 @@ export default async function Home({ searchParams }) {
             <h2 className="font-display text-2xl font-bold">
               {q ? `Results for "${q}"` : "Products"}
             </h2>
-            <div className="flex rounded-full border border-line bg-white p-1 text-sm font-medium">
+            <div className="flex rounded-full border border-line bg-surface p-1 text-sm font-medium">
               {tabs.map(([s, label]) => (
                 <Link
                   key={s}
                   href={tabHref(s)}
-                  className={`rounded-full px-3.5 py-1 ${sort === s ? "bg-ink text-white" : "text-muted hover:text-ink"}`}
+                  className={`rounded-full px-3.5 py-1 ${sort === s ? "bg-brand text-on-brand" : "text-muted hover:text-ink"}`}
                 >
                   {label}
                 </Link>
@@ -197,7 +197,7 @@ export default async function Home({ searchParams }) {
             ["Collect upvotes", "Go live, climb the weekly ranking, and see views and clicks on your dashboard."],
           ].map(([t, d], i) => (
             <li key={t} className="flex gap-4">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-peacock-soft font-display font-bold text-peacock">{i + 1}</span>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-mint-soft font-display font-bold text-mint">{i + 1}</span>
               <div>
                 <p className="font-semibold">{t}</p>
                 <p className="mt-1 text-sm text-muted">{d}</p>

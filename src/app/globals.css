@@ -1,23 +1,30 @@
 @import "tailwindcss";
 
 @theme {
-  --color-paper: #f2f6f4;
-  --color-surface: #ffffff;
-  --color-ink: #0b2a2d;
-  --color-muted: #587174;
-  --color-line: #dbe5e2;
-  --color-brand: #d81b60;
-  --color-brand-dark: #b0154e;
-  --color-brand-soft: #fde8f0;
-  --color-peacock: #0d6b6e;
-  --color-peacock-dark: #093f42;
-  --color-peacock-soft: #dcefee;
-  --color-gold: #f0b429;
+  --color-paper: #050505;
+  --color-surface: #0e1110;
+  --color-surface-2: #161b18;
+  --color-ink: #ecf3ee;
+  --color-muted: #8a9a90;
+  --color-line: #232d27;
+  --color-brand: #34d67b;
+  --color-brand-dark: #6bea9f;
+  --color-brand-soft: #0f2a1b;
+  --color-on-brand: #04140a;
+  --color-navy: #07170f;
+  --color-on-navy: #a3c9b3;
+  --color-mint: #6ee7a8;
+  --color-mint-soft: #10291b;
+  --color-gold: #ffc93c;
 }
 
 @theme inline {
   --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: dark;
 }
 
 body {
@@ -27,8 +34,13 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+::selection {
+  background: var(--color-brand);
+  color: var(--color-on-brand);
+}
+
 :focus-visible {
-  outline: 2px solid var(--color-peacock);
+  outline: 2px solid var(--color-brand);
   outline-offset: 2px;
 }
 
@@ -37,16 +49,16 @@ body {
     @apply rounded-2xl border border-line bg-surface;
   }
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-60;
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-on-brand transition-colors hover:bg-brand-dark disabled:opacity-60;
   }
   .btn-dark {
-    @apply inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-peacock-dark disabled:opacity-60;
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-line bg-surface-2 px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-brand disabled:opacity-60;
   }
   .btn-outline {
-    @apply inline-flex items-center justify-center gap-2 rounded-full border border-line bg-white px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink;
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-line bg-surface-2 px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-brand disabled:opacity-60;
   }
   .input {
-    @apply w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm placeholder:text-muted/70 focus:border-peacock focus:outline-none focus:ring-2 focus:ring-peacock/20;
+    @apply w-full rounded-xl border border-line bg-surface-2 px-3.5 py-2.5 text-sm text-ink placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/25;
   }
 }
 

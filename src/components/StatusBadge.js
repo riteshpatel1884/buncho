@@ -1,7 +1,7 @@
 const MAP = {
-  PENDING: { label: "In review", cls: "bg-amber-100 text-amber-800" },
-  APPROVED: { label: "Live", cls: "bg-peacock-soft text-peacock" },
-  REJECTED: { label: "Not approved", cls: "bg-red-100 text-red-700" },
+  PENDING: { label: "In review", cls: "bg-amber-400/15 text-amber-300" },
+  APPROVED: { label: "Live", cls: "bg-mint-soft text-mint" },
+  REJECTED: { label: "Not approved", cls: "bg-red-500/15 text-red-300" },
 };
 
 export default function StatusBadge({ status }) {

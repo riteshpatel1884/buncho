@@ -69,7 +69,7 @@ export default function SubmitForm({ categories }) {
       </section>
 
       {state?.error && (
-        <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{state.error}</p>
+        <p role="alert" className="rounded-xl bg-red-500/10 p-3 text-sm text-red-300">{state.error}</p>
       )}
 
       <div className="flex items-center justify-between gap-4 border-t border-line pt-6">

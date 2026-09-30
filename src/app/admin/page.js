@@ -49,12 +49,12 @@ export default async function Admin({ searchParams }) {
         <p className="mt-1 text-muted">Review submissions and manage what is live.</p>
       </div>
 
-      <div className="flex w-fit rounded-full border border-line bg-white p-1 text-sm font-medium">
+      <div className="flex w-fit rounded-full border border-line bg-surface p-1 text-sm font-medium">
         {TABS.map(([s, label]) => (
           <Link
             key={s}
             href={`/admin?status=${s}`}
-            className={`rounded-full px-4 py-1.5 ${status === s ? "bg-ink text-white" : "text-muted hover:text-ink"}`}
+            className={`rounded-full px-4 py-1.5 ${status === s ? "bg-brand text-on-brand" : "text-muted hover:text-ink"}`}
           >
             {label} ({count(s)})
           </Link>
@@ -77,7 +77,7 @@ export default async function Admin({ searchParams }) {
                   <p className="text-sm text-muted">{p.tagline}</p>
                   <p className="mt-3 whitespace-pre-line text-sm">{p.description}</p>
                   <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                    <span className="rounded-full bg-peacock-soft px-2.5 py-0.5 font-medium text-peacock">{p.category.name}</span>
+                    <span className="rounded-full bg-mint-soft px-2.5 py-0.5 font-medium text-mint">{p.category.name}</span>
                     {p.pricing && <span className="rounded-full border border-line px-2.5 py-0.5 text-muted">{p.pricing}</span>}
                     <span className="text-muted">by {p.user.email}</span>
                   </div>

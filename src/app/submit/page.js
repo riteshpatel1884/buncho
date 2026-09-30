@@ -25,9 +25,9 @@ export default async function SubmitPage() {
               <li>3. Once approved, it goes live and can collect upvotes.</li>
             </ol>
           </div>
-          <div className="rounded-2xl bg-peacock-soft p-5">
-            <h2 className="font-display text-lg font-bold text-peacock-dark">Tips for a good listing</h2>
-            <ul className="mt-3 space-y-2 text-sm text-peacock-dark">
+          <div className="rounded-2xl bg-mint-soft p-5">
+            <h2 className="font-display text-lg font-bold text-mint">Tips for a good listing</h2>
+            <ul className="mt-3 space-y-2 text-sm text-ink">
               <li>Say what it does in the tagline, not how great it is.</li>
               <li>Use a square logo, at least 256 pixels wide.</li>
               <li>Mention who it is for and what it costs.</li>

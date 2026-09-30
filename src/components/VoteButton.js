@@ -42,8 +42,8 @@ export default function VoteButton({ productId, initialCount, initialVoted, size
         big ? "w-20 gap-1 py-3 text-lg" : "w-14 gap-0.5 py-2 text-sm"
       } ${
         voted
-          ? "border-brand bg-brand text-white"
-          : "border-line bg-white text-ink hover:border-brand hover:text-brand"
+          ? "border-brand bg-brand text-on-brand"
+          : "border-line bg-surface text-ink hover:border-brand hover:text-brand"
       }`}
     >
       <svg width={big ? 18 : 14} height={big ? 18 : 14} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
