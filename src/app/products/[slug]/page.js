@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getDbUser } from "@/lib/user";
 import { timeAgo } from "@/lib/utils";
 import VoteButton from "@/components/VoteButton";
+import SubmitButton from "@/components/SubmitButton";
 import ProductLogo from "@/components/ProductLogo";
 import { addComment } from "./actions";
 
@@ -92,7 +93,7 @@ export default async function ProductPage({ params }) {
                 <input type="hidden" name="productId" value={product.id} />
                 <input type="hidden" name="slug" value={product.slug} />
                 <textarea name="body" required maxLength={1000} rows={3} placeholder="Share feedback with the founder" className="input" />
-                <button className="btn-dark">Post comment</button>
+                <SubmitButton className="btn-dark" pendingText="Posting">Post comment</SubmitButton>
               </form>
             </Show>
             <Show when="signed-out">

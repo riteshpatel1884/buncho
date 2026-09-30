@@ -1,6 +1,7 @@
 "use client";
 import { useActionState, useState } from "react";
 import { submitProduct } from "./actions";
+import Spinner from "@/components/Spinner";
 
 function Field({ label, hint, children }) {
   return (
@@ -73,7 +74,7 @@ export default function SubmitForm({ categories }) {
 
       <div className="flex items-center justify-between gap-4 border-t border-line pt-6">
         <p className="text-xs text-muted">You can have up to 3 products in review at a time.</p>
-        <button disabled={pending} className="btn-primary">{pending ? "Submitting" : "Submit for review"}</button>
+        <button disabled={pending} className="btn-primary">{pending ? (<><Spinner />Submitting</>) : "Submit for review"}</button>
       </div>
     </form>
   );

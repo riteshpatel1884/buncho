@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/user";
 import { timeAgo } from "@/lib/utils";
 import ProductLogo from "@/components/ProductLogo";
+import SubmitButton from "@/components/SubmitButton";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Moderation | buncho" };
@@ -89,12 +90,12 @@ export default async function Admin({ searchParams }) {
               <form action={setStatus} className="mt-5 flex flex-wrap gap-2 border-t border-line pt-4">
                 <input type="hidden" name="id" value={p.id} />
                 {status !== "APPROVED" && (
-                  <button name="status" value="APPROVED" className="btn-primary">Approve</button>
+                  <SubmitButton name="status" value="APPROVED" className="btn-primary" pendingText="Approving">Approve</SubmitButton>
                 )}
                 {status !== "REJECTED" && (
-                  <button name="status" value="REJECTED" className="btn-outline">
+                  <SubmitButton name="status" value="REJECTED" className="btn-outline" pendingText="Saving">
                     {status === "APPROVED" ? "Unpublish" : "Reject"}
-                  </button>
+                  </SubmitButton>
                 )}
               </form>
             </li>

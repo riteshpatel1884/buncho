@@ -76,7 +76,7 @@ export default async function Home({ searchParams }) {
           <p className="mt-4 max-w-md text-lg text-[#b9dcda]">
             Upvote the tools you like, talk to the founders behind them, and launch your own.
           </p>
-          <form className="mt-7 flex max-w-md gap-2">
+          <form data-nav className="mt-7 flex max-w-md gap-2">
             <input
               name="q"
               defaultValue={q}
