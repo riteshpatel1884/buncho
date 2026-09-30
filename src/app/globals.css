@@ -1,28 +1,58 @@
 @import "tailwindcss";
 
-:root {
-  --bg: #f6f7f9;
-  --ink: #15172b;
-  --muted: #5d6178;
-  --line: #e2e4ec;
-  --accent: #0f766e;
+@theme {
+  --color-paper: #f2f6f4;
+  --color-surface: #ffffff;
+  --color-ink: #0b2a2d;
+  --color-muted: #587174;
+  --color-line: #dbe5e2;
+  --color-brand: #d81b60;
+  --color-brand-dark: #b0154e;
+  --color-brand-soft: #fde8f0;
+  --color-peacock: #0d6b6e;
+  --color-peacock-dark: #093f42;
+  --color-peacock-soft: #dcefee;
+  --color-gold: #f0b429;
 }
 
 @theme inline {
-  --color-bg: var(--bg);
-  --color-ink: var(--ink);
-  --color-muted: var(--muted);
-  --color-line: var(--line);
-  --color-accent: var(--accent);
-  --font-display: var(--font-display);
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
-  background: var(--bg);
-  color: var(--ink);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-.font-display { font-family: var(--font-display), system-ui, sans-serif; }
+:focus-visible {
+  outline: 2px solid var(--color-peacock);
+  outline-offset: 2px;
+}
 
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@layer components {
+  .card {
+    @apply rounded-2xl border border-line bg-surface;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-60;
+  }
+  .btn-dark {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-peacock-dark disabled:opacity-60;
+  }
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-line bg-white px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink;
+  }
+  .input {
+    @apply w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm placeholder:text-muted/70 focus:border-peacock focus:outline-none focus:ring-2 focus:ring-peacock/20;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

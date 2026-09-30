@@ -1,25 +1,25 @@
 import { ClerkProvider } from "@clerk/nextjs";
-import { Bricolage_Grotesque } from "next/font/google";
+import { Bricolage_Grotesque, Figtree } from "next/font/google";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import "./globals.css";
 
-const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-display" });
+const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-bricolage" });
+const sans = Figtree({ subsets: ["latin"], variable: "--font-figtree" });
 
 export const metadata = {
-  title: "Desi Launch: products built by Indian founders",
+  title: "buncho: discover products built in India",
   description: "Discover, upvote and launch products built by Indian indie hackers and SaaS founders.",
 };
 
 export default function RootLayout({ children }) {
   return (
     <ClerkProvider>
-      <html lang="en" className={display.variable}>
-        <body className="min-h-screen">
+      <html lang="en" className={`${display.variable} ${sans.variable}`}>
+        <body className="flex min-h-screen flex-col">
           <Navbar />
-          <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
-          <footer className="mx-auto max-w-5xl px-4 py-10 text-sm text-muted">
-            Built in India, for people who build in India.
-          </footer>
+          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">{children}</main>
+          <Footer />
         </body>
       </html>
     </ClerkProvider>

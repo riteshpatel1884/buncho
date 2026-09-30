@@ -1,9 +1,11 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
+import { Show, SignInButton } from "@clerk/nextjs";
 import { prisma } from "@/lib/prisma";
 import { getDbUser } from "@/lib/user";
 import { timeAgo } from "@/lib/utils";
 import VoteButton from "@/components/VoteButton";
+import ProductLogo from "@/components/ProductLogo";
 import { addComment } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -20,87 +22,160 @@ export default async function ProductPage({ params }) {
     where: { slug, status: "APPROVED" },
     include: {
       category: true,
-      user: { select: { name: true, username: true } },
+      user: { select: { name: true, username: true, avatarUrl: true } },
       _count: { select: { votes: true } },
       comments: { orderBy: { createdAt: "desc" }, take: 50, include: { user: { select: { name: true } } } },
     },
   });
   if (!product) notFound();
 
-  const user = await getDbUser();
+  const [user, related] = await Promise.all([
+    getDbUser(),
+    prisma.product.findMany({
+      where: { status: "APPROVED", categoryId: product.categoryId, id: { not: product.id } },
+      orderBy: { createdAt: "desc" },
+      take: 4,
+      select: { id: true, name: true, slug: true, tagline: true, logoUrl: true },
+    }),
+  ]);
   const voted = user
     ? !!(await prisma.vote.findUnique({ where: { userId_productId: { userId: user.id, productId: product.id } } }))
     : false;
 
   await prisma.productEvent.create({ data: { type: "VIEW", productId: product.id } });
 
+  const founder = product.user.name || product.user.username || "Founder";
+  let host = product.websiteUrl;
+  try { host = new URL(product.websiteUrl).hostname.replace(/^www\./, ""); } catch {}
+
   return (
     <article className="space-y-8">
-      <header className="flex items-start gap-5">
-        {product.logoUrl ? (
-          <img src={product.logoUrl} alt="" className="h-20 w-20 rounded-xl object-cover" />
-        ) : (
-          <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-line font-display text-3xl font-bold">
-            {product.name[0]}
+      <Link href="/" className="text-sm font-medium text-muted hover:text-ink">Back to all products</Link>
+
+      <header className="card flex flex-col gap-6 p-6 sm:flex-row sm:items-center sm:p-8">
+        <ProductLogo product={product} size={88} />
+        <div className="min-w-0 flex-1">
+          <h1 className="font-display text-3xl font-bold leading-tight">{product.name}</h1>
+          <p className="mt-1 text-lg text-muted">{product.tagline}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-medium">
+            <span className="rounded-full bg-peacock-soft px-3 py-1 text-peacock">{product.category.name}</span>
+            {product.pricing && <span className="rounded-full border border-line px-3 py-1 text-muted">{product.pricing}</span>}
+            <span className="rounded-full border border-line px-3 py-1 text-muted">🇮🇳 Built in India</span>
           </div>
-        )}
-        <div className="flex-1">
-          <h1 className="font-display text-3xl font-bold">{product.name}</h1>
-          <p className="text-muted">{product.tagline}</p>
-          <p className="mt-1 text-sm text-muted">
-            🇮🇳 Built in India by {product.user.name || product.user.username || "a founder"} • {product.category.name}
-            {product.pricing ? ` • ${product.pricing}` : ""}
-          </p>
-          <a
-            href={`/go/${product.slug}`}
-            target="_blank"
-            rel="noopener"
-            className="mt-3 inline-block rounded-md bg-accent px-4 py-2 font-medium text-white"
-          >
-            Visit website
+          <a href={`/go/${product.slug}`} target="_blank" rel="noopener" className="btn-primary mt-5">
+            Visit {host}
           </a>
         </div>
-        <VoteButton productId={product.id} initialCount={product._count.votes} initialVoted={voted} />
+        <VoteButton productId={product.id} initialCount={product._count.votes} initialVoted={voted} size="lg" />
       </header>
 
-      {product.screenshots.length > 0 && (
-        <div className="flex gap-3 overflow-x-auto">
-          {product.screenshots.map((s) => (
-            <img key={s} src={s} alt={`${product.name} screenshot`} className="h-56 rounded-lg border border-line" />
-          ))}
+      <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
+        <div className="space-y-8">
+          {product.screenshots.length > 0 && (
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {product.screenshots.map((s) => (
+                <img key={s} src={s} alt={`${product.name} screenshot`} className="h-64 shrink-0 rounded-2xl border border-line bg-white" />
+              ))}
+            </div>
+          )}
+
+          <section className="card p-6 sm:p-8">
+            <h2 className="font-display text-xl font-bold">About {product.name}</h2>
+            <p className="mt-3 max-w-2xl whitespace-pre-line leading-relaxed">{product.description}</p>
+          </section>
+
+          <section className="card p-6 sm:p-8">
+            <h2 className="font-display text-xl font-bold">Comments ({product.comments.length})</h2>
+
+            <Show when="signed-in">
+              <form action={addComment} className="mt-4 space-y-3">
+                <input type="hidden" name="productId" value={product.id} />
+                <input type="hidden" name="slug" value={product.slug} />
+                <textarea name="body" required maxLength={1000} rows={3} placeholder="Share feedback with the founder" className="input" />
+                <button className="btn-dark">Post comment</button>
+              </form>
+            </Show>
+            <Show when="signed-out">
+              <div className="mt-4 rounded-xl bg-paper p-4 text-sm text-muted">
+                <SignInButton mode="redirect">
+                  <button className="font-semibold text-brand">Sign in</button>
+                </SignInButton>{" "}
+                to leave a comment.
+              </div>
+            </Show>
+
+            {product.comments.length === 0 ? (
+              <p className="mt-5 text-sm text-muted">No comments yet. Say something useful.</p>
+            ) : (
+              <ul className="mt-6 space-y-5">
+                {product.comments.map((c) => (
+                  <li key={c.id} className="flex gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-peacock-soft text-sm font-bold text-peacock">
+                      {(c.user.name || "M")[0].toUpperCase()}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold">
+                        {c.user.name || "Member"} <span className="font-normal text-muted">{timeAgo(c.createdAt)}</span>
+                      </p>
+                      <p className="mt-0.5 whitespace-pre-line text-sm">{c.body}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </div>
-      )}
 
-      <section>
-        <h2 className="font-display text-xl font-semibold">About</h2>
-        <p className="mt-2 max-w-2xl whitespace-pre-line">{product.description}</p>
-      </section>
+        <aside className="space-y-5">
+          <div className="card p-5">
+            <h3 className="font-display text-lg font-bold">Founder</h3>
+            <div className="mt-3 flex items-center gap-3">
+              {product.user.avatarUrl ? (
+                <img src={product.user.avatarUrl} alt="" className="h-11 w-11 rounded-full object-cover" />
+              ) : (
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-soft font-bold text-brand">{founder[0].toUpperCase()}</span>
+              )}
+              <p className="font-semibold">{founder}</p>
+            </div>
+          </div>
 
-      <section className="max-w-2xl">
-        <h2 className="font-display text-xl font-semibold">Comments ({product.comments.length})</h2>
-        <SignedIn>
-          <form action={addComment} className="mt-3 space-y-2">
-            <input type="hidden" name="productId" value={product.id} />
-            <input type="hidden" name="slug" value={product.slug} />
-            <textarea name="body" required maxLength={1000} rows={3} placeholder="Share feedback with the founder"
-              className="w-full rounded-md border border-line bg-white p-2" />
-            <button className="rounded-md bg-ink px-4 py-2 text-white">Post comment</button>
-          </form>
-        </SignedIn>
-        <SignedOut>
-          <p className="mt-3 text-sm text-muted">
-            <SignInButton mode="redirect"><button className="font-medium text-accent">Sign in</button></SignInButton> to comment.
-          </p>
-        </SignedOut>
-        <ul className="mt-4 space-y-3">
-          {product.comments.map((c) => (
-            <li key={c.id} className="rounded-lg border border-line bg-white p-3 text-sm">
-              <p className="font-medium">{c.user.name || "Member"} <span className="font-normal text-muted">{timeAgo(c.createdAt)}</span></p>
-              <p className="mt-1 whitespace-pre-line">{c.body}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
+          <div className="card p-5">
+            <h3 className="font-display text-lg font-bold">Details</h3>
+            <dl className="mt-3 space-y-3 text-sm">
+              {[
+                ["Website", host],
+                ["Category", product.category.name],
+                ["Pricing", product.pricing || "Not listed"],
+                ["Launched", new Date(product.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })],
+              ].map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-4">
+                  <dt className="text-muted">{k}</dt>
+                  <dd className="truncate font-medium">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+
+          {related.length > 0 && (
+            <div className="card p-5">
+              <h3 className="font-display text-lg font-bold">More in {product.category.name}</h3>
+              <ul className="mt-3 space-y-3">
+                {related.map((r) => (
+                  <li key={r.id}>
+                    <Link href={`/products/${r.slug}`} className="flex items-center gap-3">
+                      <ProductLogo product={r} size={36} />
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold">{r.name}</span>
+                        <span className="block truncate text-xs text-muted">{r.tagline}</span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </aside>
+      </div>
     </article>
   );
 }

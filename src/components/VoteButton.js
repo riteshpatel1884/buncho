@@ -1,14 +1,13 @@
 "use client";
 import { useState, useTransition } from "react";
 
-export default function VoteButton({ productId, initialCount, initialVoted }) {
+export default function VoteButton({ productId, initialCount, initialVoted, size = "sm" }) {
   const [count, setCount] = useState(initialCount);
   const [voted, setVoted] = useState(initialVoted);
   const [pending, startTransition] = useTransition();
 
   function toggle(e) {
     e.preventDefault();
-    // optimistic update
     setVoted(!voted);
     setCount(count + (voted ? -1 : 1));
     startTransition(async () => {
@@ -32,17 +31,24 @@ export default function VoteButton({ productId, initialCount, initialVoted }) {
     });
   }
 
+  const big = size === "lg";
   return (
     <button
       onClick={toggle}
       disabled={pending}
       aria-pressed={voted}
       aria-label={voted ? "Remove upvote" : "Upvote"}
-      className={`flex w-14 flex-col items-center rounded-lg border px-2 py-1.5 text-sm font-semibold ${
-        voted ? "border-accent bg-accent text-white" : "border-line bg-white hover:border-accent"
+      className={`flex flex-col items-center rounded-xl border font-semibold transition-colors ${
+        big ? "w-20 gap-1 py-3 text-lg" : "w-14 gap-0.5 py-2 text-sm"
+      } ${
+        voted
+          ? "border-brand bg-brand text-white"
+          : "border-line bg-white text-ink hover:border-brand hover:text-brand"
       }`}
     >
-      <span aria-hidden>▲</span>
+      <svg width={big ? 18 : 14} height={big ? 18 : 14} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <path d="M8 3l6 8H2l6-8z" />
+      </svg>
       {count}
     </button>
   );
