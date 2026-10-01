@@ -4,7 +4,7 @@ import { getOrCreateUser } from "@/lib/user";
 import ProductLogo from "@/components/ProductLogo";
 import CountUp from "@/components/CountUp";
 import StatusBadge from "@/components/StatusBadge";
-
+import LaunchButton from "@/components/LaunchButton";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Dashboard | buncho" };
 
@@ -48,7 +48,6 @@ export default async function Dashboard({ searchParams }) {
           <h1 className="font-display text-3xl font-bold sm:text-4xl">Your dashboard</h1>
           <p className="mt-1 text-muted">See how your launches are doing.</p>
         </div>
-        <Link href="/submit" className="btn-primary">Launch another product</Link>
       </div>
 
       {submitted && (
@@ -70,7 +69,9 @@ export default async function Dashboard({ searchParams }) {
         <div className="card border-dashed p-8 text-center sm:p-10">
           <p className="font-display text-lg font-semibold">You haven't launched anything yet</p>
           <p className="mt-1 text-sm text-muted">Your first product takes about five minutes to submit.</p>
-          <Link href="/submit" className="btn-primary mt-5">Launch a product</Link>
+          <LaunchButton className="!px-4 sm:!px-5">
+                      Launch<span className="hidden sm:inline">&nbsp;a product</span>
+          </LaunchButton>
         </div>
       ) : (
         <>
