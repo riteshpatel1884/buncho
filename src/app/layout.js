@@ -15,6 +15,8 @@ export const metadata = {
   description: "Discover, upvote and launch products built by Indian indie hackers and SaaS founders.",
 };
 
+export const viewport = { themeColor: "#050505", colorScheme: "dark" };
+
 export default function RootLayout({ children }) {
   return (
     <ClerkProvider>

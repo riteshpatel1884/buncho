@@ -67,10 +67,10 @@ export default async function Home({ searchParams }) {
   const medal = ["bg-gold text-on-brand", "bg-[#d5dbea] text-on-brand", "bg-[#f0b58a] text-on-brand"];
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-10 sm:space-y-12">
       {/* Hero */}
       <section
-        className="glow relative grid gap-10 overflow-hidden rounded-3xl bg-navy p-8 text-white sm:p-12 lg:grid-cols-[1.2fr_1fr] lg:items-center"
+        className="glow relative grid grid-cols-1 gap-10 overflow-hidden rounded-3xl bg-navy p-6 text-white sm:p-10 lg:p-12 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:items-center"
         style={{ backgroundImage: "radial-gradient(circle at 88% 8%, rgba(52,214,123,0.22), transparent 42%)" }}
       >
         <div aria-hidden="true" className="dots pointer-events-none absolute inset-0" />
@@ -141,7 +141,7 @@ export default async function Home({ searchParams }) {
 
       {/* Just launched ticker */}
       {tickerItems.length > 0 && (
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
           <span className="flex shrink-0 items-center gap-2 text-sm font-semibold">
             <span className="relative flex h-2.5 w-2.5">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-70" />
@@ -167,11 +167,11 @@ export default async function Home({ searchParams }) {
       )}
 
       {/* Browse */}
-      <section className="grid gap-8 lg:grid-cols-[1fr_320px]">
+      <section className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-5">
           <CategoryFilter categories={categories} active={category} sort={sort} q={q} />
 
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-display text-2xl font-bold">
               {q ? `Results for "${q}"` : "Products"}
             </h2>
@@ -203,13 +203,13 @@ export default async function Home({ searchParams }) {
           )}
         </div>
 
-        <aside className="rise space-y-5" style={{ "--i": 3 }}>
+        <aside className="rise grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-1" style={{ "--i": 3 }}>
           <div className="rounded-2xl bg-brand-soft p-6">
             <h3 className="font-display text-xl font-bold">Built something?</h3>
             <p className="mt-2 text-sm text-muted">
               Get in front of people who enjoy finding new products. Launching is free and reviewed by hand.
             </p>
-            <Link href="/submit" className="btn-primary mt-4">Launch your product</Link>
+            <Link href="/submit" className="btn-primary btn-ring mt-4">Launch your product</Link>
           </div>
 
           <div className="card p-5">
@@ -236,9 +236,9 @@ export default async function Home({ searchParams }) {
       </section>
 
       {/* How it works */}
-      <section className="card reveal p-8 sm:p-10">
+      <section className="card reveal p-6 sm:p-10">
         <h2 className="font-display text-2xl font-bold">How launching works</h2>
-        <ol className="mt-6 grid gap-6 sm:grid-cols-3">
+        <ol className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
           {[
             ["Submit", "Add your product with a tagline, link and category. It takes about five minutes."],
             ["We review", "Every submission is checked by a person so the feed stays useful, not spammy."],
@@ -255,7 +255,7 @@ export default async function Home({ searchParams }) {
         </ol>
       </section>
       {/* Why launch */}
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {[
           ["Reach people who browse for new tools", "Visitors explore by category and weekly ranking, so your listing meets people who like trying things.",
             <><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></>],
@@ -275,7 +275,7 @@ export default async function Home({ searchParams }) {
       </section>
 
       {/* Founder call to action */}
-      <section className="aurora reveal relative grid items-center gap-8 overflow-hidden rounded-3xl border border-line bg-surface p-8 sm:p-12 lg:grid-cols-[1.2fr_1fr]">
+      <section className="aurora reveal relative grid grid-cols-1 items-center gap-8 overflow-hidden rounded-3xl border border-line bg-surface p-6 sm:p-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:p-12">
         <div>
           <h2 className="font-display text-3xl font-bold leading-tight sm:text-4xl">Built something? Let people find it.</h2>
           <p className="mt-3 max-w-md text-muted">

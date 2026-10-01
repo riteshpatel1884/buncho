@@ -45,16 +45,16 @@ export default async function Admin({ searchParams }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-4xl font-bold">Moderation</h1>
+        <h1 className="font-display text-3xl font-bold sm:text-4xl">Moderation</h1>
         <p className="mt-1 text-muted">Review submissions and manage what is live.</p>
       </div>
 
-      <div className="flex w-fit rounded-full border border-line bg-surface p-1 text-sm font-medium">
+      <div className="no-scrollbar flex w-full max-w-full overflow-x-auto rounded-full border border-line bg-surface p-1 text-sm font-medium sm:w-fit">
         {TABS.map(([s, label]) => (
           <Link
             key={s}
             href={`/admin?status=${s}`}
-            className={`rounded-full px-4 py-1.5 ${status === s ? "bg-brand text-on-brand" : "text-muted hover:text-ink"}`}
+            className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 sm:px-4 ${status === s ? "bg-brand text-on-brand" : "text-muted hover:text-ink"}`}
           >
             {label} ({count(s)})
           </Link>
@@ -75,7 +75,7 @@ export default async function Admin({ searchParams }) {
                     <span className="text-xs text-muted">submitted {timeAgo(p.createdAt)}</span>
                   </div>
                   <p className="text-sm text-muted">{p.tagline}</p>
-                  <p className="mt-3 whitespace-pre-line text-sm">{p.description}</p>
+                  <p className="mt-3 whitespace-pre-line break-words text-sm">{p.description}</p>
                   <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
                     <span className="rounded-full bg-mint-soft px-2.5 py-0.5 font-medium text-mint">{p.category.name}</span>
                     {p.pricing && <span className="rounded-full border border-line px-2.5 py-0.5 text-muted">{p.pricing}</span>}

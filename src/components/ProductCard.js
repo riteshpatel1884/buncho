@@ -6,7 +6,7 @@ export default function ProductCard({ product, rank, voted = false, index = 0 })
   const comments = product._count.comments ?? 0;
   return (
     <li
-      className="card card-hover glow rise relative flex items-center gap-4 p-4"
+      className="card card-hover glow rise relative flex items-center gap-3 p-3 sm:gap-4 sm:p-4"
       style={{ "--i": Math.min(index, 8) }}
     >
       {rank && (
@@ -22,7 +22,7 @@ export default function ProductCard({ product, rank, voted = false, index = 0 })
       <div className="min-w-0 flex-1">
         <Link
           href={`/products/${product.slug}`}
-          className="font-display text-lg font-semibold leading-tight after:absolute after:inset-0"
+          className="font-display text-base font-semibold leading-tight sm:text-lg after:absolute after:inset-0"
         >
           {product.name}
         </Link>

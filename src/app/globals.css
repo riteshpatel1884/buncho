@@ -27,11 +27,22 @@
   color-scheme: dark;
 }
 
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2b3a31 transparent;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
 body {
   background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
 }
 
 ::selection {
@@ -83,10 +94,6 @@ body {
 @keyframes shimmer {
   to { background-position: 200% center; }
 }
-@keyframes sweep {
-  from { transform: translateX(-120%) skewX(-20deg); }
-  to { transform: translateX(380%) skewX(-20deg); }
-}
 
 /* Staggered entrance. Use style={{ "--i": n }} for the delay order. */
 .rise {
@@ -116,36 +123,33 @@ body {
   }
 }
 
-/* Buttons: lift, glow, press, and a light sweep on the main button */
+/* Buttons: lift, glow and press */
 .btn-primary,
 .btn-dark,
 .btn-outline {
   transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
 }
 .btn-primary { position: relative; overflow: hidden; }
-.btn-primary::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  width: 35%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
-  transform: translateX(-120%) skewX(-20deg);
-  pointer-events: none;
-}
+@media (hover: hover) {
 .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 28px -8px rgba(52, 214, 123, 0.6); }
-.btn-primary:hover::after { animation: sweep 0.7s ease; }
+}
+
+@media (hover: hover) {
 .btn-dark:hover,
 .btn-outline:hover { transform: translateY(-2px); }
+}
 .btn-primary:active,
 .btn-dark:active,
 .btn-outline:active { transform: scale(0.97); }
 
 /* Cards that respond to hover */
 .card-hover { transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease; }
+@media (hover: hover) {
 .card-hover:hover {
   transform: translateY(-3px);
   border-color: rgba(52, 214, 123, 0.45);
   box-shadow: 0 14px 30px -14px rgba(52, 214, 123, 0.35);
+}
 }
 
 /* Nav links with a sliding underline */
@@ -154,15 +158,11 @@ body {
   padding-bottom: 3px;
   transition: background-size 0.25s ease, color 0.2s ease;
 }
+@media (hover: hover) {
 .link-underline:hover { background-size: 100% 2px; }
+}
 
 /* ---------- Advanced motion (all light: transform and opacity) ---------- */
-@property --angle {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 0deg;
-}
-@keyframes spin-angle { to { --angle: 360deg; } }
 @keyframes marquee { to { transform: translateX(-50%); } }
 @keyframes aurora { to { background-position: 100% 100%; } }
 @keyframes bob {
@@ -184,8 +184,10 @@ body {
 }
 
 /* Spotlight that follows the cursor (position set by PointerGlow) */
+@media (hover: hover) {
 .glow:hover {
   background-image: radial-gradient(280px circle at var(--mx, 50%) var(--my, 50%), rgba(52, 214, 123, 0.12), transparent 65%);
+}
 }
 .spot {
   position: absolute;
@@ -195,7 +197,9 @@ body {
   transition: opacity 0.3s ease;
   background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, 0.09), transparent 60%);
 }
+@media (hover: hover) {
 .glow:hover > .spot { opacity: 1; }
+}
 
 /* Hero texture */
 .dots {
@@ -212,19 +216,7 @@ body {
   animation: aurora 14s ease-in-out infinite alternate;
 }
 
-/* Rotating light border on the main call to action */
-.btn-ring {
-  border: 2px solid transparent;
-  background:
-    linear-gradient(var(--color-brand), var(--color-brand)) padding-box,
-    conic-gradient(from var(--angle), transparent 0 55%, #ffffff 78%, transparent 100%) border-box;
-  animation: spin-angle 3.5s linear infinite;
-}
-.btn-ring:hover {
-  background:
-    linear-gradient(var(--color-brand-dark), var(--color-brand-dark)) padding-box,
-    conic-gradient(from var(--angle), transparent 0 55%, #ffffff 78%, transparent 100%) border-box;
-}
+
 
 /* Just-launched ticker */
 .marquee { animation: marquee 45s linear infinite; }
@@ -266,6 +258,28 @@ body {
     animation: navshadow linear both;
     animation-timeline: scroll();
     animation-range: 0 120px;
+  }
+}
+
+/* Green light that travels around the border of the main launch buttons */
+@property --angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes spin-angle { to { --angle: 360deg; } }
+.btn-ring {
+  border: 2px solid transparent;
+  background:
+    linear-gradient(var(--color-brand), var(--color-brand)) padding-box,
+    conic-gradient(from var(--angle), transparent 0 50%, rgba(52, 214, 123, 0.55) 70%, #7dffb2 88%, transparent 100%) border-box;
+  animation: spin-angle 3.5s linear infinite;
+}
+@media (hover: hover) {
+  .btn-ring:hover {
+    background:
+      linear-gradient(var(--color-brand-dark), var(--color-brand-dark)) padding-box,
+      conic-gradient(from var(--angle), transparent 0 50%, rgba(52, 214, 123, 0.55) 70%, #7dffb2 88%, transparent 100%) border-box;
   }
 }
 

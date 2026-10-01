@@ -9,14 +9,14 @@ export default async function SubmitPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-display text-4xl font-bold">Launch your product</h1>
+        <h1 className="font-display text-3xl font-bold sm:text-4xl">Launch your product</h1>
         <p className="mt-2 max-w-xl text-muted">Tell people what you built. We review every submission by hand before it goes live.</p>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
         <SubmitForm categories={categories} />
 
-        <aside className="space-y-5">
+        <aside className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-1">
           <div className="card p-5">
             <h2 className="font-display text-lg font-bold">What happens next</h2>
             <ol className="mt-3 space-y-3 text-sm text-muted">

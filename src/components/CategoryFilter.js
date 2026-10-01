@@ -14,7 +14,7 @@ export default function CategoryFilter({ categories, active, sort, q }) {
       on ? "border-brand bg-brand text-on-brand" : "border-line bg-surface text-muted hover:border-ink hover:text-ink"
     }`;
   return (
-    <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+    <div className="-mx-4 no-scrollbar flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
       <Link href={href(null)} className={chip(!active)}>All</Link>
       {categories.map((c) => (
         <Link key={c.id} href={href(c.slug)} className={chip(active === c.slug)}>

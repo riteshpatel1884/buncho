@@ -34,7 +34,7 @@ export default function SubmitForm({ categories }) {
   }
 
   return (
-    <form onSubmit={onSubmit} onChange={onChange} className="card space-y-8 p-6 sm:p-8">
+    <form onSubmit={onSubmit} onChange={onChange} className="card space-y-8 p-5 sm:p-8">
       <div className="space-y-2">
         <div className="flex justify-between text-xs text-muted">
           <span>{filled === REQUIRED.length ? "Ready to submit" : "Listing strength"}</span>
@@ -55,7 +55,7 @@ export default function SubmitForm({ categories }) {
         <Field label="Description" hint="At least 30 characters. Who is it for, and what problem does it solve?">
           <textarea name="description" required rows={6} className="input" />
         </Field>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Category">
             <select name="categoryId" required defaultValue="" className="input">
               <option value="" disabled>Choose one</option>
@@ -95,9 +95,9 @@ export default function SubmitForm({ categories }) {
         <p role="alert" className="rounded-xl bg-red-500/10 p-3 text-sm text-red-300">{state.error}</p>
       )}
 
-      <div className="flex items-center justify-between gap-4 border-t border-line pt-6">
+      <div className="flex flex-col-reverse gap-4 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-muted">You can have up to 3 products in review at a time.</p>
-        <button disabled={pending} className="btn-primary">{pending ? (<><Spinner />Submitting</>) : "Submit for review"}</button>
+        <button disabled={pending} className="btn-primary w-full sm:w-auto">{pending ? (<><Spinner />Submitting</>) : "Submit for review"}</button>
       </div>
     </form>
   );

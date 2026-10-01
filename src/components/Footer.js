@@ -3,8 +3,8 @@ import Link from "next/link";
 export default function Footer() {
   return (
     <footer className="border-t border-line bg-surface">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-[1.5fr_1fr_1fr] sm:px-6">
-        <div>
+      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-8 px-4 py-10 sm:px-6 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="col-span-2 md:col-span-1">
           <p className="font-display text-lg font-bold">buncho<span className="text-brand">.</span></p>
           <p className="mt-2 max-w-xs text-sm text-muted">
             A home for products built by Indian founders, and the people who like finding them.

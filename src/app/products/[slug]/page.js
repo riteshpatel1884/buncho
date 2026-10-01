@@ -53,27 +53,29 @@ export default async function ProductPage({ params }) {
     <article className="space-y-8">
       <Link href="/" className="text-sm font-medium text-muted hover:text-ink">Back to all products</Link>
 
-      <header className="card glow rise flex flex-col gap-6 p-6 sm:flex-row sm:items-center sm:p-8">
+      <header className="card glow rise relative flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-8">
         <ProductLogo product={product} size={88} />
         <div className="min-w-0 flex-1">
-          <h1 className="font-display text-3xl font-bold leading-tight">{product.name}</h1>
-          <p className="mt-1 text-lg text-muted">{product.tagline}</p>
+          <h1 className="font-display text-2xl font-bold leading-tight sm:text-3xl">{product.name}</h1>
+          <p className="mt-1 text-base text-muted sm:text-lg">{product.tagline}</p>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-medium">
             <span className="rounded-full bg-mint-soft px-3 py-1 text-mint">{product.category.name}</span>
             {product.pricing && <span className="rounded-full border border-line px-3 py-1 text-muted">{product.pricing}</span>}
             <span className="rounded-full border border-line px-3 py-1 text-muted">🇮🇳 Built in India</span>
           </div>
-          <a href={`/go/${product.slug}`} target="_blank" rel="noopener" className="btn-primary group mt-5">
-            Visit {host}
+          <a href={`/go/${product.slug}`} target="_blank" rel="noopener" className="btn-primary group mt-5 max-w-full">
+            <span className="truncate">Visit {host}</span>
             <svg className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M3 8h10M9 4l4 4-4 4" />
             </svg>
           </a>
         </div>
-        <VoteButton productId={product.id} initialCount={product._count.votes} initialVoted={voted} size="lg" />
+        <div className="absolute right-4 top-4 sm:static">
+          <VoteButton productId={product.id} initialCount={product._count.votes} initialVoted={voted} size="lg" />
+        </div>
       </header>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-8">
           {product.screenshots.length > 0 && (
             <div className="flex gap-3 overflow-x-auto pb-2">
@@ -130,7 +132,7 @@ export default async function ProductPage({ params }) {
           </section>
         </div>
 
-        <aside className="space-y-5">
+        <aside className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-1">
           <div className="card p-5">
             <h3 className="font-display text-lg font-bold">Founder</h3>
             <div className="mt-3 flex items-center gap-3">
