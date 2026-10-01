@@ -5,6 +5,7 @@ import { timeAgo } from "@/lib/utils";
 import ProductCard from "@/components/ProductCard";
 import ProductLogo from "@/components/ProductLogo";
 import CountUp from "@/components/CountUp";
+import LaunchButton from "@/components/LaunchButton";
 import RotatingWord from "@/components/RotatingWord";
 import CategoryFilter from "@/components/CategoryFilter";
 
@@ -96,7 +97,7 @@ export default async function Home({ searchParams }) {
             <button className="btn-primary shrink-0">Search</button>
           </form>
           <div className="mt-5 flex flex-wrap items-center gap-4">
-            <Link href="/submit" className="btn-primary btn-ring">Launch your product</Link>
+            <LaunchButton />
             <span className="text-sm text-on-navy">Free to list, reviewed by hand</span>
           </div>
           <p className="mt-6 text-sm text-on-navy">
@@ -209,7 +210,7 @@ export default async function Home({ searchParams }) {
             <p className="mt-2 text-sm text-muted">
               Get in front of people who enjoy finding new products. Launching is free and reviewed by hand.
             </p>
-            <Link href="/submit" className="btn-primary btn-ring mt-4">Launch your product</Link>
+            <LaunchButton className="mt-4" />
           </div>
 
           <div className="card p-5">
@@ -281,7 +282,7 @@ export default async function Home({ searchParams }) {
           <p className="mt-3 max-w-md text-muted">
             Launching is free, reviewed by hand, and usually live within a day. Add your product in about five minutes.
           </p>
-          <Link href="/submit" className="btn-primary btn-ring mt-6">Launch your product</Link>
+          <LaunchButton className="mt-6" />
         </div>
         <div aria-hidden="true" className="relative mx-auto hidden h-52 w-full max-w-sm lg:block">
           {[

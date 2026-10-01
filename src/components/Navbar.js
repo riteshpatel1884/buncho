@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 import { isAdmin } from "@/lib/user";
 import MobileMenu from "./MobileMenu";
+import LaunchButton from "./LaunchButton";
 
 export default async function Navbar() {
   const admin = await isAdmin();
@@ -31,9 +32,9 @@ export default async function Navbar() {
               <button className="hidden text-muted hover:text-ink md:block">Sign in</button>
             </SignInButton>
           </Show>
-          <Link href="/submit" className="btn-primary btn-ring !px-4 sm:!px-5">
+          <LaunchButton className="!px-4 sm:!px-5">
             Launch<span className="hidden sm:inline">&nbsp;a product</span>
-          </Link>
+          </LaunchButton>
 
           <MobileMenu>
             <div className="flex flex-col">

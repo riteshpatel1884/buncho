@@ -129,7 +129,7 @@ body {
 .btn-outline {
   transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
 }
-.btn-primary { position: relative; overflow: hidden; }
+.btn-primary { position: relative; }
 @media (hover: hover) {
 .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 28px -8px rgba(52, 214, 123, 0.6); }
 }
@@ -261,26 +261,109 @@ body {
   }
 }
 
-/* Green light that travels around the border of the main launch buttons */
+/* Launch buttons: two comets of green light orbit the border, with a soft bloom that follows them */
 @property --angle {
   syntax: "<angle>";
   inherits: false;
   initial-value: 0deg;
 }
 @keyframes spin-angle { to { --angle: 360deg; } }
+@keyframes bloom {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 0.85; }
+}
 .btn-ring {
+  --ring: conic-gradient(
+    from var(--angle),
+    transparent 0%,
+    rgba(52, 214, 123, 0.2) 10%,
+    rgba(52, 214, 123, 0.85) 24%,
+    #b8ffd5 31%,
+    transparent 33%,
+    transparent 50%,
+    rgba(45, 212, 191, 0.2) 60%,
+    rgba(45, 212, 191, 0.85) 74%,
+    #b3fff0 81%,
+    transparent 83%,
+    transparent 100%
+  );
+  position: relative;
+  isolation: isolate;
   border: 2px solid transparent;
   background:
-    linear-gradient(var(--color-brand), var(--color-brand)) padding-box,
-    conic-gradient(from var(--angle), transparent 0 50%, rgba(52, 214, 123, 0.55) 70%, #7dffb2 88%, transparent 100%) border-box;
-  animation: spin-angle 3.5s linear infinite;
+    var(--ring) border-box,
+    linear-gradient(rgba(52, 214, 123, 0.22), rgba(52, 214, 123, 0.22)) border-box;
+  animation: spin-angle 4s linear infinite;
+}
+/* soft light that rides along with the comets */
+.btn-ring::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  z-index: -1;
+  border-radius: 9999px;
+  background: var(--ring);
+  filter: blur(9px);
+  opacity: 0.55;
+  transition: inset 0.3s ease, filter 0.3s ease;
+  animation: bloom 3s ease-in-out infinite;
+}
+/* the button face, with a light top edge for depth */
+.btn-ring::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, #52ea98 0%, #2dc772 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition: filter 0.2s ease;
 }
 @media (hover: hover) {
-  .btn-ring:hover {
-    background:
-      linear-gradient(var(--color-brand-dark), var(--color-brand-dark)) padding-box,
-      conic-gradient(from var(--angle), transparent 0 50%, rgba(52, 214, 123, 0.55) 70%, #7dffb2 88%, transparent 100%) border-box;
-  }
+  .btn-ring:hover::before { inset: -9px; filter: blur(12px); }
+  .btn-ring:hover::after { filter: brightness(1.1); }
+}
+
+/* Inside the launch button: a soft sheen and an animated rocket */
+@keyframes shine {
+  0%, 55% { transform: translateX(-140%) skewX(-18deg); }
+  100% { transform: translateX(360%) skewX(-18deg); }
+}
+@keyframes rocket-idle {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(1.5px, -2px); }
+}
+@keyframes rocket-rev {
+  from { transform: translate(2px, -2px) rotate(4deg); }
+  to { transform: translate(3.5px, -3.5px) rotate(10deg); }
+}
+.launch-shine {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.launch-shine::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 38%;
+  background: linear-gradient(100deg, transparent, rgba(214, 255, 232, 0.5), transparent);
+  transform: translateX(-140%) skewX(-18deg);
+  animation: shine 4.5s ease-in-out infinite;
+}
+.launch-rocket { animation: rocket-idle 2.4s ease-in-out infinite; }
+@media (hover: hover) {
+  .btn-launch:hover .launch-rocket { animation: rocket-rev 0.3s ease-in-out infinite alternate; }
+}
+.btn-launch:active .launch-rocket {
+  animation: none;
+  transform: translate(14px, -14px) scale(0.6);
+  opacity: 0;
+  transition: transform 0.3s ease-in, opacity 0.3s ease-in;
 }
 
 @media (prefers-reduced-motion: reduce) {
