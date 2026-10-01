@@ -1,6 +1,7 @@
 import Link from "next/link";
 import VoteButton from "./VoteButton";
 import ProductLogo from "./ProductLogo";
+import VerifiedBadge from "./VerifiedBadge";
 
 export default function ProductCard({ product, rank, voted = false, index = 0 }) {
   const comments = product._count.comments ?? 0;
@@ -20,16 +21,20 @@ export default function ProductCard({ product, rank, voted = false, index = 0 })
       )}
       <ProductLogo product={product} size={56} />
       <div className="min-w-0 flex-1">
-        <Link
-          href={`/products/${product.slug}`}
-          className="font-display text-base font-semibold leading-tight sm:text-lg after:absolute after:inset-0"
-        >
-          {product.name}
-        </Link>
+        <div className="flex items-center gap-1.5">
+          <Link
+            href={`/products/${product.slug}`}
+            className="truncate font-display text-base font-semibold leading-tight after:absolute after:inset-0 sm:text-lg"
+          >
+            {product.name}
+          </Link>
+          {product.verified && <VerifiedBadge />}
+        </div>
         <p className="truncate text-sm text-muted">{product.tagline}</p>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
           <span className="rounded-full bg-mint-soft px-2.5 py-0.5 font-medium text-mint">{product.category.name}</span>
           {product.pricing && <span className="rounded-full border border-line px-2.5 py-0.5 text-muted">{product.pricing}</span>}
+          <span className="text-muted">Score {(product.score ?? 0).toFixed(1)}</span>
           <span className="text-muted">{comments} {comments === 1 ? "comment" : "comments"}</span>
         </div>
       </div>

@@ -11,9 +11,12 @@ export async function POST(req) {
 
   const product = await prisma.product.findFirst({
     where: { id: productId, status: "APPROVED" },
-    select: { id: true },
+    select: { id: true, userId: true },
   });
   if (!product) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (product.userId === user.id) {
+    return NextResponse.json({ error: "You can't upvote your own product" }, { status: 403 });
+  }
 
   const key = { userId_productId: { userId: user.id, productId } };
   const existing = await prisma.vote.findUnique({ where: key });
@@ -22,7 +25,7 @@ export async function POST(req) {
     if (existing) await prisma.vote.delete({ where: key });
     else await prisma.vote.create({ data: { userId: user.id, productId } });
   } catch {
-    // double-click race: unique constraint already protects data integrity
+    // double-click race: the unique constraint already protects data integrity
   }
 
   const count = await prisma.vote.count({ where: { productId } });

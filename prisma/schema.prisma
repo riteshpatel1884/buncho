@@ -19,6 +19,12 @@ enum EventType {
   CLICK
 }
 
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
 model User {
   id          String    @id @default(cuid())
   clerkUserId String    @unique
@@ -26,10 +32,14 @@ model User {
   username    String?   @unique
   email       String    @unique
   avatarUrl   String?
+  verified    Boolean   @default(false)
+  verifiedAt  DateTime?
   createdAt   DateTime  @default(now())
   products    Product[]
   votes       Vote[]
   comments    Comment[]
+  payments    Payment[]
+  dailyPicks  DailyPick[]
 }
 
 model Category {
@@ -54,16 +64,31 @@ model Product {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
+  // Verification (paid, no effect on ranking)
+  verified   Boolean   @default(false)
+  verifiedAt DateTime?
+
+  // Buncho Score (behaviour only)
+  score          Float     @default(0)
+  scoreData      Json?
+  scoreUpdatedAt DateTime?
+
+  // Daily Pick rotation
+  lastPickedAt DateTime?
+
   userId     String
   user       User     @relation(fields: [userId], references: [id])
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id])
 
-  votes    Vote[]
-  comments Comment[]
-  events   ProductEvent[]
+  votes      Vote[]
+  comments   Comment[]
+  events     ProductEvent[]
+  dailyPicks DailyPick[]
+  payments   Payment[]
 
   @@index([status, createdAt])
+  @@index([status, score])
 }
 
 model Vote {
@@ -88,11 +113,46 @@ model Comment {
 }
 
 model ProductEvent {
-  id        String    @id @default(cuid())
-  type      EventType
-  productId String
-  createdAt DateTime  @default(now())
-  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  type        EventType
+  productId   String
+  visitorHash String?
+  createdAt   DateTime  @default(now())
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  @@index([productId, type])
+  @@index([productId, type, createdAt])
+}
+
+// One row per calendar day (India time). Each founder gets one turn per round.
+model DailyPick {
+  id        String   @id @default(cuid())
+  day       String   @unique
+  round     Int
+  startsAt  DateTime
+  endsAt    DateTime
+  createdAt DateTime @default(now())
+  productId String
+  userId    String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([round, userId])
+}
+
+model Payment {
+  id         String        @id @default(cuid())
+  provider   String        @default("dodo")
+  providerId String?       @unique // Dodo payment_id, set by the webhook
+  sessionId  String?       @unique // Dodo checkout session id
+  status     PaymentStatus @default(PENDING)
+  amount     Int           @default(49)
+  currency   String        @default("INR")
+  createdAt  DateTime      @default(now())
+  paidAt     DateTime?
+  userId     String
+  productId  String
+  user       User          @relation(fields: [userId], references: [id])
+  product    Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([userId, productId])
 }

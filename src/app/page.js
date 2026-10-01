@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getDbUser } from "@/lib/user";
+import { ensureFreshScores } from "@/lib/score";
+import { getTodaysPick } from "@/lib/dailyPick";
+import DailyPickCard from "@/components/DailyPickCard";
+import VerifiedBadge from "@/components/VerifiedBadge";
 import { timeAgo } from "@/lib/utils";
 import ProductCard from "@/components/ProductCard";
 import ProductLogo from "@/components/ProductLogo";
@@ -12,10 +16,10 @@ import CategoryFilter from "@/components/CategoryFilter";
 export const dynamic = "force-dynamic";
 
 export default async function Home({ searchParams }) {
-  const { q, category, sort = "week" } = await searchParams;
-  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const { q, category, sort = "top" } = await searchParams;
+  await ensureFreshScores();
 
-  const [all, categories, user, weekly, voteCount, clickCount] = await Promise.all([
+  const [all, categories, user, pick, voteCount, clickCount] = await Promise.all([
     prisma.product.findMany({
       where: { status: "APPROVED" },
       orderBy: { createdAt: "desc" },
@@ -24,16 +28,13 @@ export default async function Home({ searchParams }) {
     }),
     prisma.category.findMany({ orderBy: { name: "asc" } }),
     getDbUser(),
-    prisma.vote.groupBy({ by: ["productId"], where: { createdAt: { gte: weekAgo } }, _count: { _all: true } }),
+    getTodaysPick(),
     prisma.vote.count(),
     prisma.productEvent.count({ where: { type: "CLICK" } }),
   ]);
 
-  const weeklyMap = new Map(weekly.map((w) => [w.productId, w._count._all]));
-  const wv = (p) => weeklyMap.get(p.id) ?? 0;
-
-  const byWeek = [...all].sort((a, b) => wv(b) - wv(a) || b._count.votes - a._count.votes);
-  const podium = byWeek.slice(0, 3);
+  const byScore = (a, b) => b.score - a.score || b._count.votes - a._count.votes;
+  const podium = [...all].sort(byScore).slice(0, 3);
   const fresh = all.slice(0, 5);
 
   let list = all.filter((p) => {
@@ -44,8 +45,12 @@ export default async function Home({ searchParams }) {
     }
     return true;
   });
-  if (sort === "all") list = list.sort((a, b) => b._count.votes - a._count.votes);
-  else if (sort === "week") list = list.sort((a, b) => wv(b) - wv(a) || b._count.votes - a._count.votes);
+  if (sort === "votes") list = list.sort((a, b) => b._count.votes - a._count.votes);
+  else if (sort !== "new") list = list.sort(byScore);
+
+  const pickVoted = user && pick
+    ? !!(await prisma.vote.findUnique({ where: { userId_productId: { userId: user.id, productId: pick.productId } } }))
+    : false;
 
   const votedIds = new Set();
   if (user && list.length) {
@@ -62,7 +67,7 @@ export default async function Home({ searchParams }) {
     if (q) p.set("q", q);
     return `/?${p.toString()}`;
   };
-  const tabs = [["week", "This week"], ["all", "All time"], ["new", "Newest"]];
+  const tabs = [["top", "Top ranked"], ["votes", "Most upvoted"], ["new", "Newest"]];
   const recent = all.slice(0, 10);
   const tickerItems = recent.length === 0 ? [] : Array.from({ length: Math.max(1, Math.ceil(8 / recent.length)) }).flatMap(() => recent);
   const medal = ["bg-gold text-on-brand", "bg-[#d5dbea] text-on-brand", "bg-[#f0b58a] text-on-brand"];
@@ -113,9 +118,9 @@ export default async function Home({ searchParams }) {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-70" />
                 <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-brand" />
               </span>
-              Top this week
+              Top ranked
             </h2>
-            <span className="text-xs text-muted">Rolling 7 days</span>
+            <span className="text-xs text-muted">By Buncho Score</span>
           </div>
           {podium.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted">No launches yet. Yours could be first.</p>
@@ -127,10 +132,10 @@ export default async function Home({ searchParams }) {
                     <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold ${medal[i]} ${i === 0 ? "medal-glow" : ""}`}>{i + 1}</span>
                     <ProductLogo product={p} size={40} />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold">{p.name}</span>
+                      <span className="flex items-center gap-1.5 font-semibold"><span className="truncate">{p.name}</span>{p.verified && <VerifiedBadge className="h-4 w-4" />}</span>
                       <span className="block truncate text-xs text-muted">{p.tagline}</span>
                     </span>
-                    <span className="text-sm font-semibold text-brand">{wv(p)}</span>
+                    <span className="text-sm font-semibold text-brand">{p.score.toFixed(1)}</span>
                   </Link>
                 </li>
               ))}
@@ -139,6 +144,7 @@ export default async function Home({ searchParams }) {
         </div>
       </section>
 
+      {pick && <DailyPickCard pick={pick} voted={pickVoted} />}
 
       {/* Just launched ticker */}
       {tickerItems.length > 0 && (
@@ -188,6 +194,11 @@ export default async function Home({ searchParams }) {
               ))}
             </div>
           </div>
+
+          <p className="text-sm text-muted">
+            Ranked by Buncho Score, which money can't change.{" "}
+            <Link href="/ranking" className="font-medium text-brand hover:underline">How it works</Link>
+          </p>
 
           {list.length === 0 ? (
             <div className="card border-dashed p-10 text-center">
@@ -243,7 +254,7 @@ export default async function Home({ searchParams }) {
           {[
             ["Submit", "Add your product with a tagline, link and category. It takes about five minutes."],
             ["We review", "Every submission is checked by a person so the feed stays useful, not spammy."],
-            ["Collect upvotes", "Go live, climb the weekly ranking, and see views and clicks on your dashboard."],
+            ["Climb the ranking", "Go live, enter the Daily Pick rotation, and rise by what real people do. See your score breakdown on your dashboard."],
           ].map(([t, d], i) => (
             <li key={t} className="flex gap-4">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-mint-soft font-display font-bold text-mint">{i + 1}</span>
@@ -258,11 +269,11 @@ export default async function Home({ searchParams }) {
       {/* Why launch */}
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {[
-          ["Reach people who browse for new tools", "Visitors explore by category and weekly ranking, so your listing meets people who like trying things.",
+          ["Reach people who browse for new tools", "Visitors explore by category and ranking, and every founder gets a turn as the Daily Pick, free.",
             <><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></>],
           ["See what is working", "Views, clicks and click rate for every product, right on your dashboard.",
             <path d="M4 20V10M10 20V4M16 20v-8M22 20H2" />],
-          ["Earn a badge worth sharing", "Climb into the weekly top three and show your audience the proof.",
+          ["Rank on merit, not money", "Your Buncho Score comes only from real behaviour. A ₹49 verification adds a tick, never rank.",
             <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z" />],
         ].map(([title, text, icon]) => (
           <div key={title} className="card card-hover glow p-6">

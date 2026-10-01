@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { recordEvent } from "@/lib/events";
 
-// Tracks an outbound click, then redirects to the product website.
-export async function GET(_req, { params }) {
+// Counts an outbound click (bots, the founder and repeat clicks are ignored), then redirects.
+export async function GET(req, { params }) {
   const { slug } = await params;
   const product = await prisma.product.findFirst({
     where: { slug, status: "APPROVED" },
-    select: { id: true, websiteUrl: true },
+    select: { id: true, userId: true, websiteUrl: true },
   });
-  if (!product) return NextResponse.redirect(new URL("/", _req.url));
+  if (!product) return NextResponse.redirect(new URL("/", req.url));
 
-  await prisma.productEvent.create({ data: { type: "CLICK", productId: product.id } });
+  await recordEvent(product, "CLICK");
   return NextResponse.redirect(product.websiteUrl);
 }

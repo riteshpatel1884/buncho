@@ -4,6 +4,10 @@ import { Show, SignInButton } from "@clerk/nextjs";
 import { prisma } from "@/lib/prisma";
 import { getDbUser } from "@/lib/user";
 import { timeAgo } from "@/lib/utils";
+import { ensureFreshScores } from "@/lib/score";
+import { recordEvent } from "@/lib/events";
+import VerifiedBadge from "@/components/VerifiedBadge";
+import ScoreCard from "@/components/ScoreCard";
 import VoteButton from "@/components/VoteButton";
 import SubmitButton from "@/components/SubmitButton";
 import ProductLogo from "@/components/ProductLogo";
@@ -19,11 +23,12 @@ export async function generateMetadata({ params }) {
 
 export default async function ProductPage({ params }) {
   const { slug } = await params;
+  await ensureFreshScores();
   const product = await prisma.product.findFirst({
     where: { slug, status: "APPROVED" },
     include: {
       category: true,
-      user: { select: { name: true, username: true, avatarUrl: true } },
+      user: { select: { name: true, username: true, avatarUrl: true, verified: true } },
       _count: { select: { votes: true } },
       comments: { orderBy: { createdAt: "desc" }, take: 50, include: { user: { select: { name: true } } } },
     },
@@ -43,7 +48,8 @@ export default async function ProductPage({ params }) {
     ? !!(await prisma.vote.findUnique({ where: { userId_productId: { userId: user.id, productId: product.id } } }))
     : false;
 
-  await prisma.productEvent.create({ data: { type: "VIEW", productId: product.id } });
+  await recordEvent(product, "VIEW");
+  const rank = (await prisma.product.count({ where: { status: "APPROVED", score: { gt: product.score } } })) + 1;
 
   const founder = product.user.name || product.user.username || "Founder";
   let host = product.websiteUrl;
@@ -56,12 +62,16 @@ export default async function ProductPage({ params }) {
       <header className="card glow rise relative flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-8">
         <ProductLogo product={product} size={88} />
         <div className="min-w-0 flex-1">
-          <h1 className="font-display text-2xl font-bold leading-tight sm:text-3xl">{product.name}</h1>
+          <h1 className="flex flex-wrap items-center gap-2 font-display text-2xl font-bold leading-tight sm:text-3xl">
+            {product.name}
+            {product.verified && <VerifiedBadge className="h-6 w-6" label="Verified product" />}
+          </h1>
           <p className="mt-1 text-base text-muted sm:text-lg">{product.tagline}</p>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-medium">
             <span className="rounded-full bg-mint-soft px-3 py-1 text-mint">{product.category.name}</span>
             {product.pricing && <span className="rounded-full border border-line px-3 py-1 text-muted">{product.pricing}</span>}
             <span className="rounded-full border border-line px-3 py-1 text-muted">🇮🇳 Built in India</span>
+            {product.user.verified && <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-muted"><VerifiedBadge className="h-4 w-4" label="Verified founder" /> Verified founder</span>}
           </div>
           <a href={`/go/${product.slug}`} target="_blank" rel="noopener" className="btn-primary group mt-5 max-w-full">
             <span className="truncate">Visit {host}</span>
@@ -133,6 +143,7 @@ export default async function ProductPage({ params }) {
         </div>
 
         <aside className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-1">
+          <ScoreCard score={product.score} data={product.scoreData} rank={rank} className="card p-5 sm:col-span-2 lg:col-span-1" />
           <div className="card p-5">
             <h3 className="font-display text-lg font-bold">Founder</h3>
             <div className="mt-3 flex items-center gap-3">

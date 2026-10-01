@@ -15,6 +15,7 @@ export default function Footer() {
           <Link href="/" className="block text-muted hover:text-ink">Discover products</Link>
           <Link href="/submit" className="block text-muted hover:text-ink">Launch a product</Link>
           <Link href="/dashboard" className="block text-muted hover:text-ink">Founder dashboard</Link>
+          <Link href="/ranking" className="block text-muted hover:text-ink">How ranking works</Link>
         </div>
         <div className="space-y-2 text-sm">
           <p className="font-semibold">Account</p>
