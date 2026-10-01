@@ -10,7 +10,7 @@ export default function CategoryFilter({ categories, active, sort, q }) {
     return s ? `/?${s}` : "/";
   };
   const chip = (on) =>
-    `shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+    `shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition duration-200 hover:-translate-y-0.5 active:scale-95 ${
       on ? "border-brand bg-brand text-on-brand" : "border-line bg-surface text-muted hover:border-ink hover:text-ink"
     }`;
   return (

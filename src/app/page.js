@@ -4,6 +4,8 @@ import { getDbUser } from "@/lib/user";
 import { timeAgo } from "@/lib/utils";
 import ProductCard from "@/components/ProductCard";
 import ProductLogo from "@/components/ProductLogo";
+import CountUp from "@/components/CountUp";
+import RotatingWord from "@/components/RotatingWord";
 import CategoryFilter from "@/components/CategoryFilter";
 
 export const dynamic = "force-dynamic";
@@ -60,18 +62,25 @@ export default async function Home({ searchParams }) {
     return `/?${p.toString()}`;
   };
   const tabs = [["week", "This week"], ["all", "All time"], ["new", "Newest"]];
+  const recent = all.slice(0, 10);
+  const tickerItems = recent.length === 0 ? [] : Array.from({ length: Math.max(1, Math.ceil(8 / recent.length)) }).flatMap(() => recent);
   const medal = ["bg-gold text-on-brand", "bg-[#d5dbea] text-on-brand", "bg-[#f0b58a] text-on-brand"];
 
   return (
     <div className="space-y-12">
       {/* Hero */}
       <section
-        className="grid gap-10 rounded-3xl bg-navy p-8 text-white sm:p-12 lg:grid-cols-[1.2fr_1fr] lg:items-center"
+        className="glow relative grid gap-10 overflow-hidden rounded-3xl bg-navy p-8 text-white sm:p-12 lg:grid-cols-[1.2fr_1fr] lg:items-center"
         style={{ backgroundImage: "radial-gradient(circle at 88% 8%, rgba(52,214,123,0.22), transparent 42%)" }}
       >
-        <div>
+        <div aria-hidden="true" className="dots pointer-events-none absolute inset-0" />
+        <div aria-hidden="true" className="spot" />
+        <div aria-hidden="true" className="blob pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-brand/20 blur-3xl" />
+        <div aria-hidden="true" className="blob pointer-events-none absolute -bottom-32 right-10 h-80 w-80 rounded-full bg-brand/15 blur-3xl" style={{ animationDelay: "-6s" }} />
+        <div className="rise relative">
           <h1 className="font-display text-4xl font-bold leading-[1.05] sm:text-5xl">
-            Discover what India is building.
+            Discover what India is<br />
+            <RotatingWord words={["building", "launching", "shipping"]} />
           </h1>
           <p className="mt-4 max-w-md text-lg text-on-navy">
             Upvote the tools you like, talk to the founders behind them, and launch your own.
@@ -86,14 +95,25 @@ export default async function Home({ searchParams }) {
             />
             <button className="btn-primary shrink-0">Search</button>
           </form>
+          <div className="mt-5 flex flex-wrap items-center gap-4">
+            <Link href="/submit" className="btn-primary btn-ring">Launch your product</Link>
+            <span className="text-sm text-on-navy">Free to list, reviewed by hand</span>
+          </div>
           <p className="mt-6 text-sm text-on-navy">
-            {all.length} products, {voteCount} upvotes and {clickCount} visits sent to founders so far.
+            <CountUp value={all.length} /> products, <CountUp value={voteCount} /> upvotes and{" "}
+            <CountUp value={clickCount} /> visits sent to founders so far.
           </p>
         </div>
 
-        <div className="rounded-2xl bg-surface p-5 text-ink shadow-xl">
+        <div className="rise relative rounded-2xl bg-surface p-5 text-ink shadow-xl" style={{ "--i": 2 }}>
           <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="font-display text-lg font-bold">Top this week</h2>
+            <h2 className="flex items-center gap-2 font-display text-lg font-bold">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-70" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-brand" />
+              </span>
+              Top this week
+            </h2>
             <span className="text-xs text-muted">Rolling 7 days</span>
           </div>
           {podium.length === 0 ? (
@@ -101,9 +121,9 @@ export default async function Home({ searchParams }) {
           ) : (
             <ol className="space-y-1">
               {podium.map((p, i) => (
-                <li key={p.id}>
-                  <Link href={`/products/${p.slug}`} className="flex items-center gap-3 rounded-xl p-2 hover:bg-surface-2">
-                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold ${medal[i]}`}>{i + 1}</span>
+                <li key={p.id} className="rise" style={{ "--i": i + 3 }}>
+                  <Link href={`/products/${p.slug}`} className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-surface-2">
+                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold ${medal[i]} ${i === 0 ? "medal-glow" : ""}`}>{i + 1}</span>
                     <ProductLogo product={p} size={40} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-semibold">{p.name}</span>
@@ -117,6 +137,34 @@ export default async function Home({ searchParams }) {
           )}
         </div>
       </section>
+
+
+      {/* Just launched ticker */}
+      {tickerItems.length > 0 && (
+        <div className="flex items-center gap-4">
+          <span className="flex shrink-0 items-center gap-2 text-sm font-semibold">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-70" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-brand" />
+            </span>
+            Just launched
+          </span>
+          <div className="fade-edges min-w-0 flex-1 overflow-hidden">
+            <div className="marquee flex w-max">
+              {[...tickerItems, ...tickerItems].map((p, i) => (
+                <Link
+                  key={`${p.id}-${i}`}
+                  href={`/products/${p.slug}`}
+                  className="mr-3 flex shrink-0 items-center gap-2 rounded-full border border-line bg-surface-2 px-3 py-1.5 text-sm font-medium transition-colors hover:border-brand"
+                >
+                  <ProductLogo product={p} size={24} />
+                  {p.name}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Browse */}
       <section className="grid gap-8 lg:grid-cols-[1fr_320px]">
@@ -149,13 +197,13 @@ export default async function Home({ searchParams }) {
           ) : (
             <ul className="space-y-3">
               {list.map((p, i) => (
-                <ProductCard key={p.id} product={p} rank={sort === "new" ? undefined : i + 1} voted={votedIds.has(p.id)} />
+                <ProductCard key={p.id} product={p} rank={sort === "new" ? undefined : i + 1} voted={votedIds.has(p.id)} index={i} />
               ))}
             </ul>
           )}
         </div>
 
-        <aside className="space-y-5">
+        <aside className="rise space-y-5" style={{ "--i": 3 }}>
           <div className="rounded-2xl bg-brand-soft p-6">
             <h3 className="font-display text-xl font-bold">Built something?</h3>
             <p className="mt-2 text-sm text-muted">
@@ -188,7 +236,7 @@ export default async function Home({ searchParams }) {
       </section>
 
       {/* How it works */}
-      <section className="card p-8 sm:p-10">
+      <section className="card reveal p-8 sm:p-10">
         <h2 className="font-display text-2xl font-bold">How launching works</h2>
         <ol className="mt-6 grid gap-6 sm:grid-cols-3">
           {[
@@ -205,6 +253,52 @@ export default async function Home({ searchParams }) {
             </li>
           ))}
         </ol>
+      </section>
+      {/* Why launch */}
+      <section className="grid gap-4 sm:grid-cols-3">
+        {[
+          ["Reach people who browse for new tools", "Visitors explore by category and weekly ranking, so your listing meets people who like trying things.",
+            <><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></>],
+          ["See what is working", "Views, clicks and click rate for every product, right on your dashboard.",
+            <path d="M4 20V10M10 20V4M16 20v-8M22 20H2" />],
+          ["Earn a badge worth sharing", "Climb into the weekly top three and show your audience the proof.",
+            <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z" />],
+        ].map(([title, text, icon]) => (
+          <div key={title} className="card card-hover glow p-6">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-mint-soft text-mint">
+              <svg className="draw h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{icon}</svg>
+            </span>
+            <h3 className="mt-4 font-display text-lg font-bold">{title}</h3>
+            <p className="mt-1 text-sm text-muted">{text}</p>
+          </div>
+        ))}
+      </section>
+
+      {/* Founder call to action */}
+      <section className="aurora reveal relative grid items-center gap-8 overflow-hidden rounded-3xl border border-line bg-surface p-8 sm:p-12 lg:grid-cols-[1.2fr_1fr]">
+        <div>
+          <h2 className="font-display text-3xl font-bold leading-tight sm:text-4xl">Built something? Let people find it.</h2>
+          <p className="mt-3 max-w-md text-muted">
+            Launching is free, reviewed by hand, and usually live within a day. Add your product in about five minutes.
+          </p>
+          <Link href="/submit" className="btn-primary btn-ring mt-6">Launch your product</Link>
+        </div>
+        <div aria-hidden="true" className="relative mx-auto hidden h-52 w-full max-w-sm lg:block">
+          {[
+            ["left-0 top-0", "-4deg", 0],
+            ["left-10 top-16", "2deg", 1],
+            ["left-4 top-32", "-2deg", 2],
+          ].map(([pos, r, n]) => (
+            <div key={n} className={`bob card absolute ${pos} flex w-72 items-center gap-3 p-3 shadow-xl`} style={{ "--r": r, "--i": n }}>
+              <span className="h-10 w-10 shrink-0 rounded-lg bg-mint-soft" />
+              <span className="flex-1 space-y-2">
+                <span className="block h-2.5 w-28 rounded-full bg-line" />
+                <span className="block h-2 w-40 rounded-full bg-surface-2" />
+              </span>
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-brand text-xs text-brand">▲</span>
+            </div>
+          ))}
+        </div>
       </section>
     </div>
   );

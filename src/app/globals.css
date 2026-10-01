@@ -62,6 +62,213 @@ body {
   }
 }
 
+/* ---------- Motion ---------- */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.4); }
+  100% { transform: scale(1); }
+}
+@keyframes tick {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes float {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(28px, -20px, 0); }
+}
+@keyframes shimmer {
+  to { background-position: 200% center; }
+}
+@keyframes sweep {
+  from { transform: translateX(-120%) skewX(-20deg); }
+  to { transform: translateX(380%) skewX(-20deg); }
+}
+
+/* Staggered entrance. Use style={{ "--i": n }} for the delay order. */
+.rise {
+  animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+.page-in { animation: rise 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
+.anim-pop { animation: pop 0.35s ease; }
+.anim-tick { animation: tick 0.25s ease-out; }
+.blob { animation: float 12s ease-in-out infinite; }
+
+.text-shimmer {
+  background-image: linear-gradient(90deg, #34d67b, #c4ffdd, #34d67b);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 4s linear infinite;
+}
+
+/* Reveal on scroll (Chromium and Safari; other browsers just show the content) */
+@supports (animation-timeline: view()) {
+  .reveal {
+    animation: rise linear both;
+    animation-timeline: view();
+    animation-range: entry 5% entry 45%;
+  }
+}
+
+/* Buttons: lift, glow, press, and a light sweep on the main button */
+.btn-primary,
+.btn-dark,
+.btn-outline {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+.btn-primary { position: relative; overflow: hidden; }
+.btn-primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 35%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  transform: translateX(-120%) skewX(-20deg);
+  pointer-events: none;
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 28px -8px rgba(52, 214, 123, 0.6); }
+.btn-primary:hover::after { animation: sweep 0.7s ease; }
+.btn-dark:hover,
+.btn-outline:hover { transform: translateY(-2px); }
+.btn-primary:active,
+.btn-dark:active,
+.btn-outline:active { transform: scale(0.97); }
+
+/* Cards that respond to hover */
+.card-hover { transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease; }
+.card-hover:hover {
+  transform: translateY(-3px);
+  border-color: rgba(52, 214, 123, 0.45);
+  box-shadow: 0 14px 30px -14px rgba(52, 214, 123, 0.35);
+}
+
+/* Nav links with a sliding underline */
+.link-underline {
+  background: linear-gradient(currentColor, currentColor) 0 100% / 0 2px no-repeat;
+  padding-bottom: 3px;
+  transition: background-size 0.25s ease, color 0.2s ease;
+}
+.link-underline:hover { background-size: 100% 2px; }
+
+/* ---------- Advanced motion (all light: transform and opacity) ---------- */
+@property --angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes spin-angle { to { --angle: 360deg; } }
+@keyframes marquee { to { transform: translateX(-50%); } }
+@keyframes aurora { to { background-position: 100% 100%; } }
+@keyframes bob {
+  0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+  50% { transform: translateY(-10px) rotate(var(--r, 0deg)); }
+}
+@keyframes burst {
+  from { transform: rotate(var(--a)) translateY(-8px); opacity: 1; }
+  to { transform: rotate(var(--a)) translateY(-30px) scale(0.2); opacity: 0; }
+}
+@keyframes glowpulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 201, 60, 0.55); }
+  50% { box-shadow: 0 0 0 7px rgba(255, 201, 60, 0); }
+}
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes navshadow {
+  from { box-shadow: none; background-color: rgba(5, 5, 5, 0.6); }
+  to { box-shadow: 0 10px 30px -14px rgba(52, 214, 123, 0.22); background-color: rgba(5, 5, 5, 0.92); }
+}
+
+/* Spotlight that follows the cursor (position set by PointerGlow) */
+.glow:hover {
+  background-image: radial-gradient(280px circle at var(--mx, 50%) var(--my, 50%), rgba(52, 214, 123, 0.12), transparent 65%);
+}
+.spot {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, 0.09), transparent 60%);
+}
+.glow:hover > .spot { opacity: 1; }
+
+/* Hero texture */
+.dots {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.14) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse at 25% 15%, #000 0%, transparent 70%);
+  mask-image: radial-gradient(ellipse at 25% 15%, #000 0%, transparent 70%);
+}
+.aurora {
+  background-image:
+    radial-gradient(60% 80% at 20% 20%, rgba(52, 214, 123, 0.28), transparent 60%),
+    radial-gradient(50% 70% at 85% 80%, rgba(52, 214, 123, 0.16), transparent 60%);
+  background-size: 140% 140%;
+  animation: aurora 14s ease-in-out infinite alternate;
+}
+
+/* Rotating light border on the main call to action */
+.btn-ring {
+  border: 2px solid transparent;
+  background:
+    linear-gradient(var(--color-brand), var(--color-brand)) padding-box,
+    conic-gradient(from var(--angle), transparent 0 55%, #ffffff 78%, transparent 100%) border-box;
+  animation: spin-angle 3.5s linear infinite;
+}
+.btn-ring:hover {
+  background:
+    linear-gradient(var(--color-brand-dark), var(--color-brand-dark)) padding-box,
+    conic-gradient(from var(--angle), transparent 0 55%, #ffffff 78%, transparent 100%) border-box;
+}
+
+/* Just-launched ticker */
+.marquee { animation: marquee 45s linear infinite; }
+.marquee:hover { animation-play-state: paused; }
+.fade-edges {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+
+.bob { animation: bob 6s ease-in-out infinite; animation-delay: calc(var(--i, 0) * -1.5s); }
+.medal-glow { animation: glowpulse 2.4s ease-out infinite; }
+
+/* Vote burst */
+.burst { position: absolute; left: 50%; top: 38%; pointer-events: none; }
+.burst i {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px;
+  border-radius: 9999px;
+  background: var(--color-brand);
+  animation: burst 0.6s ease-out forwards;
+}
+
+/* Icons that draw themselves as they scroll into view */
+@supports (animation-timeline: view()) {
+  .draw * {
+    stroke-dasharray: 80;
+    stroke-dashoffset: 80;
+    animation: draw linear both;
+    animation-timeline: view();
+    animation-range: entry 10% entry 70%;
+  }
+}
+
+/* Navbar gains a shadow as you scroll */
+@supports (animation-timeline: scroll()) {
+  .nav-scroll {
+    animation: navshadow linear both;
+    animation-timeline: scroll();
+    animation-range: 0 120px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;

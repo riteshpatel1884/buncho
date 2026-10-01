@@ -53,7 +53,7 @@ export default async function ProductPage({ params }) {
     <article className="space-y-8">
       <Link href="/" className="text-sm font-medium text-muted hover:text-ink">Back to all products</Link>
 
-      <header className="card flex flex-col gap-6 p-6 sm:flex-row sm:items-center sm:p-8">
+      <header className="card glow rise flex flex-col gap-6 p-6 sm:flex-row sm:items-center sm:p-8">
         <ProductLogo product={product} size={88} />
         <div className="min-w-0 flex-1">
           <h1 className="font-display text-3xl font-bold leading-tight">{product.name}</h1>
@@ -63,8 +63,11 @@ export default async function ProductPage({ params }) {
             {product.pricing && <span className="rounded-full border border-line px-3 py-1 text-muted">{product.pricing}</span>}
             <span className="rounded-full border border-line px-3 py-1 text-muted">🇮🇳 Built in India</span>
           </div>
-          <a href={`/go/${product.slug}`} target="_blank" rel="noopener" className="btn-primary mt-5">
+          <a href={`/go/${product.slug}`} target="_blank" rel="noopener" className="btn-primary group mt-5">
             Visit {host}
+            <svg className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M3 8h10M9 4l4 4-4 4" />
+            </svg>
           </a>
         </div>
         <VoteButton productId={product.id} initialCount={product._count.votes} initialVoted={voted} size="lg" />
@@ -75,17 +78,17 @@ export default async function ProductPage({ params }) {
           {product.screenshots.length > 0 && (
             <div className="flex gap-3 overflow-x-auto pb-2">
               {product.screenshots.map((s) => (
-                <img key={s} src={s} alt={`${product.name} screenshot`} className="h-64 shrink-0 rounded-2xl border border-line bg-surface" />
+                <img key={s} src={s} alt={`${product.name} screenshot`} className="h-64 shrink-0 rounded-2xl border border-line bg-surface transition duration-300 hover:scale-[1.02] hover:border-brand/50" />
               ))}
             </div>
           )}
 
-          <section className="card p-6 sm:p-8">
+          <section className="card reveal p-6 sm:p-8">
             <h2 className="font-display text-xl font-bold">About {product.name}</h2>
             <p className="mt-3 max-w-2xl whitespace-pre-line leading-relaxed">{product.description}</p>
           </section>
 
-          <section className="card p-6 sm:p-8">
+          <section className="card reveal p-6 sm:p-8">
             <h2 className="font-display text-xl font-bold">Comments ({product.comments.length})</h2>
 
             <Show when="signed-in">

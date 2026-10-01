@@ -1,5 +1,5 @@
 "use client";
-import { useActionState, useState } from "react";
+import { useActionState, useState, startTransition } from "react";
 import { submitProduct } from "./actions";
 import Spinner from "@/components/Spinner";
 
@@ -18,9 +18,32 @@ export default function SubmitForm({ categories }) {
   const [tagline, setTagline] = useState("");
   const [logo, setLogo] = useState("");
   const validLogo = /^https?:\/\//.test(logo);
+  const [filled, setFilled] = useState(0);
+  const REQUIRED = ["name", "tagline", "description", "websiteUrl", "categoryId"];
+
+  function onChange(e) {
+    const fd = new FormData(e.currentTarget);
+    setFilled(REQUIRED.filter((k) => String(fd.get(k) || "").trim()).length);
+  }
+
+  // Submitting through a transition keeps what the founder typed if validation fails.
+  function onSubmit(e) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    startTransition(() => action(fd));
+  }
 
   return (
-    <form action={action} className="card space-y-8 p-6 sm:p-8">
+    <form onSubmit={onSubmit} onChange={onChange} className="card space-y-8 p-6 sm:p-8">
+      <div className="space-y-2">
+        <div className="flex justify-between text-xs text-muted">
+          <span>{filled === REQUIRED.length ? "Ready to submit" : "Listing strength"}</span>
+          <span>{filled} of {REQUIRED.length} required fields</span>
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
+          <div className="h-full rounded-full bg-brand transition-all duration-500" style={{ width: `${(filled / REQUIRED.length) * 100}%` }} />
+        </div>
+      </div>
       <section className="space-y-4">
         <h2 className="font-display text-xl font-bold">The basics</h2>
         <Field label="Product name">

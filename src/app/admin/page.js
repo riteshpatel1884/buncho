@@ -65,8 +65,8 @@ export default async function Admin({ searchParams }) {
         <div className="card border-dashed p-10 text-center text-muted">Nothing in this list.</div>
       ) : (
         <ul className="space-y-4">
-          {products.map((p) => (
-            <li key={p.id} className="card p-5 sm:p-6">
+          {products.map((p, i) => (
+            <li key={p.id} className="card rise p-5 sm:p-6" style={{ "--i": Math.min(i, 8) }}>
               <div className="flex flex-col gap-4 sm:flex-row">
                 <ProductLogo product={p} size={56} />
                 <div className="min-w-0 flex-1">

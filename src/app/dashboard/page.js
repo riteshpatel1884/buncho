@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateUser } from "@/lib/user";
 import ProductLogo from "@/components/ProductLogo";
+import CountUp from "@/components/CountUp";
 import StatusBadge from "@/components/StatusBadge";
 
 export const dynamic = "force-dynamic";
@@ -56,9 +57,9 @@ export default async function Dashboard({ searchParams }) {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {cards.map(([label, value]) => (
-          <div key={label} className="card p-5">
-            <p className="font-display text-3xl font-bold">{value}</p>
+        {cards.map(([label, value], i) => (
+          <div key={label} className="card rise p-5" style={{ "--i": i }}>
+            <p className="font-display text-3xl font-bold"><CountUp value={value} /></p>
             <p className="mt-1 text-sm text-muted">{label}</p>
           </div>
         ))}
@@ -71,7 +72,7 @@ export default async function Dashboard({ searchParams }) {
           <Link href="/submit" className="btn-primary mt-5">Launch a product</Link>
         </div>
       ) : (
-        <div className="card overflow-x-auto">
+        <div className="card rise overflow-x-auto" style={{ "--i": 4 }}>
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="border-b border-line text-muted">
               <tr>

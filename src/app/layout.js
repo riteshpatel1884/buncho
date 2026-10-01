@@ -4,6 +4,7 @@ import { Bricolage_Grotesque, Figtree } from "next/font/google";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import NavProgress from "@/components/NavProgress";
+import PointerGlow from "@/components/PointerGlow";
 import "./globals.css";
 
 const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-bricolage" });
@@ -22,6 +23,7 @@ export default function RootLayout({ children }) {
           <Suspense fallback={null}>
             <NavProgress />
           </Suspense>
+          <PointerGlow />
           <Navbar />
           <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">{children}</main>
           <Footer />
