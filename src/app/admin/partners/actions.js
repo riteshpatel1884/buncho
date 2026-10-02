@@ -5,9 +5,8 @@ import { isAdmin } from "@/lib/user";
 import { slugify, isHttpUrl } from "@/lib/utils";
 import { PARTNER_CATEGORIES } from "@/lib/partners-shared";
 
-export async function createPartner(_prev, formData) {
-  if (!(await isAdmin())) return { error: "Not allowed." };
-
+// Shared validation for adding and editing a partner.
+function parsePartner(formData) {
   const get = (k) => String(formData.get(k) || "").trim();
   const name = get("name");
   const category = get("category");
@@ -27,19 +26,48 @@ export async function createPartner(_prev, formData) {
   if (!isHttpUrl(linkUrl)) return { error: "Link must start with http:// or https://" };
   if (logoUrl && !isHttpUrl(logoUrl)) return { error: "Logo must be a valid image URL." };
 
-  let slug = slugify(name) || "partner";
-  if (await prisma.partner.findUnique({ where: { slug } })) slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
+  const startsAt = startsRaw ? new Date(`${startsRaw}T00:00:00+05:30`) : null;
+  const endsAt = endsRaw ? new Date(`${endsRaw}T23:59:59+05:30`) : null;
+  if (startsAt && endsAt && endsAt < startsAt) return { error: "The end date must be after the start date." };
 
-  await prisma.partner.create({
-    data: {
-      name, slug, category, tagline, offer: offer || null, linkUrl, logoUrl: logoUrl || null, kind, sortOrder,
-      startsAt: startsRaw ? new Date(`${startsRaw}T00:00:00+05:30`) : null,
-      endsAt: endsRaw ? new Date(`${endsRaw}T23:59:59+05:30`) : null,
-    },
-  });
+  return {
+    data: { name, category, tagline, offer: offer || null, linkUrl, logoUrl: logoUrl || null, kind, sortOrder, startsAt, endsAt },
+  };
+}
+
+function refresh() {
   revalidatePath("/admin/partners");
   revalidatePath("/partners");
+  revalidatePath("/dashboard");
   revalidatePath("/");
+}
+
+export async function createPartner(_prev, formData) {
+  if (!(await isAdmin())) return { error: "Not allowed." };
+  const parsed = parsePartner(formData);
+  if (parsed.error) return parsed;
+
+  let slug = slugify(parsed.data.name) || "partner";
+  if (await prisma.partner.findUnique({ where: { slug } })) slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
+
+  await prisma.partner.create({ data: { ...parsed.data, slug } });
+  refresh();
+  return { ok: true };
+}
+
+// The link /p/<slug> stays the same after an edit, so shared or printed links keep working.
+export async function updatePartner(_prev, formData) {
+  if (!(await isAdmin())) return { error: "Not allowed." };
+  const id = String(formData.get("id") || "");
+  if (!id) return { error: "Missing partner." };
+  const parsed = parsePartner(formData);
+  if (parsed.error) return parsed;
+
+  const exists = await prisma.partner.findUnique({ where: { id }, select: { id: true } });
+  if (!exists) return { error: "This partner no longer exists." };
+
+  await prisma.partner.update({ where: { id }, data: parsed.data });
+  refresh();
   return { ok: true };
 }
 
@@ -49,15 +77,11 @@ export async function togglePartner(formData) {
   const partner = await prisma.partner.findUnique({ where: { id }, select: { active: true } });
   if (!partner) return;
   await prisma.partner.update({ where: { id }, data: { active: !partner.active } });
-  revalidatePath("/admin/partners");
-  revalidatePath("/partners");
-  revalidatePath("/");
+  refresh();
 }
 
 export async function deletePartner(formData) {
   if (!(await isAdmin())) return;
   await prisma.partner.delete({ where: { id: String(formData.get("id")) } });
-  revalidatePath("/admin/partners");
-  revalidatePath("/partners");
-  revalidatePath("/");
+  refresh();
 }
