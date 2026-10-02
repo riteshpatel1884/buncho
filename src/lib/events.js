@@ -19,3 +19,15 @@ export async function recordEvent(product, type) {
 
   await prisma.productEvent.create({ data: { productId: product.id, type, visitorHash: hash } });
 }
+
+// Counts a click on a Buncho Partner link (bots and repeats within 30 minutes are ignored).
+export async function recordPartnerClick(partner) {
+  const { hash, isBot } = await getVisitor();
+  if (isBot) return;
+  const duplicate = await prisma.partnerClick.findFirst({
+    where: { partnerId: partner.id, visitorHash: hash, createdAt: { gte: new Date(Date.now() - DEDUPE_MS) } },
+    select: { id: true },
+  });
+  if (duplicate) return;
+  await prisma.partnerClick.create({ data: { partnerId: partner.id, visitorHash: hash } });
+}

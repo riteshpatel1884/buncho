@@ -72,6 +72,19 @@ export default function RankingPage() {
         </ul>
       </section>
 
+      <section className="card p-6 sm:p-8">
+        <h2 className="font-display text-2xl font-bold">Buncho Partners</h2>
+        <p className="mt-2 text-muted">
+          Companies that sell to founders, such as hosting, email and analytics, can sponsor their own clearly labelled section or share
+          an affiliate link. That is how Buncho earns without selling rank.
+        </p>
+        <p className="mt-4 rounded-xl bg-surface-2 p-4 text-sm">
+          Partners never appear in the product list, and they can't buy ranking, Daily Pick turns or a better Buncho Score.
+          Affiliate links are labelled, and you pay nothing extra.
+        </p>
+        <Link href="/partners" className="btn-outline mt-5">See tools for founders</Link>
+      </section>
+
       <div className="text-center">
         <Link href="/submit" className="btn-primary">Launch your product</Link>
       </div>

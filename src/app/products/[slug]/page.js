@@ -8,6 +8,7 @@ import { ensureFreshScores } from "@/lib/score";
 import { recordEvent } from "@/lib/events";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import ScoreCard from "@/components/ScoreCard";
+import ShareProduct from "@/components/ShareProduct";
 import VoteButton from "@/components/VoteButton";
 import SubmitButton from "@/components/SubmitButton";
 import ProductLogo from "@/components/ProductLogo";
@@ -18,7 +19,14 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }) {
   const { slug } = await params;
   const p = await prisma.product.findFirst({ where: { slug, status: "APPROVED" }, select: { name: true, tagline: true } });
-  return p ? { title: `${p.name}: ${p.tagline}` } : {};
+  if (!p) return {};
+  const title = `${p.name} on Buncho`;
+  return {
+    title: `${p.name}: ${p.tagline}`,
+    description: p.tagline,
+    openGraph: { title, description: p.tagline, type: "website" },
+    twitter: { card: "summary_large_image", title, description: p.tagline },
+  };
 }
 
 export default async function ProductPage({ params }) {
@@ -35,11 +43,19 @@ export default async function ProductPage({ params }) {
   });
   if (!product) notFound();
 
-  const [user, related] = await Promise.all([
+  const [user, related, views, pick, discover] = await Promise.all([
     getDbUser(),
     prisma.product.findMany({
       where: { status: "APPROVED", categoryId: product.categoryId, id: { not: product.id } },
       orderBy: { createdAt: "desc" },
+      take: 4,
+      select: { id: true, name: true, slug: true, tagline: true, logoUrl: true },
+    }),
+    prisma.productEvent.count({ where: { productId: product.id, type: "VIEW" } }),
+    prisma.dailyPick.findFirst({ where: { productId: product.id }, select: { id: true } }),
+    prisma.product.findMany({
+      where: { status: "APPROVED", id: { not: product.id } },
+      orderBy: [{ score: "desc" }, { createdAt: "desc" }],
       take: 4,
       select: { id: true, name: true, slug: true, tagline: true, logoUrl: true },
     }),
@@ -100,6 +116,18 @@ export default async function ProductPage({ params }) {
             <p className="mt-3 max-w-2xl whitespace-pre-line leading-relaxed">{product.description}</p>
           </section>
 
+          <section id="share" className="card reveal p-6 sm:p-8">
+            <ShareProduct
+              name={product.name}
+              tagline={product.tagline}
+              slug={product.slug}
+              upvotes={product._count.votes}
+              views={views}
+              featured={!!pick}
+              base={process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}
+            />
+          </section>
+
           <section className="card reveal p-6 sm:p-8">
             <h2 className="font-display text-xl font-bold">Comments ({product.comments.length})</h2>
 
@@ -140,6 +168,28 @@ export default async function ProductPage({ params }) {
               </ul>
             )}
           </section>
+
+          {discover.length > 0 && (
+            <section className="card reveal p-6 sm:p-8">
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 className="font-display text-xl font-bold">Discover more on Buncho</h2>
+                <Link href="/" className="text-sm font-medium text-brand hover:underline">See all</Link>
+              </div>
+              <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {discover.map((d) => (
+                  <li key={d.id}>
+                    <Link href={`/products/${d.slug}`} className="flex items-center gap-3 rounded-xl border border-line p-3 transition-colors hover:border-brand/50">
+                      <ProductLogo product={d} size={40} />
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold">{d.name}</span>
+                        <span className="block truncate text-xs text-muted">{d.tagline}</span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </div>
 
         <aside className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-1">

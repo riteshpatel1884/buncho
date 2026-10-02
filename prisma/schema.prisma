@@ -156,3 +156,39 @@ model Payment {
 
   @@index([userId, productId])
 }
+
+enum PartnerKind {
+  SPONSOR
+  AFFILIATE
+}
+
+// Companies that sell to founders. Shown only in their own labelled sections, never in rankings.
+model Partner {
+  id        String      @id @default(cuid())
+  name      String
+  slug      String      @unique
+  category  String
+  tagline   String
+  offer     String?
+  linkUrl   String
+  logoUrl   String?
+  kind      PartnerKind @default(AFFILIATE)
+  active    Boolean     @default(true)
+  sortOrder Int         @default(0)
+  startsAt  DateTime?
+  endsAt    DateTime?
+  createdAt DateTime    @default(now())
+  clicks    PartnerClick[]
+
+  @@index([active, sortOrder])
+}
+
+model PartnerClick {
+  id          String   @id @default(cuid())
+  partnerId   String
+  visitorHash String?
+  createdAt   DateTime @default(now())
+  partner     Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@index([partnerId, createdAt])
+}

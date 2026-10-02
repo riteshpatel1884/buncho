@@ -8,6 +8,9 @@ import CountUp from "@/components/CountUp";
 import StatusBadge from "@/components/StatusBadge";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import ScoreCard from "@/components/ScoreCard";
+import ShareProduct from "@/components/ShareProduct";
+import PartnerCard, { PARTNER_NOTE } from "@/components/PartnerCard";
+import { getActivePartners } from "@/lib/partners";
 import SubmitButton from "@/components/SubmitButton";
 import { startVerification } from "./actions";
 
@@ -25,7 +28,7 @@ export default async function Dashboard({ searchParams }) {
     include: { _count: { select: { votes: true } } },
   });
 
-  const [events, todaysPick, lastPick] = await Promise.all([
+  const [events, todaysPick, lastPick, partners, featuredRows] = await Promise.all([
     prisma.productEvent.groupBy({
       by: ["productId", "type"],
       where: { productId: { in: products.map((p) => p.id) } },
@@ -33,7 +36,10 @@ export default async function Dashboard({ searchParams }) {
     }),
     prisma.dailyPick.findUnique({ where: { day: istDayKey() }, select: { productId: true } }),
     prisma.dailyPick.findFirst({ orderBy: { round: "desc" }, select: { round: true } }),
+    getActivePartners({ limit: 3 }),
+    prisma.dailyPick.findMany({ where: { productId: { in: products.map((p) => p.id) } }, select: { productId: true } }),
   ]);
+  const featuredIds = new Set(featuredRows.map((r) => r.productId));
   const hadTurn = lastPick
     ? !!(await prisma.dailyPick.findFirst({ where: { round: lastPick.round, userId: user.id }, select: { id: true } }))
     : false;
@@ -181,10 +187,40 @@ export default async function Dashboard({ searchParams }) {
                     <ScoreCard score={p.score} data={p.scoreData} rank={ranks.get(p.id)} className="mt-4 rounded-2xl bg-surface-2 p-5" />
                   </details>
                 )}
+
+                {live && (
+                  <details className="mt-4">
+                    <summary className="cursor-pointer text-sm font-medium text-brand">Share your launch</summary>
+                    <div className="mt-4 rounded-2xl bg-surface-2 p-5">
+                      <ShareProduct
+                        name={p.name}
+                        tagline={p.tagline}
+                        slug={p.slug}
+                        upvotes={p._count.votes}
+                        views={v}
+                        featured={featuredIds.has(p.id)}
+                        base={process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}
+                        title="Share your launch"
+                      />
+                    </div>
+                  </details>
+                )}
               </li>
             );
           })}
         </ul>
+      )}
+      {partners.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <h2 className="font-display text-2xl font-bold">Tools for your launch</h2>
+            <Link href="/partners" className="text-sm font-medium text-brand hover:underline">See all partners</Link>
+          </div>
+          <ul className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {partners.map((p) => <PartnerCard key={p.id} partner={p} />)}
+          </ul>
+          <p className="text-xs text-muted">{PARTNER_NOTE}</p>
+        </section>
       )}
     </div>
   );

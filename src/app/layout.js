@@ -11,6 +11,7 @@ const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-bric
 const sans = Figtree({ subsets: ["latin"], variable: "--font-figtree" });
 
 export const metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
   title: "buncho: discover products built in India",
   description: "Discover, upvote and launch products built by Indian indie hackers and SaaS founders.",
 };

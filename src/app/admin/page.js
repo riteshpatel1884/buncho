@@ -48,6 +48,7 @@ export default async function Admin({ searchParams }) {
         <h1 className="font-display text-3xl font-bold sm:text-4xl">Moderation</h1>
         <p className="mt-1 text-muted">Review submissions and manage what is live.</p>
       </div>
+      <Link href="/admin/partners" className="btn-outline w-fit">Manage partners</Link>
 
       <div className="no-scrollbar flex w-full max-w-full overflow-x-auto rounded-full border border-line bg-surface p-1 text-sm font-medium sm:w-fit">
         {TABS.map(([s, label]) => (

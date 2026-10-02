@@ -4,6 +4,8 @@ import { getDbUser } from "@/lib/user";
 import { ensureFreshScores } from "@/lib/score";
 import { getTodaysPick } from "@/lib/dailyPick";
 import DailyPickCard from "@/components/DailyPickCard";
+import PartnerCard, { PARTNER_NOTE } from "@/components/PartnerCard";
+import { getActivePartners } from "@/lib/partners";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { timeAgo } from "@/lib/utils";
 import ProductCard from "@/components/ProductCard";
@@ -19,7 +21,7 @@ export default async function Home({ searchParams }) {
   const { q, category, sort = "top" } = await searchParams;
   await ensureFreshScores();
 
-  const [all, categories, user, pick, voteCount, clickCount] = await Promise.all([
+  const [all, categories, user, pick, voteCount, clickCount, partners] = await Promise.all([
     prisma.product.findMany({
       where: { status: "APPROVED" },
       orderBy: { createdAt: "desc" },
@@ -31,6 +33,7 @@ export default async function Home({ searchParams }) {
     getTodaysPick(),
     prisma.vote.count(),
     prisma.productEvent.count({ where: { type: "CLICK" } }),
+    getActivePartners({ limit: 3 }),
   ]);
 
   const byScore = (a, b) => b.score - a.score || b._count.votes - a._count.votes;
@@ -246,6 +249,23 @@ export default async function Home({ searchParams }) {
           </div>
         </aside>
       </section>
+
+      {/* Buncho Partners: sponsored tools for founders. Never part of the product list or ranking. */}
+      {partners.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <div>
+              <h2 className="font-display text-2xl font-bold">Tools for founders</h2>
+              <p className="text-sm text-muted">Offers from Buncho Partners. They can sponsor this section, but they can't buy rank.</p>
+            </div>
+            <Link href="/partners" className="text-sm font-medium text-brand hover:underline">See all</Link>
+          </div>
+          <ul className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {partners.map((p) => <PartnerCard key={p.id} partner={p} />)}
+          </ul>
+          <p className="text-xs text-muted">{PARTNER_NOTE}</p>
+        </section>
+      )}
 
       {/* How it works */}
       <section className="card reveal p-6 sm:p-10">
