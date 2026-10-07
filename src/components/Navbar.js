@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { Show, SignInButton, UserButton } from "@clerk/nextjs";
+import { Show } from "@clerk/nextjs";
 import { isAdmin } from "@/lib/user";
 import MobileMenu from "./MobileMenu";
-import LaunchButton from "./LaunchButton";
+import ThemeToggle from "./ThemeToggle";
+import UserMenu from "./UserMenu";
 
 export default async function Navbar() {
   const admin = await isAdmin();
@@ -16,37 +17,33 @@ export default async function Navbar() {
             <span>buncho<span className="text-brand">.</span></span>
           </Link>
           <div className="hidden items-center gap-6 text-sm font-medium text-muted md:flex">
-            <Link href="/" className="link-underline hover:text-ink">Discover</Link>
-            <Link href="/submit" className="link-underline hover:text-ink">Launch</Link>
+            <Link href="/experts" className="link-underline hover:text-ink">Find experts</Link>
+            <Link href="/onboarding/expert" className="link-underline hover:text-ink">Become an expert</Link>
           </div>
         </div>
 
         <div className="flex items-center gap-2 text-sm font-medium sm:gap-3">
+          <ThemeToggle />
           <Show when="signed-in">
             <Link href="/dashboard" className="link-underline hidden text-muted hover:text-ink md:block">Dashboard</Link>
-            {admin && <Link href="/admin" className="link-underline hidden text-muted hover:text-ink md:block">Moderation</Link>}
-            <UserButton />
+            {admin && <Link href="/admin" className="link-underline hidden text-muted hover:text-ink md:block">Admin</Link>}
+            <UserMenu />
           </Show>
           <Show when="signed-out">
-            <SignInButton mode="redirect">
-              <button className="hidden text-muted hover:text-ink md:block">Sign in</button>
-            </SignInButton>
+            <Link href="/sign-in" className="hidden text-muted hover:text-ink md:block">Sign in</Link>
+            <Link href="/sign-up" className="btn-primary !px-4 sm:!px-5">Get started</Link>
           </Show>
-          <LaunchButton className="!px-4 sm:!px-5">
-            Launch<span className="hidden sm:inline">&nbsp;a product</span>
-          </LaunchButton>
 
           <MobileMenu>
             <div className="flex flex-col">
-              <Link href="/" className={item}>Discover</Link>
-              <Link href="/submit" className={item}>Launch a product</Link>
+              <Link href="/experts" className={item}>Find experts</Link>
+              <Link href="/onboarding/expert" className={item}>Become an expert</Link>
               <Show when="signed-in">
                 <Link href="/dashboard" className={item}>Dashboard</Link>
-                {admin && <Link href="/admin" className={item}>Moderation</Link>}
+                {admin && <Link href="/admin" className={item}>Admin</Link>}
               </Show>
               <Show when="signed-out">
                 <Link href="/sign-in" className={item}>Sign in</Link>
-                <Link href="/sign-up" className={item}>Create account</Link>
               </Show>
             </div>
           </MobileMenu>

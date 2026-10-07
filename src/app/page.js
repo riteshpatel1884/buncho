@@ -1,280 +1,131 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { getDbUser } from "@/lib/user";
-import { ensureFreshScores } from "@/lib/score";
-import { getTodaysPick } from "@/lib/dailyPick";
-import DailyPickCard from "@/components/DailyPickCard";
-import PartnerCard, { PARTNER_NOTE } from "@/components/PartnerCard";
-import { getActivePartners } from "@/lib/partners";
-import VerifiedBadge from "@/components/VerifiedBadge";
-import { timeAgo } from "@/lib/utils";
-import ProductCard from "@/components/ProductCard";
-import ProductLogo from "@/components/ProductLogo";
-import CountUp from "@/components/CountUp";
-import LaunchButton from "@/components/LaunchButton";
-import RotatingWord from "@/components/RotatingWord";
-import CategoryFilter from "@/components/CategoryFilter";
+import ExpertCard from "@/components/ExpertCard";
+import { SERVICE_TYPES, SERVICE_BLURBS, inr } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home({ searchParams }) {
-  const { q, category, sort = "top" } = await searchParams;
-  await ensureFreshScores();
-
-  const [all, categories, user, pick, voteCount, clickCount, partners] = await Promise.all([
-    prisma.product.findMany({
-      where: { status: "APPROVED" },
+export default async function Home() {
+  const [featured, byType, expertCount] = await Promise.all([
+    prisma.expertProfile.findMany({
+      where: { status: "ACTIVE" },
       orderBy: { createdAt: "desc" },
-      take: 200,
-      include: { category: true, _count: { select: { votes: true, comments: true } } },
+      take: 3,
+      include: {
+        user: { select: { name: true, avatarUrl: true } },
+        services: { where: { active: true }, select: { type: true, title: true, priceInr: true } },
+      },
     }),
-    prisma.category.findMany({ orderBy: { name: "asc" } }),
-    getDbUser(),
-    getTodaysPick(),
-    prisma.vote.count(),
-    prisma.productEvent.count({ where: { type: "CLICK" } }),
-    getActivePartners({ limit: 3 }),
+    prisma.service.groupBy({
+      by: ["type"],
+      where: { active: true, expert: { status: "ACTIVE" } },
+      _min: { priceInr: true },
+      _count: { _all: true },
+    }),
+    prisma.expertProfile.count({ where: { status: "ACTIVE" } }),
   ]);
-
-  const byScore = (a, b) => b.score - a.score || b._count.votes - a._count.votes;
-  const podium = [...all].sort(byScore).slice(0, 3);
-  const fresh = all.slice(0, 5);
-
-  let list = all.filter((p) => {
-    if (category && p.category.slug !== category) return false;
-    if (q) {
-      const s = q.toLowerCase();
-      if (!p.name.toLowerCase().includes(s) && !p.tagline.toLowerCase().includes(s)) return false;
-    }
-    return true;
-  });
-  if (sort === "votes") list = list.sort((a, b) => b._count.votes - a._count.votes);
-  else if (sort !== "new") list = list.sort(byScore);
-
-  const pickVoted = user && pick
-    ? !!(await prisma.vote.findUnique({ where: { userId_productId: { userId: user.id, productId: pick.productId } } }))
-    : false;
-
-  const votedIds = new Set();
-  if (user && list.length) {
-    const votes = await prisma.vote.findMany({
-      where: { userId: user.id, productId: { in: list.map((p) => p.id) } },
-      select: { productId: true },
-    });
-    votes.forEach((v) => votedIds.add(v.productId));
-  }
-
-  const tabHref = (s) => {
-    const p = new URLSearchParams({ sort: s });
-    if (category) p.set("category", category);
-    if (q) p.set("q", q);
-    return `/?${p.toString()}`;
-  };
-  const tabs = [["top", "Top ranked"], ["votes", "Most upvoted"], ["new", "Newest"]];
-  const recent = all.slice(0, 10);
-  const tickerItems = recent.length === 0 ? [] : Array.from({ length: Math.max(1, Math.ceil(8 / recent.length)) }).flatMap(() => recent);
-  const medal = ["bg-gold text-on-brand", "bg-[#d5dbea] text-on-brand", "bg-[#f0b58a] text-on-brand"];
+  const typeInfo = new Map(byType.map((t) => [t.type, t]));
 
   return (
-    <div className="space-y-10 sm:space-y-12">
+    <div className="space-y-10 sm:space-y-14">
       {/* Hero */}
       <section
-        className="glow relative grid grid-cols-1 gap-10 overflow-hidden rounded-3xl bg-navy p-6 text-white sm:p-10 lg:p-12 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:items-center"
+        className="glow relative grid grid-cols-1 gap-10 overflow-hidden rounded-3xl bg-navy p-6 text-white sm:p-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:items-center lg:p-12"
         style={{ backgroundImage: "radial-gradient(circle at 88% 8%, rgba(52,214,123,0.22), transparent 42%)" }}
       >
         <div aria-hidden="true" className="dots pointer-events-none absolute inset-0" />
         <div aria-hidden="true" className="spot" />
-        <div aria-hidden="true" className="blob pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-brand/20 blur-3xl" />
-        <div aria-hidden="true" className="blob pointer-events-none absolute -bottom-32 right-10 h-80 w-80 rounded-full bg-brand/15 blur-3xl" style={{ animationDelay: "-6s" }} />
+        <div aria-hidden="true" className="blob pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-[#34d67b]/20 blur-3xl" />
+
         <div className="rise relative">
-          <h1 className="font-display text-4xl font-bold leading-[1.05] sm:text-5xl">
-            Discover what India is<br />
-            <RotatingWord words={["building", "launching", "shipping"]} />
+          <h1 className="font-display text-4xl font-bold leading-[1.05] sm:text-5xl lg:text-6xl">
+            Get help from people who've <span className="text-shimmer">already done it.</span>
           </h1>
           <p className="mt-4 max-w-md text-lg text-on-navy">
-            Upvote the tools you like, talk to the founders behind them, and launch your own.
+            Book verified seniors and professionals for resume reviews, mock interviews and career guidance.
           </p>
-          <form data-nav className="mt-7 flex max-w-md gap-2">
+          <form action="/experts" data-nav className="mt-7 flex max-w-lg flex-col gap-2 sm:flex-row">
             <input
               name="q"
-              defaultValue={q}
-              placeholder="Search products"
-              aria-label="Search products"
+              placeholder="I want an AI internship but my resume isn't getting shortlisted"
+              aria-label="Describe what you need help with"
               className="w-full rounded-full bg-surface px-5 py-3 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-white/60"
             />
-            <button className="btn-primary shrink-0">Search</button>
+            <button className="btn-primary btn-ring shrink-0">Find experts</button>
           </form>
-          <div className="mt-5 flex flex-wrap items-center gap-4">
-            <LaunchButton />
-            <span className="text-sm text-on-navy">Free to list, reviewed by hand</span>
+          <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-on-navy">
+            <Link href="/onboarding/expert" className="btn-onnavy !py-2">Become an expert</Link>
+            <span>{expertCount} {expertCount === 1 ? "expert" : "experts"} verified and live</span>
           </div>
-          <p className="mt-6 text-sm text-on-navy">
-            <CountUp value={all.length} /> products, <CountUp value={voteCount} /> upvotes and{" "}
-            <CountUp value={clickCount} /> visits sent to founders so far.
-          </p>
         </div>
 
         <div className="rise relative rounded-2xl bg-surface p-5 text-ink shadow-xl" style={{ "--i": 2 }}>
-          <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="flex items-center gap-2 font-display text-lg font-bold">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-70" />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-brand" />
-              </span>
-              Top ranked
-            </h2>
-            <span className="text-xs text-muted">By Buncho Score</span>
-          </div>
-          {podium.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted">No launches yet. Yours could be first.</p>
+          <h2 className="font-display text-lg font-bold">New experts</h2>
+          {featured.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted">Experts are joining now. Be one of the first.</p>
           ) : (
-            <ol className="space-y-1">
-              {podium.map((p, i) => (
-                <li key={p.id} className="rise" style={{ "--i": i + 3 }}>
-                  <Link href={`/products/${p.slug}`} className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-surface-2">
-                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold ${medal[i]} ${i === 0 ? "medal-glow" : ""}`}>{i + 1}</span>
-                    <ProductLogo product={p} size={40} />
+            <ul className="mt-3 space-y-1">
+              {featured.map((e) => (
+                <li key={e.id}>
+                  <Link href={`/experts/${e.slug}`} className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-surface-2">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mint-soft font-bold text-mint">{(e.user.name || "?")[0]}</span>
                     <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-1.5 font-semibold"><span className="truncate">{p.name}</span>{p.verified && <VerifiedBadge className="h-4 w-4" />}</span>
-                      <span className="block truncate text-xs text-muted">{p.tagline}</span>
+                      <span className="block truncate font-semibold">{e.user.name}</span>
+                      <span className="block truncate text-xs text-muted">{e.jobTitle} at {e.company}</span>
                     </span>
-                    <span className="text-sm font-semibold text-brand">{p.score.toFixed(1)}</span>
+                    {e.services.length > 0 && <span className="text-sm font-semibold text-brand">{inr(Math.min(...e.services.map((s) => s.priceInr)))}</span>}
                   </Link>
                 </li>
-              ))}
-            </ol>
-          )}
-        </div>
-      </section>
-
-      {pick && <DailyPickCard pick={pick} voted={pickVoted} />}
-
-      {/* Just launched ticker */}
-      {tickerItems.length > 0 && (
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-          <span className="flex shrink-0 items-center gap-2 text-sm font-semibold">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-70" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-brand" />
-            </span>
-            Just launched
-          </span>
-          <div className="fade-edges min-w-0 flex-1 overflow-hidden">
-            <div className="marquee flex w-max">
-              {[...tickerItems, ...tickerItems].map((p, i) => (
-                <Link
-                  key={`${p.id}-${i}`}
-                  href={`/products/${p.slug}`}
-                  className="mr-3 flex shrink-0 items-center gap-2 rounded-full border border-line bg-surface-2 px-3 py-1.5 text-sm font-medium transition-colors hover:border-brand"
-                >
-                  <ProductLogo product={p} size={24} />
-                  {p.name}
-                </Link>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Browse */}
-      <section className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="space-y-5">
-          <CategoryFilter categories={categories} active={category} sort={sort} q={q} />
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="font-display text-2xl font-bold">
-              {q ? `Results for "${q}"` : "Products"}
-            </h2>
-            <div className="flex rounded-full border border-line bg-surface p-1 text-sm font-medium">
-              {tabs.map(([s, label]) => (
-                <Link
-                  key={s}
-                  href={tabHref(s)}
-                  className={`rounded-full px-3.5 py-1 ${sort === s ? "bg-brand text-on-brand" : "text-muted hover:text-ink"}`}
-                >
-                  {label}
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          <p className="text-sm text-muted">
-            Ranked by Buncho Score, which money can't change.{" "}
-            <Link href="/ranking" className="font-medium text-brand hover:underline">How it works</Link>
-          </p>
-
-          {list.length === 0 ? (
-            <div className="card border-dashed p-10 text-center">
-              <p className="font-display text-lg font-semibold">Nothing here yet</p>
-              <p className="mt-1 text-sm text-muted">Try another category, or be the first to launch in this one.</p>
-              <Link href="/submit" className="btn-primary mt-5">Launch a product</Link>
-            </div>
-          ) : (
-            <ul className="space-y-3">
-              {list.map((p, i) => (
-                <ProductCard key={p.id} product={p} rank={sort === "new" ? undefined : i + 1} voted={votedIds.has(p.id)} index={i} />
               ))}
             </ul>
           )}
         </div>
-
-        <aside className="rise grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-1" style={{ "--i": 3 }}>
-          <div className="rounded-2xl bg-brand-soft p-6">
-            <h3 className="font-display text-xl font-bold">Built something?</h3>
-            <p className="mt-2 text-sm text-muted">
-              Get in front of people who enjoy finding new products. Launching is free and reviewed by hand.
-            </p>
-            <LaunchButton className="mt-4" />
-          </div>
-
-          <div className="card p-5">
-            <h3 className="font-display text-lg font-bold">Fresh launches</h3>
-            {fresh.length === 0 ? (
-              <p className="mt-2 text-sm text-muted">New products will show up here.</p>
-            ) : (
-              <ul className="mt-3 space-y-3">
-                {fresh.map((p) => (
-                  <li key={p.id}>
-                    <Link href={`/products/${p.slug}`} className="flex items-center gap-3">
-                      <ProductLogo product={p} size={36} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold">{p.name}</span>
-                        <span className="block text-xs text-muted">{p.category.name}, {timeAgo(p.createdAt)}</span>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </aside>
       </section>
 
-      {/* Buncho Partners: sponsored tools for founders. Never part of the product list or ranking. */}
-      {partners.length > 0 && (
-        <section className="space-y-4">
+      {/* What you can book */}
+      <section className="space-y-5">
+        <div>
+          <h2 className="font-display text-2xl font-bold sm:text-3xl">What do you need help with?</h2>
+          <p className="mt-1 text-muted">Pick a service to see experts who offer it.</p>
+        </div>
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Object.entries(SERVICE_TYPES).filter(([k]) => k !== "OTHER").map(([key, label], i) => {
+            const info = typeInfo.get(key);
+            return (
+              <li key={key} className="rise" style={{ "--i": i }}>
+                <Link href={`/experts?service=${key}`} className="card card-hover glow flex h-full flex-col gap-2 p-5">
+                  <h3 className="font-display text-lg font-bold">{label}</h3>
+                  <p className="text-sm text-muted">{SERVICE_BLURBS[key]}</p>
+                  <p className="mt-auto pt-3 text-sm font-medium text-brand">
+                    {info ? `${info._count._all} ${info._count._all === 1 ? "offer" : "offers"}, from ${inr(info._min.priceInr)}` : "Coming soon"}
+                  </p>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+
+      {featured.length > 0 && (
+        <section className="space-y-5">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <div>
-              <h2 className="font-display text-2xl font-bold">Tools for founders</h2>
-              <p className="text-sm text-muted">Offers from Buncho Partners. They can sponsor this section, but they can't buy rank.</p>
-            </div>
-            <Link href="/partners" className="text-sm font-medium text-brand hover:underline">See all</Link>
+            <h2 className="font-display text-2xl font-bold sm:text-3xl">Meet the experts</h2>
+            <Link href="/experts" className="text-sm font-medium text-brand hover:underline">See all</Link>
           </div>
           <ul className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            {partners.map((p) => <PartnerCard key={p.id} partner={p} />)}
+            {featured.map((e, i) => <ExpertCard key={e.id} expert={e} index={i} />)}
           </ul>
-          <p className="text-xs text-muted">{PARTNER_NOTE}</p>
         </section>
       )}
 
       {/* How it works */}
       <section className="card reveal p-6 sm:p-10">
-        <h2 className="font-display text-2xl font-bold">How launching works</h2>
+        <h2 className="font-display text-2xl font-bold">How it works</h2>
         <ol className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
           {[
-            ["Submit", "Add your product with a tagline, link and category. It takes about five minutes."],
-            ["We review", "Every submission is checked by a person so the feed stays useful, not spammy."],
-            ["Climb the ranking", "Go live, enter the Daily Pick rotation, and rise by what real people do. See your score breakdown on your dashboard."],
+            ["Find", "Describe your problem or filter by college, role and service. Experts are checked by Buncho."],
+            ["Book", "Pick a service and a time that suits you. The expert confirms and shares a meeting link."],
+            ["Improve", "Get a resume review, a mock interview or advice from someone who has been where you are."],
           ].map(([t, d], i) => (
             <li key={t} className="flex gap-4">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-mint-soft font-display font-bold text-mint">{i + 1}</span>
@@ -286,50 +137,17 @@ export default async function Home({ searchParams }) {
           ))}
         </ol>
       </section>
-      {/* Why launch */}
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {[
-          ["Reach people who browse for new tools", "Visitors explore by category and ranking, and every founder gets a turn as the Daily Pick, free.",
-            <><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></>],
-          ["See what is working", "Views, clicks and click rate for every product, right on your dashboard.",
-            <path d="M4 20V10M10 20V4M16 20v-8M22 20H2" />],
-          ["Rank on merit, not money", "Your Buncho Score comes only from real behaviour. A ₹49 verification adds a tick, never rank.",
-            <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z" />],
-        ].map(([title, text, icon]) => (
-          <div key={title} className="card card-hover glow p-6">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-mint-soft text-mint">
-              <svg className="draw h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{icon}</svg>
-            </span>
-            <h3 className="mt-4 font-display text-lg font-bold">{title}</h3>
-            <p className="mt-1 text-sm text-muted">{text}</p>
-          </div>
-        ))}
-      </section>
 
-      {/* Founder call to action */}
-      <section className="aurora reveal relative grid grid-cols-1 items-center gap-8 overflow-hidden rounded-3xl border border-line bg-surface p-6 sm:p-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:p-12">
+      {/* Expert call to action */}
+      <section className="aurora reveal card relative grid grid-cols-1 items-center gap-6 overflow-hidden p-6 sm:p-10 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:p-12">
         <div>
-          <h2 className="font-display text-3xl font-bold leading-tight sm:text-4xl">Built something? Let people find it.</h2>
+          <h2 className="font-display text-3xl font-bold leading-tight sm:text-4xl">Been there? Help someone get there.</h2>
           <p className="mt-3 max-w-md text-muted">
-            Launching is free, reviewed by hand, and usually live within a day. Add your product in about five minutes.
+            Placed at a company, cleared a tough interview or built something real? Set your own prices and help students from your college.
           </p>
-          <LaunchButton className="mt-6" />
         </div>
-        <div aria-hidden="true" className="relative mx-auto hidden h-52 w-full max-w-sm lg:block">
-          {[
-            ["left-0 top-0", "-4deg", 0],
-            ["left-10 top-16", "2deg", 1],
-            ["left-4 top-32", "-2deg", 2],
-          ].map(([pos, r, n]) => (
-            <div key={n} className={`bob card absolute ${pos} flex w-72 items-center gap-3 p-3 shadow-xl`} style={{ "--r": r, "--i": n }}>
-              <span className="h-10 w-10 shrink-0 rounded-lg bg-mint-soft" />
-              <span className="flex-1 space-y-2">
-                <span className="block h-2.5 w-28 rounded-full bg-line" />
-                <span className="block h-2 w-40 rounded-full bg-surface-2" />
-              </span>
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-brand text-xs text-brand">▲</span>
-            </div>
-          ))}
+        <div>
+          <Link href="/onboarding/expert" className="btn-primary btn-ring">Become an expert</Link>
         </div>
       </section>
     </div>

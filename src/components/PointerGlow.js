@@ -1,8 +1,7 @@
 "use client";
 import { useEffect } from "react";
 
-// One lightweight listener: tracks the pointer over any element with the "glow" class
-// and exposes --mx / --my so CSS can draw a soft spotlight under the cursor.
+// One lightweight listener: exposes the pointer position on elements with the "glow" class.
 export default function PointerGlow() {
   useEffect(() => {
     if (window.matchMedia("(pointer: coarse)").matches) return;

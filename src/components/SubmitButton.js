@@ -8,14 +8,7 @@ export default function SubmitButton({ children, pendingText = "Working", classN
   const active = pending && (!name || data?.get(name) === value);
   return (
     <button type="submit" name={name} value={value} disabled={pending} className={className}>
-      {active ? (
-        <>
-          <Spinner />
-          {pendingText}
-        </>
-      ) : (
-        children
-      )}
+      {active ? (<><Spinner />{pendingText}</>) : children}
     </button>
   );
 }

@@ -6,16 +6,14 @@ import { usePathname, useSearchParams } from "next/navigation";
 export default function NavProgress() {
   const pathname = usePathname();
   const search = useSearchParams();
-  const [state, setState] = useState("idle"); // idle | loading | done
+  const [state, setState] = useState("idle");
 
-  // Route changed: finish the bar.
   useEffect(() => {
     setState((s) => (s === "loading" ? "done" : s));
     const t = setTimeout(() => setState((s) => (s === "done" ? "idle" : s)), 500);
     return () => clearTimeout(t);
   }, [pathname, search]);
 
-  // Start on internal link clicks and on forms marked data-nav.
   useEffect(() => {
     function onClick(e) {
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -37,7 +35,6 @@ export default function NavProgress() {
     };
   }, []);
 
-  // Safety: never leave the bar hanging.
   useEffect(() => {
     if (state !== "loading") return;
     const t = setTimeout(() => setState("done"), 15000);
@@ -51,7 +48,5 @@ export default function NavProgress() {
       ? { width: "100%", opacity: 0, transition: "width 0.25s ease-out, opacity 0.35s ease 0.15s" }
       : { width: "0%", opacity: 0, transition: "none" };
 
-  return (
-    <div aria-hidden="true" className="pointer-events-none fixed left-0 top-0 z-[60] h-[3px] bg-brand" style={style} />
-  );
+  return <div aria-hidden="true" className="pointer-events-none fixed left-0 top-0 z-[60] h-[3px] bg-brand" style={style} />;
 }

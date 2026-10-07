@@ -2,13 +2,12 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
-// Hamburger menu for screens below the md breakpoint. Links are passed in as children (server-rendered).
+// Hamburger menu for screens below the md breakpoint. Links are passed in as children.
 export default function MobileMenu({ children }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => setOpen(false), [pathname]);
-
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => e.key === "Escape" && setOpen(false);
@@ -31,7 +30,6 @@ export default function MobileMenu({ children }) {
           <span className={`absolute left-0 top-3 h-0.5 w-5 rounded bg-ink transition-transform duration-300 ${open ? "-translate-y-[6px] -rotate-45" : ""}`} />
         </span>
       </button>
-
       {open && (
         <div
           className="page-in absolute inset-x-0 top-full border-b border-line bg-paper px-4 py-3 shadow-2xl"

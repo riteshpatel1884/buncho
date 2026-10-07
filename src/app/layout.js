@@ -11,17 +11,21 @@ const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-bric
 const sans = Figtree({ subsets: ["latin"], variable: "--font-figtree" });
 
 export const metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
-  title: "buncho: discover products built in India",
-  description: "Discover, upvote and launch products built by Indian indie hackers and SaaS founders.",
+  title: "Buncho: get help from people who've already done it",
+  description: "Book verified seniors and professionals for resume reviews, mock interviews, career guidance and project reviews.",
 };
+export const viewport = { themeColor: "#050505" };
 
-export const viewport = { themeColor: "#050505", colorScheme: "dark" };
+// Applies the saved theme before the page paints, so there is no flash.
+const themeScript = `try{var t=localStorage.getItem("theme");if(t==="light"||t==="dark"){document.documentElement.dataset.theme=t}}catch(e){}`;
 
 export default function RootLayout({ children }) {
   return (
     <ClerkProvider>
-      <html lang="en" className={`${display.variable} ${sans.variable}`}>
+      <html lang="en" data-theme="dark" suppressHydrationWarning className={`${display.variable} ${sans.variable}`}>
+        <head>
+          <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        </head>
         <body className="flex min-h-screen flex-col">
           <Suspense fallback={null}>
             <NavProgress />

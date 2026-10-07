@@ -1,10 +1,5 @@
 export function slugify(text) {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60);
+  return text.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 50);
 }
 
 export function isHttpUrl(value) {
@@ -16,9 +11,11 @@ export function isHttpUrl(value) {
   }
 }
 
-export function timeAgo(date) {
-  const s = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
-  if (s < 3600) return `${Math.max(1, Math.floor(s / 60))}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
+// "react, SQL , python" -> ["react", "sql", "python"]
+export function parseSkills(text, max = 15) {
+  return [...new Set(String(text || "").split(",").map((s) => s.trim().toLowerCase()).filter((s) => s && s.length <= 30))].slice(0, max);
+}
+
+export function initials(name) {
+  return (name || "?").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
 }

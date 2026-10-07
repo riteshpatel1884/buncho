@@ -8,187 +8,140 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-enum ProductStatus {
-  PENDING
-  APPROVED
-  REJECTED
+enum Role {
+  STUDENT
+  EXPERT
 }
 
-enum EventType {
-  VIEW
-  CLICK
+enum ExpertStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
 }
 
-enum PaymentStatus {
+enum ServiceType {
+  RESUME_REVIEW
+  MOCK_INTERVIEW
+  CAREER_GUIDANCE
+  PROJECT_REVIEW
+  OTHER
+}
+
+enum BookingStatus {
   PENDING
-  PAID
-  FAILED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  DECLINED
 }
 
 model User {
-  id          String    @id @default(cuid())
-  clerkUserId String    @unique
-  name        String?
-  username    String?   @unique
-  email       String    @unique
-  avatarUrl   String?
-  verified    Boolean   @default(false)
-  verifiedAt  DateTime?
-  createdAt   DateTime  @default(now())
-  products    Product[]
-  votes       Vote[]
-  comments    Comment[]
-  payments    Payment[]
-  dailyPicks  DailyPick[]
+  id            String   @id @default(cuid())
+  clerkUserId   String   @unique
+  email         String   @unique
+  name          String?
+  avatarUrl     String?
+  role          Role?
+  createdAt     DateTime @default(now())
+
+  studentProfile StudentProfile?
+  expertProfile  ExpertProfile?
+  bookings       Booking[]       @relation("StudentBookings")
 }
 
-model Category {
-  id       String    @id @default(cuid())
-  name     String    @unique
-  slug     String    @unique
-  products Product[]
+model StudentProfile {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  college    String
+  branch     String
+  year       String
+  skills     String[]
+  targetRole String
+  careerGoal String
+  problems   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model Product {
-  id          String        @id @default(cuid())
-  name        String
-  slug        String        @unique
-  tagline     String
-  description String
-  websiteUrl  String
-  logoUrl     String?
-  screenshots String[]
-  pricing     String?
-  status      ProductStatus @default(PENDING)
-  featured    Boolean       @default(false)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+model ExpertProfile {
+  id                 String       @id @default(cuid())
+  userId             String       @unique
+  slug               String       @unique
+  headline           String?
+  college            String
+  branch             String
+  graduationYear     Int
+  company            String
+  jobTitle           String
+  experienceYears    Int
+  skills             String[]
+  bio                String
+  linkedinUrl        String
+  githubUrl          String?
+  status             ExpertStatus @default(PENDING)
+  educationVerified  Boolean      @default(false)
+  employmentVerified Boolean      @default(false)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
-  // Verification (paid, no effect on ranking)
-  verified   Boolean   @default(false)
-  verifiedAt DateTime?
-
-  // Buncho Score (behaviour only)
-  score          Float     @default(0)
-  scoreData      Json?
-  scoreUpdatedAt DateTime?
-
-  // Daily Pick rotation
-  lastPickedAt DateTime?
-
-  userId     String
-  user       User     @relation(fields: [userId], references: [id])
-  categoryId String
-  category   Category @relation(fields: [categoryId], references: [id])
-
-  votes      Vote[]
-  comments   Comment[]
-  events     ProductEvent[]
-  dailyPicks DailyPick[]
-  payments   Payment[]
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  services     Service[]
+  availability Availability[]
+  bookings     Booking[]
 
   @@index([status, createdAt])
-  @@index([status, score])
 }
 
-model Vote {
-  id        String   @id @default(cuid())
-  userId    String
-  productId String
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+model Service {
+  id           String      @id @default(cuid())
+  expertId     String
+  type         ServiceType
+  title        String
+  description  String
+  priceInr     Int
+  durationMin  Int
+  deliverables String[]
+  active       Boolean     @default(true)
+  createdAt    DateTime    @default(now())
 
-  @@unique([userId, productId])
+  expert   ExpertProfile @relation(fields: [expertId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@index([expertId, active])
 }
 
-model Comment {
-  id        String   @id @default(cuid())
-  body      String
-  createdAt DateTime @default(now())
-  userId    String
-  productId String
-  user      User     @relation(fields: [userId], references: [id])
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+// Weekly recurring window, in India time. weekday: 0 = Sunday ... 6 = Saturday.
+model Availability {
+  id       String @id @default(cuid())
+  expertId String
+  weekday  Int
+  startMin Int
+  endMin   Int
+
+  expert ExpertProfile @relation(fields: [expertId], references: [id], onDelete: Cascade)
+
+  @@index([expertId])
 }
 
-model ProductEvent {
-  id          String    @id @default(cuid())
-  type        EventType
-  productId   String
-  visitorHash String?
-  createdAt   DateTime  @default(now())
-  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@index([productId, type, createdAt])
-}
-
-// One row per calendar day (India time). Each founder gets one turn per round.
-model DailyPick {
-  id        String   @id @default(cuid())
-  day       String   @unique
-  round     Int
-  startsAt  DateTime
-  endsAt    DateTime
-  createdAt DateTime @default(now())
-  productId String
-  userId    String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id])
-
-  @@index([round, userId])
-}
-
-model Payment {
+model Booking {
   id         String        @id @default(cuid())
-  provider   String        @default("dodo")
-  providerId String?       @unique // Dodo payment_id, set by the webhook
-  sessionId  String?       @unique // Dodo checkout session id
-  status     PaymentStatus @default(PENDING)
-  amount     Int           @default(49)
-  currency   String        @default("INR")
+  studentId  String
+  expertId   String
+  serviceId  String
+  startsAt   DateTime
+  endsAt     DateTime
+  status     BookingStatus @default(PENDING)
+  note       String?
+  meetingUrl String?
+  priceInr   Int
   createdAt  DateTime      @default(now())
-  paidAt     DateTime?
-  userId     String
-  productId  String
-  user       User          @relation(fields: [userId], references: [id])
-  product    Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  updatedAt  DateTime      @updatedAt
 
-  @@index([userId, productId])
-}
+  student User          @relation("StudentBookings", fields: [studentId], references: [id])
+  expert  ExpertProfile @relation(fields: [expertId], references: [id])
+  service Service       @relation(fields: [serviceId], references: [id])
 
-enum PartnerKind {
-  SPONSOR
-  AFFILIATE
-}
-
-// Companies that sell to founders. Shown only in their own labelled sections, never in rankings.
-model Partner {
-  id        String      @id @default(cuid())
-  name      String
-  slug      String      @unique
-  category  String
-  tagline   String
-  offer     String?
-  linkUrl   String
-  logoUrl   String?
-  kind      PartnerKind @default(AFFILIATE)
-  active    Boolean     @default(true)
-  sortOrder Int         @default(0)
-  startsAt  DateTime?
-  endsAt    DateTime?
-  createdAt DateTime    @default(now())
-  clicks    PartnerClick[]
-
-  @@index([active, sortOrder])
-}
-
-model PartnerClick {
-  id          String   @id @default(cuid())
-  partnerId   String
-  visitorHash String?
-  createdAt   DateTime @default(now())
-  partner     Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
-
-  @@index([partnerId, createdAt])
+  @@index([expertId, startsAt])
+  @@index([studentId, startsAt])
 }
