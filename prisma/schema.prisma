@@ -84,7 +84,11 @@ model ExpertProfile {
   employmentVerified Boolean      @default(false)
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
-
+  blueTickUntil       DateTime?
+  dodoSubscriptionId  String?   @unique
+  dodoCustomerId      String?
+  dodoStatus          String?   // ACTIVE | ON_HOLD | CANCELLING | CANCELLED | EXPIRED
+  
   user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   services     Service[]
   availability Availability[]

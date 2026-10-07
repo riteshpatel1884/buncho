@@ -5,7 +5,7 @@ import { requireUser } from "@/lib/user";
 import { buildSlots } from "@/lib/slots";
 import { SERVICE_TYPES, inr } from "@/lib/constants";
 import Avatar from "@/components/Avatar";
-import VerificationBadges from "@/components/Badges";
+import VerificationBadges, { BlueTick, isBlueTick } from "@/components/Badges";
 import BookingPicker from "@/components/BookingPicker";
 
 export const dynamic = "force-dynamic";
@@ -68,7 +68,10 @@ export default async function BookPage({ params }) {
           <div className="card flex items-center gap-3 p-5">
             <Avatar name={expert.user.name} src={expert.user.avatarUrl} size={48} />
             <div className="min-w-0">
-              <p className="truncate font-semibold">{expert.user.name}</p>
+              <p className="flex items-center gap-1.5 font-semibold">
+                <span className="truncate">{expert.user.name}</span>
+                {isBlueTick(expert) && <BlueTick className="h-4 w-4 shrink-0" />}
+              </p>
               <p className="truncate text-xs text-muted">{expert.jobTitle} at {expert.company}</p>
               <div className="mt-1 flex flex-wrap gap-1"><VerificationBadges expert={expert} /></div>
             </div>

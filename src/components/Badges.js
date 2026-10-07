@@ -6,7 +6,24 @@ function Check({ className = "h-3.5 w-3.5" }) {
   );
 }
 
+// Paid blue tick (₹99/month via Dodo Payments). Only experts have this field, so students can never show it.
+// It is active only while blueTickUntil is in the future, so it disappears on its own if payments stop.
+export function isBlueTick(expert) {
+  return !!expert?.blueTickUntil && new Date(expert.blueTickUntil) > new Date();
+}
+
+export function BlueTick({ className = "h-5 w-5" }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" role="img" aria-label="Blue tick expert">
+      <title>Verified expert</title>
+      <circle cx="12" cy="12" r="11" fill="#164d25" />
+      <path d="M7 12.5l3.2 3.2L17 8.8" fill="none" stroke="#31ca74" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 // Education / employment checks done by Buncho. Self-declared details are not badged.
+// The blue tick is separate: it is a paid mark and is shown next to the name, not in this list.
 export default function VerificationBadges({ expert, showEmpty = false }) {
   const items = [
     expert.educationVerified && "Education verified",

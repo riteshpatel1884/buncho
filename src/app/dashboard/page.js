@@ -139,6 +139,7 @@ async function ExpertView({ user, sp }) {
         <Link href="/dashboard/services" className="btn-outline">Services</Link>
         <Link href="/dashboard/availability" className="btn-outline">Availability</Link>
         <Link href="/dashboard/profile" className="btn-outline">Edit profile</Link>
+        <Link href="/dashboard/verification" className="btn-outline">Blue tick</Link>
         <Link href={`/experts/${expert.slug}`} className="btn-outline">View public profile</Link>
       </div>
 

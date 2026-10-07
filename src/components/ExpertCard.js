@@ -2,6 +2,7 @@ import Link from "next/link";
 import Avatar from "./Avatar";
 import VerificationBadges from "./Badges";
 import { SERVICE_TYPES, inr } from "@/lib/constants";
+import { BlueTick, isBlueTick } from "../components/Badges";
 
 export default function ExpertCard({ expert, index = 0 }) {
   const services = expert.services ?? [];
@@ -13,9 +14,12 @@ export default function ExpertCard({ expert, index = 0 }) {
       <div className="flex items-start gap-3">
         <Avatar name={expert.user.name} src={expert.user.avatarUrl} size={56} />
         <div className="min-w-0 flex-1">
-          <Link href={`/experts/${expert.slug}`} className="block truncate font-display text-lg font-semibold leading-tight after:absolute after:inset-0">
-            {expert.user.name || "Expert"}
-          </Link>
+          <div className="flex items-center gap-1.5">
+              <Link href={`/experts/${expert.slug}`} className="min-w-0 truncate font-display text-lg font-semibold leading-tight after:absolute after:inset-0">
+                 {expert.user.name || "Expert"}
+              </Link>
+                 {isBlueTick(expert) && <BlueTick className="h-5 w-5 shrink-0" />}
+              </div>
           <p className="truncate text-sm text-muted">{expert.jobTitle} at {expert.company}</p>
           <p className="truncate text-xs text-muted">{expert.college}, {expert.branch} '{String(expert.graduationYear).slice(-2)}</p>
         </div>

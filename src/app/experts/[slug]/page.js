@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getDbUser, isAdmin } from "@/lib/user";
 import Avatar from "@/components/Avatar";
-import VerificationBadges from "@/components/Badges";
+import VerificationBadges, { BlueTick, isBlueTick } from "@/components/Badges";
 import StatusBadge from "@/components/StatusBadge";
 import { SERVICE_TYPES, WEEKDAYS, fmtMinutes, inr } from "@/lib/constants";
 
@@ -46,7 +46,10 @@ export default async function ExpertPage({ params }) {
       <header className="card rise flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-8">
         <Avatar name={expert.user.name} src={expert.user.avatarUrl} size={96} />
         <div className="min-w-0 flex-1 space-y-2">
-          <h1 className="font-display text-2xl font-bold leading-tight sm:text-3xl">{expert.user.name}</h1>
+          <h1 className="flex items-center gap-2 font-display text-2xl font-bold leading-tight sm:text-3xl">
+            <span className="min-w-0 break-words">{expert.user.name}</span>
+            {isBlueTick(expert) && <BlueTick className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" />}
+          </h1>
           {expert.headline && <p className="text-muted sm:text-lg">{expert.headline}</p>}
           <p className="text-sm">{expert.jobTitle} at {expert.company}, {expert.experienceYears} {expert.experienceYears === 1 ? "year" : "years"} of experience</p>
           <p className="text-sm text-muted">{expert.college}, {expert.branch}, class of {expert.graduationYear}</p>
