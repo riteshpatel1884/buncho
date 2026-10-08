@@ -149,3 +149,10 @@ model Booking {
   @@index([expertId, startsAt])
   @@index([studentId, startsAt])
 }
+
+model BlueTickPayment {
+  paymentId String   @id
+  expertId  String
+  createdAt DateTime @default(now())
+}
+

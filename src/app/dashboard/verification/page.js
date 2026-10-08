@@ -2,8 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/user";
+import { dodo } from "@/lib/dodo";
+import { applySubscription, applyPayment } from "@/lib/blueTick";
 import SubmitButton from "@/components/SubmitButton";
-import { BlueTick, isBlueTick } from "../../../components/Badges";
+import { BlueTick, isBlueTick } from "@/components/Badges";
 import { startBlueTick, cancelBlueTick } from "./actions";
 import { IST } from "@/lib/constants";
 
@@ -13,8 +15,46 @@ export const metadata = { title: "Blue tick | buncho" };
 export default async function VerificationPage({ searchParams }) {
   const user = await requireRole("EXPERT", "/dashboard/verification");
   const sp = await searchParams;
-  const expert = await prisma.expertProfile.findUnique({ where: { userId: user.id } });
+    let expert = await prisma.expertProfile.findUnique({ where: { userId: user.id } });
   if (!expert) redirect("/onboarding/expert");
+
+  // 1) Return from checkout: verify the payment with Dodo and save it.
+  const paymentId = typeof sp.payment_id === "string" ? sp.payment_id : null;
+  if (paymentId) {
+    try {
+      const payment = await dodo.payments.retrieve(paymentId);
+      const mine =
+        payment.metadata?.expertId === expert.id ||
+        payment.customer?.email?.toLowerCase() === user.email.toLowerCase();
+      if (mine) {
+        const res = await applyPayment(payment, { expertId: expert.id });
+        console.log("[blue tick] payment sync", paymentId, res);
+      } else {
+        console.error("[blue tick] payment does not belong to this expert", paymentId);
+      }
+    } catch (e) {
+      console.error("[blue tick] payment sync failed:", e?.message);
+    }
+    expert = await prisma.expertProfile.findUnique({ where: { userId: user.id } });
+  }
+
+  // 2) Existing subscription: keep the status fresh.
+  const subId = (typeof sp.subscription_id === "string" && sp.subscription_id) || expert.dodoSubscriptionId;
+  if (subId) {
+    try {
+      const sub = await dodo.subscriptions.retrieve(subId);
+      const mine =
+        sub.metadata?.expertId === expert.id ||
+        sub.subscription_id === expert.dodoSubscriptionId ||
+        sub.customer?.email?.toLowerCase() === user.email.toLowerCase();
+      if (mine) {
+        await applySubscription(sub, { expertId: expert.id });
+        expert = await prisma.expertProfile.findUnique({ where: { userId: user.id } });
+      }
+    } catch (e) {
+      console.error("[blue tick] sync failed:", e?.message);
+    }
+  }
 
   const active = isBlueTick(expert);
   const until = expert.blueTickUntil
