@@ -31,7 +31,7 @@ export async function POST(req) {
   const d = event.data ?? {};
   console.log("[dodo webhook] received", event.type, d.subscription_id ?? d.payment_id);
 
-  // Ignore  events for other products on the same Dodo account.
+  // Ignoree events for other products on the same Dodo account.
   const productId = process.env.DODO_VERIFY_PRODUCT_ID;
   if (d.product_id && productId && d.product_id !== productId) return new Response("ignored");
 
