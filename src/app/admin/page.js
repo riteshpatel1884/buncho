@@ -5,29 +5,35 @@ import { isAdmin } from "@/lib/user";
 import Avatar from "@/components/Avatar";
 import SubmitButton from "@/components/SubmitButton";
 import StatusBadge from "@/components/StatusBadge";
-import { setExpertStatus, toggleVerification } from "./actions";
+import { REVIEW_WHERE, FIELD_LABELS } from "@/lib/review";
+import { setExpertStatus, toggleVerification, markReviewed } from "./actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Admin | buncho" };
 
 const TABS = [["PENDING", "To review"], ["ACTIVE", "Live"], ["SUSPENDED", "Suspended"]];
+const WHERE = {
+  PENDING: REVIEW_WHERE,
+  ACTIVE: { status: "ACTIVE", needsReview: false },
+  SUSPENDED: { status: "SUSPENDED" },
+};
 
 export default async function Admin({ searchParams }) {
   if (!(await isAdmin())) notFound();
   const { status: raw } = await searchParams;
   const status = TABS.some(([s]) => s === raw) ? raw : "PENDING";
 
-  const [experts, grouped, students, bookings] = await Promise.all([
+  const [experts, counts, students, bookings] = await Promise.all([
     prisma.expertProfile.findMany({
-      where: { status },
+      where: WHERE[status],
       orderBy: { createdAt: status === "PENDING" ? "asc" : "desc" },
       include: { user: { select: { name: true, email: true, avatarUrl: true } }, _count: { select: { services: true, bookings: true } } },
     }),
-    prisma.expertProfile.groupBy({ by: ["status"], _count: { _all: true } }),
+    Promise.all(TABS.map(([s]) => prisma.expertProfile.count({ where: WHERE[s] }))),
     prisma.user.count({ where: { role: "STUDENT" } }),
     prisma.booking.count(),
   ]);
-  const count = (s) => grouped.find((g) => g.status === s)?._count._all ?? 0;
+  const count = (s) => counts[TABS.findIndex(([t]) => t === s)];
 
   return (
     <div className="space-y-6">
@@ -55,9 +61,16 @@ export default async function Admin({ searchParams }) {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <Link href={`/experts/${e.slug}`} className="font-display text-xl font-bold hover:underline">{e.user.name}</Link>
-                    <StatusBadge status={e.status === "PENDING" ? "REVIEW" : e.status} />
+                    <StatusBadge status={e.status === "PENDING" || e.needsReview ? "REVIEW" : e.status} />
                   </div>
                   <p className="text-sm text-muted">{e.user.email}</p>
+
+                  {e.unverifiedFields.length > 0 && (
+                    <p className="mt-3 rounded-xl bg-warn-soft p-3 text-sm text-warn">
+                      Changed since the last check: {e.unverifiedFields.map((f) => FIELD_LABELS[f]).join(", ")}. The old verification badges were removed. Re-check, then turn them back on and press "Mark reviewed".
+                    </p>
+                  )}
+
                   <p className="mt-2 text-sm">{e.jobTitle} at {e.company}, {e.experienceYears} yrs</p>
                   <p className="text-sm text-muted">{e.college}, {e.branch}, class of {e.graduationYear}</p>
                   <p className="mt-2 whitespace-pre-line break-words text-sm">{e.bio}</p>
@@ -79,11 +92,19 @@ export default async function Admin({ searchParams }) {
                     </SubmitButton>
                   </form>
                 ))}
-                <form action={setExpertStatus} className="ml-auto flex gap-2">
-                  <input type="hidden" name="id" value={e.id} />
-                  {e.status !== "ACTIVE" && <SubmitButton name="status" value="ACTIVE" className="btn-primary" pendingText="Approving">Approve</SubmitButton>}
-                  {e.status !== "SUSPENDED" && <SubmitButton name="status" value="SUSPENDED" className="btn-outline" pendingText="Saving">Suspend</SubmitButton>}
-                </form>
+                <div className="ml-auto flex flex-wrap gap-2">
+                  {e.status === "ACTIVE" && e.needsReview && (
+                    <form action={markReviewed}>
+                      <input type="hidden" name="id" value={e.id} />
+                      <SubmitButton className="btn-primary" pendingText="Saving">Mark reviewed</SubmitButton>
+                    </form>
+                  )}
+                  <form action={setExpertStatus} className="flex gap-2">
+                    <input type="hidden" name="id" value={e.id} />
+                    {e.status !== "ACTIVE" && <SubmitButton name="status" value="ACTIVE" className="btn-primary" pendingText="Approving">Approve</SubmitButton>}
+                    {e.status !== "SUSPENDED" && <SubmitButton name="status" value="SUSPENDED" className="btn-outline" pendingText="Saving">Suspend</SubmitButton>}
+                  </form>
+                </div>
               </div>
             </li>
           ))}

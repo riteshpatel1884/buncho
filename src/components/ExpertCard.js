@@ -1,8 +1,7 @@
 import Link from "next/link";
 import Avatar from "./Avatar";
-import VerificationBadges from "./Badges";
+import VerificationBadges, { BlueTick, isBlueTick } from "./Badges";
 import { SERVICE_TYPES, inr } from "@/lib/constants";
-import { BlueTick, isBlueTick } from "../components/Badges";
 
 export default function ExpertCard({ expert, index = 0 }) {
   const services = expert.services ?? [];

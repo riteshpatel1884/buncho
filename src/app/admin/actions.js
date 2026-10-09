@@ -12,7 +12,19 @@ export async function setExpertStatus(formData) {
   if (!(await isAdmin())) return;
   const status = String(formData.get("status"));
   if (!["PENDING", "ACTIVE", "SUSPENDED"].includes(status)) return;
-  await prisma.expertProfile.update({ where: { id: String(formData.get("id")) }, data: { status } });
+  // Approving counts as a review, so it also clears any "changed details" marks.
+  const data = status === "ACTIVE" ? { status, needsReview: false, unverifiedFields: [] } : { status };
+  await prisma.expertProfile.update({ where: { id: String(formData.get("id")) }, data });
+  refresh();
+}
+
+// Admin has checked the changed details. Clears the "Not verified" marks and the review flag.
+export async function markReviewed(formData) {
+  if (!(await isAdmin())) return;
+  await prisma.expertProfile.update({
+    where: { id: String(formData.get("id")) },
+    data: { needsReview: false, unverifiedFields: [] },
+  });
   refresh();
 }
 

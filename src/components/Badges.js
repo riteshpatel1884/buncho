@@ -14,11 +14,21 @@ export function isBlueTick(expert) {
 
 export function BlueTick({ className = "h-5 w-5" }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" role="img" aria-label="Blue tick expert">
+    <svg className={className} viewBox="0 0 24 24" role="img" aria-label="Verified expert">
       <title>Verified expert</title>
       <circle cx="12" cy="12" r="11" fill="#164d25" />
       <path d="M7 12.5l3.2 3.2L17 8.8" fill="none" stroke="#31ca74" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  );
+}
+
+// Small label shown next to details the expert changed after Buncho checked them.
+export function NotVerified({ show }) {
+  if (!show) return null;
+  return (
+    <span className="ml-2 inline-flex items-center rounded-full bg-warn-soft px-2 py-0.5 align-middle text-[11px] font-semibold text-warn">
+      Not verified
+    </span>
   );
 }
 

@@ -1,12 +1,18 @@
 import Link from "next/link";
 import { Show } from "@clerk/nextjs";
 import { isAdmin } from "@/lib/user";
+import { prisma } from "@/lib/prisma";
+import { REVIEW_WHERE } from "@/lib/review";
 import MobileMenu from "./MobileMenu";
 import ThemeToggle from "./ThemeToggle";
 import UserMenu from "./UserMenu";
 
 export default async function Navbar() {
   const admin = await isAdmin();
+  const toReview = admin ? await prisma.expertProfile.count({ where: REVIEW_WHERE }).catch(() => 0) : 0;
+  const adminBadge = toReview > 0 && (
+    <span className="ml-1.5 rounded-full bg-brand px-1.5 py-0.5 text-[11px] font-bold text-on-brand">{toReview}</span>
+  );
   const item = "block rounded-xl px-3 py-3 text-base font-medium hover:bg-surface-2";
   return (
     <header className="nav-scroll sticky top-0 z-40 border-b border-line bg-paper/85 backdrop-blur">
@@ -26,7 +32,7 @@ export default async function Navbar() {
           <ThemeToggle />
           <Show when="signed-in">
             <Link href="/dashboard" className="link-underline hidden text-muted hover:text-ink md:block">Dashboard</Link>
-            {admin && <Link href="/admin" className="link-underline hidden text-muted hover:text-ink md:block">Admin</Link>}
+            {admin && <Link href="/admin" className="link-underline hidden text-muted hover:text-ink md:block">Admin{adminBadge}</Link>}
             <UserMenu />
           </Show>
           <Show when="signed-out">
@@ -40,7 +46,7 @@ export default async function Navbar() {
               <Link href="/onboarding/expert" className={item}>Become an expert</Link>
               <Show when="signed-in">
                 <Link href="/dashboard" className={item}>Dashboard</Link>
-                {admin && <Link href="/admin" className={item}>Admin</Link>}
+                {admin && <Link href="/admin" className={item}>Admin{adminBadge}</Link>}
               </Show>
               <Show when="signed-out">
                 <Link href="/sign-in" className={item}>Sign in</Link>

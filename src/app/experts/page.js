@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import ExpertCard from "@/components/ExpertCard";
 import { SERVICE_TYPES } from "@/lib/constants";
+import { isBlueTick } from "@/components/Badges";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Find experts | buncho" };
@@ -55,13 +56,19 @@ export default async function Experts({ searchParams }) {
 
   const fromPrice = (e) => (e.services.length ? Math.min(...e.services.map((s) => s.priceInr)) : Infinity);
   const relevance = (e) => {
-    const hay = [e.headline, e.jobTitle, e.company, e.bio, e.college, e.user.name, ...e.skills, ...e.services.map((s) => s.title)]
-      .filter(Boolean).join(" ").toLowerCase();
-    return tokens.filter((t) => hay.includes(t)).length + (e.educationVerified ? 0.5 : 0) + (e.employmentVerified ? 0.5 : 0);
-  };
-  if (sort === "priceLow") experts.sort((a, b) => fromPrice(a) - fromPrice(b));
-  else if (sort === "priceHigh") experts.sort((a, b) => (fromPrice(b) === Infinity ? -1 : fromPrice(b)) - (fromPrice(a) === Infinity ? -1 : fromPrice(a)));
-  else if (sort === "relevance") experts.sort((a, b) => relevance(b) - relevance(a));
+  const hay = [e.headline, e.jobTitle, e.company, e.bio, e.college, e.user.name, ...e.skills, ...e.services.map((s) => s.title)]
+    .filter(Boolean).join(" ").toLowerCase();
+  return (
+    tokens.filter((t) => hay.includes(t)).length +
+    (e.educationVerified ? 0.5 : 0) +
+    (e.employmentVerified ? 0.5 : 0) +
+    (isBlueTick(e) ? 1 : 0)
+  );
+};
+if (sort === "priceLow") experts.sort((a, b) => fromPrice(a) - fromPrice(b));
+else if (sort === "priceHigh") experts.sort((a, b) => (fromPrice(b) === Infinity ? -1 : fromPrice(b)) - (fromPrice(a) === Infinity ? -1 : fromPrice(a)));
+else if (sort === "relevance") experts.sort((a, b) => relevance(b) - relevance(a));
+else if (sort === "newest") experts.sort((a, b) => Number(isBlueTick(b)) - Number(isBlueTick(a))); // stable: newest-first order is kept inside each group
 
   const active = [q, service, college, branch, gradYear, maxPrice].filter(Boolean).length;
 

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/user";
 import { buildSlots } from "@/lib/slots";
+import { emailNewRequest } from "@/lib/email";
 
 // Creates a booking request. The chosen time is re-checked against the expert's real open slots.
 export async function createBooking(_prev, formData) {
@@ -16,7 +17,7 @@ export async function createBooking(_prev, formData) {
 
   const service = await prisma.service.findFirst({
     where: { id: serviceId, active: true, expert: { status: "ACTIVE" } },
-    include: { expert: { include: { availability: true } } },
+    include: { expert: { include: { availability: true, user: { select: { name: true, email: true } } } } },
   });
   if (!service) return { error: "This service is no longer available." };
   if (service.expert.userId === user.id) return { error: "You can't book your own service." };
@@ -54,5 +55,15 @@ export async function createBooking(_prev, formData) {
   } catch (e) {
     return { error: e.message === "CLASH" ? "That time was just taken. Please choose another." : "Something went wrong. Please try again." };
   }
+
+  // Tell the expert. A failed email is only logged, it never blocks the booking.
+  await emailNewRequest({
+    to: service.expert.user.email,
+    studentName: user.name,
+    title: service.title,
+    startsAt,
+    note,
+  });
+
   redirect("/dashboard?booked=1");
 }

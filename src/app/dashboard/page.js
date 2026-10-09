@@ -7,6 +7,7 @@ import StatusBadge from "@/components/StatusBadge";
 import SubmitButton from "@/components/SubmitButton";
 import { confirmBooking, declineBooking, completeBooking, cancelBooking } from "./actions";
 import { fmtDateTime, inr } from "@/lib/constants";
+import { FIELD_LABELS } from "@/lib/review";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Dashboard | buncho" };
@@ -125,6 +126,11 @@ async function ExpertView({ user, sp }) {
       {sp.welcome === "expert" && <p role="status" className="rounded-xl bg-brand-soft p-4 text-sm font-medium text-brand">Profile submitted. Buncho will check your details, then your profile goes live.</p>}
       {expert.status === "PENDING" && <p className="rounded-xl bg-warn-soft p-4 text-sm text-warn">Your profile is under review. Students can't see it yet. Add your services and availability while you wait.</p>}
       {expert.status === "SUSPENDED" && <p className="rounded-xl bg-danger-soft p-4 text-sm text-danger">Your profile is suspended. Contact the Buncho team.</p>}
+      {expert.unverifiedFields?.length > 0 && (
+        <p className="rounded-xl bg-warn-soft p-4 text-sm text-warn">
+          You changed your {expert.unverifiedFields.map((f) => FIELD_LABELS[f]).join(", ")}. It shows as "Not verified" until the Buncho team checks it again.
+        </p>
+      )}
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {stats.map(([label, value], i) => (

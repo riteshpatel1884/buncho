@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getDbUser, isAdmin } from "@/lib/user";
 import Avatar from "@/components/Avatar";
-import VerificationBadges, { BlueTick, isBlueTick } from "@/components/Badges";
+import VerificationBadges, { BlueTick, isBlueTick, NotVerified } from "@/components/Badges";
 import StatusBadge from "@/components/StatusBadge";
+import { FIELD_LABELS } from "@/lib/review";
 import { SERVICE_TYPES, WEEKDAYS, fmtMinutes, inr } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +33,7 @@ export default async function ExpertPage({ params }) {
   if (expert.status !== "ACTIVE" && !isOwner && !admin) notFound();
 
   const canBook = expert.status === "ACTIVE" && !isOwner && me?.role !== "EXPERT";
+  const unv = (f) => expert.unverifiedFields?.includes(f);
 
   return (
     <article className="space-y-8">
@@ -43,6 +45,12 @@ export default async function ExpertPage({ params }) {
         </p>
       )}
 
+      {isOwner && expert.unverifiedFields?.length > 0 && (
+        <p className="rounded-xl bg-warn-soft p-4 text-sm text-warn">
+          You changed your {expert.unverifiedFields.map((f) => FIELD_LABELS[f]).join(", ")}. Students see these as "Not verified" until the Buncho team checks them again.
+        </p>
+      )}
+
       <header className="card rise flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-8">
         <Avatar name={expert.user.name} src={expert.user.avatarUrl} size={96} />
         <div className="min-w-0 flex-1 space-y-2">
@@ -51,8 +59,14 @@ export default async function ExpertPage({ params }) {
             {isBlueTick(expert) && <BlueTick className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" />}
           </h1>
           {expert.headline && <p className="text-muted sm:text-lg">{expert.headline}</p>}
-          <p className="text-sm">{expert.jobTitle} at {expert.company}, {expert.experienceYears} {expert.experienceYears === 1 ? "year" : "years"} of experience</p>
-          <p className="text-sm text-muted">{expert.college}, {expert.branch}, class of {expert.graduationYear}</p>
+          <p className="text-sm">
+            {expert.jobTitle} at {expert.company}, {expert.experienceYears} {expert.experienceYears === 1 ? "year" : "years"} of experience
+            <NotVerified show={unv("role") || unv("company")} />
+          </p>
+          <p className="text-sm text-muted">
+            {expert.college}, {expert.branch}, class of {expert.graduationYear}
+            <NotVerified show={unv("college")} />
+          </p>
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <VerificationBadges expert={expert} showEmpty />
           </div>
@@ -68,8 +82,16 @@ export default async function ExpertPage({ params }) {
               <div className="mt-4 flex flex-wrap gap-2">{expert.skills.map((s) => <span key={s} className="chip">{s}</span>)}</div>
             )}
             <div className="mt-5 flex flex-wrap gap-3 text-sm">
-              <a href={expert.linkedinUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-brand hover:underline">LinkedIn</a>
-              {expert.githubUrl && <a href={expert.githubUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-brand hover:underline">GitHub</a>}
+              <span>
+                <a href={expert.linkedinUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-brand hover:underline">LinkedIn</a>
+                <NotVerified show={unv("linkedin")} />
+              </span>
+              {expert.githubUrl && (
+                <span>
+                  <a href={expert.githubUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-brand hover:underline">GitHub</a>
+                  <NotVerified show={unv("github")} />
+                </span>
+              )}
             </div>
           </section>
 

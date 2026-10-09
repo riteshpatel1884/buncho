@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import ExpertCard from "@/components/ExpertCard";
 import { SERVICE_TYPES, SERVICE_BLURBS, inr } from "@/lib/constants";
+import { BlueTick, isBlueTick } from "@/components/Badges";
 
 export const dynamic = "force-dynamic";
 
@@ -70,7 +71,10 @@ export default async function Home() {
                   <Link href={`/experts/${e.slug}`} className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-surface-2">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mint-soft font-bold text-mint">{(e.user.name || "?")[0]}</span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold">{e.user.name}</span>
+                      <span className="flex items-center gap-1 font-semibold">
+                        <span className="truncate">{e.user.name}</span>
+                           {isBlueTick(e) && <BlueTick className="h-4 w-4 shrink-0" />}
+                        </span>
                       <span className="block truncate text-xs text-muted">{e.jobTitle} at {e.company}</span>
                     </span>
                     {e.services.length > 0 && <span className="text-sm font-semibold text-brand">{inr(Math.min(...e.services.map((s) => s.priceInr)))}</span>}

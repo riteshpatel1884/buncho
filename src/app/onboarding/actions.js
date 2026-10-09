@@ -69,14 +69,43 @@ export async function saveExpertProfile(_prev, formData) {
     skills, bio, linkedinUrl, githubUrl: githubUrl || null,
   };
 
-  const existing = await prisma.expertProfile.findUnique({ where: { userId: user.id }, select: { id: true } });
+  const existing = await prisma.expertProfile.findUnique({
+    where: { userId: user.id },
+    select: {
+      id: true, college: true, branch: true, graduationYear: true, company: true,
+      jobTitle: true, linkedinUrl: true, githubUrl: true, unverifiedFields: true,
+    },
+  });
+
   if (existing) {
+    const norm = (s) => String(s ?? "").trim().toLowerCase().replace(/\/+$/, "");
+    const same = (a, b) => norm(a) === norm(b);
+
+    const changed = [];
+    if (!same(existing.college, college) || !same(existing.branch, branch) || existing.graduationYear !== graduationYear) changed.push("college");
+    if (!same(existing.jobTitle, jobTitle)) changed.push("role");
+    if (!same(existing.company, company)) changed.push("company");
+    if (!same(existing.linkedinUrl, linkedinUrl)) changed.push("linkedin");
+    if (!same(existing.githubUrl, githubUrl)) changed.push("github");
+
+    // Verification means Buncho checked the old details. Changed details lose the badge and wait for a re-check.
+    const reset = changed.length
+      ? {
+          ...(changed.some((f) => f === "college" || f === "linkedin") ? { educationVerified: false } : {}),
+          ...(changed.some((f) => f === "role" || f === "company" || f === "linkedin") ? { employmentVerified: false } : {}),
+          unverifiedFields: [...new Set([...existing.unverifiedFields, ...changed])],
+          needsReview: true,
+        }
+      : {};
+
     await prisma.$transaction([
       prisma.user.update({ where: { id: user.id }, data: { name, role: "EXPERT" } }),
-      prisma.expertProfile.update({ where: { userId: user.id }, data }),
+      prisma.expertProfile.update({ where: { userId: user.id }, data: { ...data, ...reset } }),
     ]);
     revalidatePath("/dashboard");
-    return { ok: true };
+    revalidatePath("/experts");
+    revalidatePath("/admin");
+    return { ok: true, changed };
   }
 
   let slug = slugify(name) || "expert";

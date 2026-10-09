@@ -93,7 +93,11 @@ model ExpertProfile {
   services     Service[]
   availability Availability[]
   bookings     Booking[]
+  
+  needsReview       Boolean  @default(false)
+  unverifiedFields  String[] @default([])
 
+  
   @@index([status, createdAt])
 }
 

@@ -1,5 +1,5 @@
 import { dodo } from "@/lib/dodo";
-import { applySubscription, applyPayment } from "../../../../lib/blueTick";
+import { applySubscription, applyPayment } from "@/lib/blueTick";
 
 export const dynamic = "force-dynamic";
 

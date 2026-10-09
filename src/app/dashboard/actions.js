@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/user";
 import { isHttpUrl } from "@/lib/utils";
 import { SERVICE_TYPES, DURATIONS, timeToMinutes } from "@/lib/constants";
+import { emailConfirmed, emailDeclined, emailCancelled } from "@/lib/email";
 
 const get = (fd, k) => String(fd.get(k) || "").trim();
 const refresh = () => {
@@ -16,7 +17,11 @@ async function myBooking(formData) {
   const user = await requireUser("/dashboard");
   const booking = await prisma.booking.findUnique({
     where: { id: get(formData, "id") },
-    include: { expert: { select: { userId: true } } },
+    include: {
+      expert: { select: { userId: true, user: { select: { name: true, email: true } } } },
+      student: { select: { name: true, email: true } },
+      service: { select: { title: true } },
+    },
   });
   if (!booking) return {};
   const isExpert = booking.expert.userId === user.id;
@@ -28,9 +33,17 @@ export async function confirmBooking(formData) {
   const { booking, isExpert } = await myBooking(formData);
   if (!booking || !isExpert || booking.status !== "PENDING") return;
   const meetingUrl = get(formData, "meetingUrl");
+  const link = meetingUrl && isHttpUrl(meetingUrl) ? meetingUrl : null;
   await prisma.booking.update({
     where: { id: booking.id },
-    data: { status: "CONFIRMED", meetingUrl: meetingUrl && isHttpUrl(meetingUrl) ? meetingUrl : null },
+    data: { status: "CONFIRMED", meetingUrl: link },
+  });
+  await emailConfirmed({
+    to: booking.student.email,
+    expertName: booking.expert.user.name,
+    title: booking.service.title,
+    startsAt: booking.startsAt,
+    meetingUrl: link,
   });
   refresh();
 }
@@ -39,6 +52,12 @@ export async function declineBooking(formData) {
   const { booking, isExpert } = await myBooking(formData);
   if (!booking || !isExpert || booking.status !== "PENDING") return;
   await prisma.booking.update({ where: { id: booking.id }, data: { status: "DECLINED" } });
+  await emailDeclined({
+    to: booking.student.email,
+    expertName: booking.expert.user.name,
+    title: booking.service.title,
+    startsAt: booking.startsAt,
+  });
   refresh();
 }
 
@@ -50,9 +69,17 @@ export async function completeBooking(formData) {
 }
 
 export async function cancelBooking(formData) {
-  const { booking } = await myBooking(formData);
+  const { booking, isExpert } = await myBooking(formData);
   if (!booking || !["PENDING", "CONFIRMED"].includes(booking.status)) return;
   await prisma.booking.update({ where: { id: booking.id }, data: { status: "CANCELLED" } });
+  const other = isExpert ? booking.student : booking.expert.user;
+  const by = isExpert ? booking.expert.user : booking.student;
+  await emailCancelled({
+    to: other.email,
+    byName: by.name,
+    title: booking.service.title,
+    startsAt: booking.startsAt,
+  });
   refresh();
 }
 

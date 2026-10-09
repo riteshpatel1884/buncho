@@ -3,6 +3,7 @@ import { useActionState, startTransition } from "react";
 import Field from "./Field";
 import Spinner from "./Spinner";
 import { saveExpertProfile } from "@/app/onboarding/actions";
+import { FIELD_LABELS } from "@/lib/review";
 
 export default function ExpertProfileForm({ profile, name, submitLabel = "Save profile" }) {
   const [state, action, pending] = useActionState(saveExpertProfile, null);
@@ -46,7 +47,13 @@ export default function ExpertProfileForm({ profile, name, submitLabel = "Save p
         </Field>
       </div>
       {state?.error && <p role="alert" className="rounded-xl bg-danger-soft p-3 text-sm text-danger">{state.error}</p>}
-      {state?.ok && !pending && <p role="status" className="rounded-xl bg-brand-soft p-3 text-sm text-brand">Saved.</p>}
+      {state?.ok && !pending && (
+        <p role="status" className="rounded-xl bg-brand-soft p-3 text-sm text-brand">
+          Saved.
+          {state.changed?.length > 0 &&
+            ` You changed your ${state.changed.map((f) => FIELD_LABELS[f]).join(", ")}. It shows as "Not verified" until the Buncho team checks it again.`}
+        </p>
+      )}
       <button disabled={pending} className="btn-primary">{pending ? (<><Spinner />Saving</>) : submitLabel}</button>
     </form>
   );
