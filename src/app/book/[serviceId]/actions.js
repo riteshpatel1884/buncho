@@ -4,8 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/user";
 import { buildSlots } from "@/lib/slots";
 import { emailNewRequest } from "@/lib/email";
+import { activeHold, createBookingCheckout } from "@/lib/bookingPayment";
 
 // Creates a booking request. The chosen time is re-checked against the expert's real open slots.
+// Paid services go to Dodo checkout first; the expert is only told after the payment succeeds.
 export async function createBooking(_prev, formData) {
   const serviceId = String(formData.get("serviceId") || "");
   const startsIso = String(formData.get("startsAt") || "");
@@ -24,7 +26,7 @@ export async function createBooking(_prev, formData) {
 
   const horizon = new Date(Date.now() + 16 * 24 * 60 * 60 * 1000);
   const busy = await prisma.booking.findMany({
-    where: { expertId: service.expertId, status: { in: ["PENDING", "CONFIRMED"] }, startsAt: { lt: horizon } },
+    where: { expertId: service.expertId, startsAt: { lt: horizon }, ...activeHold() },
     select: { startsAt: true, endsAt: true },
   });
   const days = buildSlots({ availability: service.expert.availability, busy, durationMin: service.durationMin });
@@ -34,19 +36,28 @@ export async function createBooking(_prev, formData) {
 
   const startsAt = new Date(startsIso);
   const endsAt = new Date(startsAt.getTime() + service.durationMin * 60000);
+  const paid = service.priceInr > 0;
 
+  let booking;
   try {
-    await prisma.$transaction(
+    booking = await prisma.$transaction(
       async (tx) => {
         const clash = await tx.booking.findFirst({
-          where: { expertId: service.expertId, status: { in: ["PENDING", "CONFIRMED"] }, startsAt: { lt: endsAt }, endsAt: { gt: startsAt } },
+          where: { expertId: service.expertId, startsAt: { lt: endsAt }, endsAt: { gt: startsAt }, ...activeHold() },
           select: { id: true },
         });
         if (clash) throw new Error("CLASH");
-        await tx.booking.create({
+        // One open payment per student, so nobody can block many slots with unpaid requests.
+        await tx.booking.updateMany({
+          where: { studentId: user.id, status: "PENDING", paymentStatus: "UNPAID" },
+          data: { status: "CANCELLED" },
+        });
+        return tx.booking.create({
           data: {
             studentId: user.id, expertId: service.expertId, serviceId: service.id,
-            startsAt, endsAt, note: note || null, priceInr: service.priceInr,
+            startsAt, endsAt, note: note || null,
+            priceInr: service.priceInr, // price at the moment of booking
+            paymentStatus: paid ? "UNPAID" : "FREE",
           },
         });
       },
@@ -56,14 +67,19 @@ export async function createBooking(_prev, formData) {
     return { error: e.message === "CLASH" ? "That time was just taken. Please choose another." : "Something went wrong. Please try again." };
   }
 
-  // Tell the expert. A failed email is only logged, it never blocks the booking.
-  await emailNewRequest({
-    to: service.expert.user.email,
-    studentName: user.name,
-    title: service.title,
-    startsAt,
-    note,
-  });
+  if (!paid) {
+    // Free service: tell the expert now. A failed email is only logged, it never blocks the booking.
+    await emailNewRequest({ to: service.expert.user.email, studentName: user.name, title: service.title, startsAt, note });
+    redirect("/dashboard?booked=1");
+  }
 
-  redirect("/dashboard?booked=1");
+  let checkoutUrl = null;
+  try {
+    checkoutUrl = await createBookingCheckout({ booking, user });
+  } catch (e) {
+    console.error("[booking checkout] failed:", e?.message);
+    await prisma.booking.update({ where: { id: booking.id }, data: { status: "CANCELLED" } });
+    return { error: "We couldn't open the payment page. Please try again." };
+  }
+  redirect(checkoutUrl); // outside try/catch, redirect() throws on purpose
 }

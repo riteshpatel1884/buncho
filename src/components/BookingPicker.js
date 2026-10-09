@@ -2,12 +2,14 @@
 import { useActionState, useState, startTransition } from "react";
 import Spinner from "./Spinner";
 import { createBooking } from "@/app/book/[serviceId]/actions";
+import { inr } from "@/lib/constants";
 
-export default function BookingPicker({ serviceId, days }) {
+export default function BookingPicker({ serviceId, days, priceInr = 0 }) {
   const [state, action, pending] = useActionState(createBooking, null);
   const [dayIdx, setDayIdx] = useState(0);
   const [slot, setSlot] = useState("");
   const [note, setNote] = useState("");
+  const paid = priceInr > 0;
 
   if (days.length === 0) {
     return (
@@ -81,9 +83,18 @@ export default function BookingPicker({ serviceId, days }) {
 
       {state?.error && <p role="alert" className="rounded-xl bg-danger-soft p-3 text-sm text-danger">{state.error}</p>}
 
-      <button disabled={pending || !slot} className="btn-primary w-full sm:w-auto">
-        {pending ? (<><Spinner />Sending request</>) : "Send booking request"}
-      </button>
+      <div className="space-y-2">
+        <button disabled={pending || !slot} className="btn-primary w-full sm:w-auto">
+          {pending ? (
+            <><Spinner />{paid ? "Opening payment" : "Sending request"}</>
+          ) : paid ? (
+            `Pay ${inr(priceInr)} and send request`
+          ) : (
+            "Send booking request"
+          )}
+        </button>
+        {paid && <p className="text-xs text-muted">You pay securely on the next page. If the expert declines, you get a full refund.</p>}
+      </div>
     </form>
   );
 }

@@ -35,6 +35,14 @@ enum BookingStatus {
   DECLINED
 }
 
+enum PaymentStatus {
+  FREE          // price is 0, nothing to pay
+  UNPAID        // waiting for the student to pay on Dodo
+  PAID
+  REFUNDED
+  REFUND_FAILED // needs a manual refund from the Dodo dashboard
+}
+
 model User {
   id            String   @id @default(cuid())
   clerkUserId   String   @unique
@@ -143,6 +151,8 @@ model Booking {
   note       String?
   meetingUrl String?
   priceInr   Int
+  paymentStatus PaymentStatus @default(FREE) // FREE default keeps old bookings valid
+  dodoPaymentId String?       @unique
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
 
@@ -152,6 +162,7 @@ model Booking {
 
   @@index([expertId, startsAt])
   @@index([studentId, startsAt])
+  @@index([paymentStatus, createdAt])
 }
 
 model BlueTickPayment {
