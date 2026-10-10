@@ -1,15 +1,14 @@
 import { Resend } from "resend";
-import { fmtDateTime } from "@/lib/constants";
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const FROM = process.env.EMAIL_FROM || "Buncho <onboarding@resend.dev>";
 const APP = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-const EMAIL_DOMAIN = process.env.EMAIL_DOMAIN || "buncho.live";
+const EMAIL_DOMAIN = process.env.EMAIL_DOMAIN || "bunch.live";
 const SUPPORT = process.env.SUPPORT_EMAIL || "";
+const REPLY_BCC = process.env.REPLY_BCC || "bunchohq@gmail.com";
 
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const when = (d) => `${fmtDateTime(d)} IST`;
 
 // Returns true only if Resend accepted the email.
 async function send(to, subject, html, opts = {}) {
@@ -21,6 +20,7 @@ async function send(to, subject, html, opts = {}) {
       subject,
       html,
       ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
+      ...(opts.bcc ? { bcc: opts.bcc } : {}),
     });
     if (error) {
       console.error("[email] not sent:", error);
@@ -49,16 +49,15 @@ export function expertAddress({ name, slug }) {
   return `${display} <${local}@${EMAIL_DOMAIN}>`;
 }
 
-export function emailNewRequest({ to, studentName, title, startsAt, note }) {
+export function emailNewRequest({ to, studentName, title, note }) {
   return send(
     to,
-    `New booking request: ${title}`,
+    `New request: ${title}`,
     wrap(
-      "You have a new booking request",
+      "You have a new request",
       [
-        `<b>${esc(studentName || "A student")}</b> asked to book <b>${esc(title)}</b>.`,
-        `Time: ${esc(when(startsAt))}`,
-        ...(note ? [`Note: ${esc(note)}`] : []),
+        `<b>${esc(studentName || "A student")}</b> asked for <b>${esc(title)}</b>.`,
+        ...(note ? [`Their question: ${esc(note).replace(/\n/g, "<br>")}`] : []),
         "Accept or decline it from your dashboard.",
       ],
       { label: "Open dashboard", path: "/dashboard" }
@@ -66,7 +65,7 @@ export function emailNewRequest({ to, studentName, title, startsAt, note }) {
   );
 }
 
-export function emailConfirmed({ to, expertName, title, startsAt }) {
+export function emailConfirmed({ to, expertName, title }) {
   return send(
     to,
     `Accepted: ${title}`,
@@ -74,38 +73,37 @@ export function emailConfirmed({ to, expertName, title, startsAt }) {
       "Your request was accepted",
       [
         `<b>${esc(expertName || "Your expert")}</b> accepted <b>${esc(title)}</b>.`,
-        `Time: ${esc(when(startsAt))}`,
         "You'll get the expert's reply by email once Buncho has checked it. It will also show on your dashboard.",
       ],
-      { label: "View booking", path: "/dashboard" }
+      { label: "View request", path: "/dashboard" }
     )
   );
 }
 
-export function emailDeclined({ to, expertName, title, startsAt, refunded = false }) {
+export function emailDeclined({ to, expertName, title, refunded = false }) {
   return send(
     to,
     `Update on your request: ${title}`,
     wrap(
       "Your request was declined",
       [
-        `<b>${esc(expertName || "The expert")}</b> couldn't take <b>${esc(title)}</b> on ${esc(when(startsAt))}.`,
+        `<b>${esc(expertName || "The expert")}</b> couldn't take <b>${esc(title)}</b>.`,
         ...(refunded ? ["Your payment is being refunded in full."] : []),
-        "You can pick another time or look at other experts.",
+        "You can look at other experts.",
       ],
       { label: "Find experts", path: "/experts" }
     )
   );
 }
 
-export function emailCancelled({ to, byName, title, startsAt, refunded = false }) {
+export function emailCancelled({ to, byName, title, refunded = false }) {
   return send(
     to,
     `Cancelled: ${title}`,
     wrap(
-      "A session was cancelled",
+      "A request was cancelled",
       [
-        `<b>${esc(byName || "The other person")}</b> cancelled <b>${esc(title)}</b> on ${esc(when(startsAt))}.`,
+        `<b>${esc(byName || "The other person")}</b> cancelled <b>${esc(title)}</b>.`,
         ...(refunded ? ["Your payment is being refunded in full."] : []),
       ],
       { label: "Open dashboard", path: "/dashboard" }
@@ -113,7 +111,7 @@ export function emailCancelled({ to, byName, title, startsAt, refunded = false }
   );
 }
 
-// The checked reply, sent as the expert. expert = { name, slug }.
+// The checked reply, sent as the expert. A copy goes to REPLY_BCC so you can see every one that was sent.
 export function emailExpertReply({ to, expert, title, body }) {
   return send(
     to,
@@ -127,7 +125,7 @@ export function emailExpertReply({ to, expert, title, body }) {
       ],
       { label: "Open dashboard", path: "/dashboard" }
     ),
-    { from: expertAddress(expert), replyTo: SUPPORT }
+    { from: expertAddress(expert), replyTo: SUPPORT, bcc: REPLY_BCC }
   );
 }
 

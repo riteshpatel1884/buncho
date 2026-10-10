@@ -1,2 +1,0 @@
-1. when a expert cancel the servicereq of a user then is not showin to user ui of service cancellation
-2. 

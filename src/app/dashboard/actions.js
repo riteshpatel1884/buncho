@@ -11,6 +11,7 @@ const get = (fd, k) => String(fd.get(k) || "").trim();
 const refresh = () => {
   revalidatePath("/dashboard");
   revalidatePath("/experts");
+  revalidatePath("/admin");
 };
 
 // Loads a booking only if the signed-in user is the student or the expert on it.
@@ -30,7 +31,7 @@ async function myBooking(formData) {
   return isExpert || isStudent ? { booking, isExpert, isStudent } : {};
 }
 
-// The expert accepts a paid (or free) request. No meeting link: the expert answers by written reply.
+// The expert accepts a paid (or free) request, then answers it by written reply.
 export async function confirmBooking(formData) {
   const { booking, isExpert } = await myBooking(formData);
   if (!booking || !isExpert || booking.status !== "PENDING" || booking.paymentStatus === "UNPAID") return;
@@ -43,7 +44,6 @@ export async function confirmBooking(formData) {
     to: booking.student.email,
     expertName: booking.expert.user.name,
     title: booking.service.title,
-    startsAt: booking.startsAt,
   });
   refresh();
 }
@@ -61,16 +61,8 @@ export async function declineBooking(formData) {
     to: booking.student.email,
     expertName: booking.expert.user.name,
     title: booking.service.title,
-    startsAt: booking.startsAt,
     refunded: booking.paymentStatus === "PAID",
   });
-  refresh();
-}
-
-export async function completeBooking(formData) {
-  const { booking, isExpert } = await myBooking(formData);
-  if (!booking || !isExpert || booking.status !== "CONFIRMED" || booking.startsAt > new Date()) return;
-  await prisma.booking.update({ where: { id: booking.id }, data: { status: "COMPLETED", statusChangedAt: new Date() } });
   refresh();
 }
 
@@ -83,9 +75,9 @@ export async function cancelBooking(formData) {
   });
   if (done.count === 0) return;
 
-  // Refund rule: when the expert cancels, or when the student cancels before the expert accepted.
-  const refund = isExpert || booking.status === "PENDING";
-  if (refund) await refundBooking(booking);
+  // Refunded at once when the expert cancels, or when the student cancels before the expert accepted.
+  // A student cancelling after acceptance goes to the admin Inbox for a refund decision.
+  if (isExpert || booking.status === "PENDING") await refundBooking(booking);
 
   const other = isExpert ? booking.student : booking.expert.user;
   const by = isExpert ? booking.expert.user : booking.student;
@@ -93,16 +85,16 @@ export async function cancelBooking(formData) {
     to: other.email,
     byName: by.name,
     title: booking.service.title,
-    startsAt: booking.startsAt,
     refunded: isExpert && booking.paymentStatus === "PAID",
   });
   refresh();
 }
 
-// The expert's written answer. It is NOT sent to the student: it waits in the admin dashboard.
+// The expert's written answer. It is NOT sent to the student: it waits in the admin Inbox.
 export async function sendReply(_prev, formData) {
   const { booking, isExpert } = await myBooking(formData);
-  if (!booking || !isExpert) return { error: "Booking not found." };
+  if (!booking || !isExpert) return { error: "Request not found." };
+  if (booking.status === "COMPLETED") return { error: "This request is already completed." };
   if (booking.status !== "CONFIRMED") return { error: "Accept the request before you reply." };
 
   const body = get(formData, "body");
@@ -177,7 +169,7 @@ export async function deleteService(formData) {
   refresh();
 }
 
-// ---------- Availability ----------
+// ---------- Availability (no longer used by booking; kept until you decide to remove it) ----------
 export async function addAvailability(_prev, formData) {
   const user = await requireUser("/dashboard/availability");
   const expert = await prisma.expertProfile.findUnique({ where: { userId: user.id }, select: { id: true } });

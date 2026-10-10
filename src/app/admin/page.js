@@ -5,132 +5,224 @@ import { isAdmin } from "@/lib/user";
 import Avatar from "@/components/Avatar";
 import SubmitButton from "@/components/SubmitButton";
 import StatusBadge from "@/components/StatusBadge";
-import { REVIEW_WHERE, REPLY_OPEN, FIELD_LABELS } from "@/lib/review";
-import { fmtDateTime } from "@/lib/constants";
-import { setExpertStatus, toggleVerification, markReviewed, approveReply, rejectReply } from "./actions";
+import { REVIEW_WHERE, REPLY_OPEN, REFUND_OPEN, FIELD_LABELS } from "@/lib/review";
+import { fmtDateTime, inr } from "@/lib/constants";
+import {
+  setExpertStatus, toggleVerification, markReviewed,
+  approveReply, rejectReply, refundNow, keepPayment,
+} from "./actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Admin | buncho" };
 
-const EMAIL_DOMAIN = process.env.EMAIL_DOMAIN || "buncho.live";
-const TABS = [["PENDING", "To review"], ["REPLIES", "Replies"], ["ACTIVE", "Live"], ["SUSPENDED", "Suspended"]];
+const EMAIL_DOMAIN = process.env.EMAIL_DOMAIN || "bunch.live";
+const TABS = [["INBOX", "Inbox"], ["PENDING", "To review"], ["ACTIVE", "Live"], ["SUSPENDED", "Suspended"]];
 const WHERE = {
   PENDING: REVIEW_WHERE,
   ACTIVE: { status: "ACTIVE", needsReview: false },
   SUSPENDED: { status: "SUSPENDED" },
 };
+const PAY_LABEL = { PAID: "Paid, not refunded", REFUNDED: "Refunded", REFUND_FAILED: "Refund failed", FREE: "Free" };
+
+const bookingInclude = {
+  student: { select: { name: true, email: true } },
+  service: { select: { title: true } },
+  expert: { select: { slug: true, user: { select: { name: true } } } },
+};
+
+function whoEnded(b) {
+  if (b.status === "DECLINED") return "Declined by the expert";
+  if (b.cancelledBy === "EXPERT") return "Cancelled by the expert";
+  if (b.cancelledBy === "STUDENT") return "Cancelled by the student";
+  return "Cancelled";
+}
 
 export default async function Admin({ searchParams }) {
   if (!(await isAdmin())) notFound();
   const { status: raw } = await searchParams;
-  const status = TABS.some(([s]) => s === raw) ? raw : "PENDING";
-  const isReplies = status === "REPLIES";
+  const status = TABS.some(([s]) => s === raw) ? raw : "INBOX";
+  const isInbox = status === "INBOX";
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-  const [experts, replies, counts, students, bookings] = await Promise.all([
-    isReplies
-      ? []
-      : prisma.expertProfile.findMany({
-          where: WHERE[status],
-          orderBy: { createdAt: status === "PENDING" ? "asc" : "desc" },
-          include: { user: { select: { name: true, email: true, avatarUrl: true } }, _count: { select: { services: true, bookings: true } } },
-        }),
-    isReplies
-      ? prisma.bookingReply.findMany({
-          where: REPLY_OPEN,
-          orderBy: { createdAt: "asc" },
-          include: {
-            booking: {
-              include: {
-                student: { select: { name: true, email: true } },
-                service: { select: { title: true } },
-                expert: { select: { slug: true, user: { select: { name: true } } } },
-              },
-            },
-          },
-        })
-      : [],
-    Promise.all(
-      TABS.map(([s]) =>
-        s === "REPLIES" ? prisma.bookingReply.count({ where: REPLY_OPEN }) : prisma.expertProfile.count({ where: WHERE[s] })
-      )
-    ),
+  const [repliesCount, refundsCount, reviewCount, liveCount, suspendedCount, students, bookingsTotal] = await Promise.all([
+    prisma.bookingReply.count({ where: REPLY_OPEN }),
+    prisma.booking.count({ where: REFUND_OPEN }),
+    prisma.expertProfile.count({ where: WHERE.PENDING }),
+    prisma.expertProfile.count({ where: WHERE.ACTIVE }),
+    prisma.expertProfile.count({ where: WHERE.SUSPENDED }),
     prisma.user.count({ where: { role: "STUDENT" } }),
     prisma.booking.count(),
   ]);
-  const count = (s) => counts[TABS.findIndex(([t]) => t === s)];
+  const count = { INBOX: repliesCount + refundsCount, PENDING: reviewCount, ACTIVE: liveCount, SUSPENDED: suspendedCount };
+
+  const experts = isInbox
+    ? []
+    : await prisma.expertProfile.findMany({
+        where: WHERE[status],
+        orderBy: { createdAt: status === "PENDING" ? "asc" : "desc" },
+        include: { user: { select: { name: true, email: true, avatarUrl: true } }, _count: { select: { services: true, bookings: true } } },
+      });
+
+  const replies = isInbox
+    ? await prisma.bookingReply.findMany({
+        where: REPLY_OPEN,
+        orderBy: { createdAt: "asc" },
+        include: { booking: { include: bookingInclude } },
+      })
+    : [];
+  const refunds = isInbox
+    ? await prisma.booking.findMany({ where: REFUND_OPEN, orderBy: { statusChangedAt: "asc" }, include: bookingInclude })
+    : [];
+  const recent = isInbox
+    ? (
+        await prisma.booking.findMany({
+          where: { status: { in: ["CANCELLED", "DECLINED"] }, paymentStatus: { not: "UNPAID" }, statusChangedAt: { gte: since } },
+          orderBy: { statusChangedAt: "desc" },
+          take: 40,
+          include: bookingInclude,
+        })
+      ).filter((b) => !refunds.some((r) => r.id === b.id))
+    : [];
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-3xl font-bold sm:text-4xl">Admin</h1>
-        <p className="mt-1 text-muted">Check each expert's LinkedIn, education and employment before approving, and read every reply before a student gets it. {students} students, {bookings} bookings so far.</p>
+        <p className="mt-1 text-muted">Replies to approve, refunds, cancellations and expert checks, all here. {students} students, {bookingsTotal} bookings so far.</p>
       </div>
 
       <div className="no-scrollbar flex w-full max-w-full overflow-x-auto rounded-full border border-line bg-surface p-1 text-sm font-medium sm:w-fit">
         {TABS.map(([s, label]) => (
           <Link key={s} href={`/admin?status=${s}`} className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 sm:px-4 ${status === s ? "bg-brand text-on-brand" : "text-muted hover:text-ink"}`}>
-            {label} ({count(s)})
+            {label} ({count[s]})
           </Link>
         ))}
       </div>
 
-      {isReplies ? (
-        replies.length === 0 ? (
-          <div className="card border-dashed p-10 text-center text-muted">No replies waiting.</div>
-        ) : (
-          <ul className="space-y-4">
-            {replies.map((r) => (
-              <li key={r.id} className="card space-y-4 p-5 sm:p-6">
-                <div>
-                  <p className="font-semibold">
-                    {r.booking.expert.user.name} to {r.booking.student.name || "Student"}{" "}
-                    <span className="font-normal text-muted">({r.booking.student.email})</span>
-                  </p>
-                  <p className="text-sm text-muted">{r.booking.service.title}, {fmtDateTime(r.booking.startsAt)} IST</p>
-                </div>
+      {isInbox ? (
+        <div className="space-y-10">
+          {/* Replies */}
+          <section className="space-y-3">
+            <h2 className="font-display text-xl font-bold">Replies to approve <span className="text-sm font-normal text-muted">({replies.length})</span></h2>
+            {replies.length === 0 ? (
+              <div className="card border-dashed p-8 text-center text-muted">No replies waiting.</div>
+            ) : (
+              <ul className="space-y-4">
+                {replies.map((r) => (
+                  <li key={r.id} className="card space-y-4 p-5 sm:p-6">
+                    <div>
+                      <p className="font-semibold">
+                        {r.booking.expert.user.name} to {r.booking.student.name || "Student"}{" "}
+                        <span className="font-normal text-muted">({r.booking.student.email})</span>
+                      </p>
+                      <p className="text-sm text-muted">{r.booking.service.title}, requested {fmtDateTime(r.booking.createdAt)} IST</p>
+                    </div>
 
-                {r.flags.length > 0 && (
-                  <p className="rounded-xl bg-warn-soft p-3 text-sm text-warn">
-                    Possible contact info: {r.flags.join(", ")}. Check it, edit it out, or reject.
-                  </p>
-                )}
-                {r.status === "SEND_FAILED" && (
-                  <p className="rounded-xl bg-danger-soft p-3 text-sm text-danger">
-                    The last email didn't go through. Check Resend and the sending domain, then approve again.
-                  </p>
-                )}
+                    {r.flags.length > 0 && (
+                      <p className="rounded-xl bg-warn-soft p-3 text-sm text-warn">
+                        Possible contact info: {r.flags.join(", ")}. Check it, edit it out, or reject.
+                      </p>
+                    )}
+                    {r.status === "SEND_FAILED" && (
+                      <p className="rounded-xl bg-danger-soft p-3 text-sm text-danger">
+                        The last email didn't go through. Check Resend and the sending domain, then approve again.
+                      </p>
+                    )}
 
-                {r.booking.note && (
-                  <div>
-                    <p className="text-xs text-muted">The student asked</p>
-                    <p className="mt-1 whitespace-pre-line rounded-xl bg-surface-2 p-3 text-sm">{r.booking.note}</p>
-                  </div>
-                )}
+                    {r.booking.note && (
+                      <div>
+                        <p className="text-xs text-muted">The student asked</p>
+                        <p className="mt-1 whitespace-pre-line break-words rounded-xl bg-surface-2 p-3 text-sm">{r.booking.note}</p>
+                      </div>
+                    )}
 
-                <form action={approveReply} className="space-y-3">
-                  <input type="hidden" name="id" value={r.id} />
-                  <label className="block text-sm font-medium">
-                    Reply (you can edit it before it is sent)
-                    <textarea name="body" required rows={8} maxLength={4000} defaultValue={r.body} className="input mt-1.5" />
-                  </label>
-                  <p className="text-xs text-muted">
-                    Goes to {r.booking.student.email} from {r.booking.expert.slug}@{EMAIL_DOMAIN}.
-                  </p>
-                  <SubmitButton className="btn-primary" pendingText="Sending">Approve and send</SubmitButton>
-                </form>
+                    <form action={approveReply} className="space-y-3">
+                      <input type="hidden" name="id" value={r.id} />
+                      <label className="block text-sm font-medium">
+                        Reply (you can edit it before it is sent)
+                        <textarea name="body" required rows={8} maxLength={4000} defaultValue={r.body} className="input mt-1.5" />
+                      </label>
+                      <p className="text-xs text-muted">
+                        Goes to {r.booking.student.email} from {r.booking.expert.slug}@{EMAIL_DOMAIN}. The request is completed once it is sent.
+                      </p>
+                      <SubmitButton className="btn-primary" pendingText="Sending">Approve and send</SubmitButton>
+                    </form>
 
-                <form action={rejectReply} className="flex flex-wrap items-end gap-2 border-t border-dashed border-line pt-4">
-                  <input type="hidden" name="id" value={r.id} />
-                  <label className="min-w-[220px] flex-1 text-xs text-muted">
-                    Reason for the expert (optional)
-                    <input name="note" maxLength={300} placeholder="Remove phone numbers and links, then send it again" className="input mt-1" />
-                  </label>
-                  <SubmitButton className="btn-outline" pendingText="Rejecting">Reject</SubmitButton>
-                </form>
-              </li>
-            ))}
-          </ul>
-        )
+                    <form action={rejectReply} className="flex flex-wrap items-end gap-2 border-t border-dashed border-line pt-4">
+                      <input type="hidden" name="id" value={r.id} />
+                      <label className="min-w-[220px] flex-1 text-xs text-muted">
+                        Reason for the expert (optional)
+                        <input name="note" maxLength={300} placeholder="Remove phone numbers and links, then send it again" className="input mt-1" />
+                      </label>
+                      <SubmitButton className="btn-outline" pendingText="Rejecting">Reject</SubmitButton>
+                    </form>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          {/* Refunds */}
+          <section className="space-y-3">
+            <h2 className="font-display text-xl font-bold">Refunds to handle <span className="text-sm font-normal text-muted">({refunds.length})</span></h2>
+            {refunds.length === 0 ? (
+              <div className="card border-dashed p-8 text-center text-muted">No refunds waiting.</div>
+            ) : (
+              <ul className="space-y-4">
+                {refunds.map((b) => (
+                  <li key={b.id} className="card space-y-3 p-5 sm:p-6">
+                    <p className="font-semibold">
+                      {b.student.name || "Student"} <span className="font-normal text-muted">({b.student.email})</span>
+                    </p>
+                    <p className="text-sm text-muted">{b.service.title} with {b.expert.user.name}, {inr(b.priceInr)}</p>
+                    <p className="text-sm">{whoEnded(b)}. {PAY_LABEL[b.paymentStatus] ?? b.paymentStatus}.</p>
+                    {b.cancelledBy === "STUDENT" && (
+                      <p className="rounded-xl bg-warn-soft p-3 text-sm text-warn">The student cancelled after the expert accepted. Decide whether to refund.</p>
+                    )}
+                    {b.paymentStatus === "REFUND_FAILED" && (
+                      <p className="rounded-xl bg-danger-soft p-3 text-sm text-danger">The automatic refund failed. Try again, or refund it from the Dodo dashboard and press Keep payment to close this.</p>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      <form action={refundNow}>
+                        <input type="hidden" name="id" value={b.id} />
+                        <SubmitButton className="btn-primary" pendingText="Refunding">Refund {inr(b.priceInr)}</SubmitButton>
+                      </form>
+                      <form action={keepPayment}>
+                        <input type="hidden" name="id" value={b.id} />
+                        <SubmitButton className="btn-outline" pendingText="Saving">Keep payment</SubmitButton>
+                      </form>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          {/* Cancellations feed */}
+          <section className="space-y-3">
+            <h2 className="font-display text-xl font-bold">Recent cancellations <span className="text-sm font-normal text-muted">(last 30 days)</span></h2>
+            {recent.length === 0 ? (
+              <div className="card border-dashed p-8 text-center text-muted">Nothing cancelled recently.</div>
+            ) : (
+              <ul className="divide-y divide-line rounded-2xl border border-line bg-surface">
+                {recent.map((b) => (
+                  <li key={b.id} className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
+                    <div className="min-w-0">
+                      <p className="font-semibold">{b.service.title}, {inr(b.priceInr)}</p>
+                      <p className="text-muted">
+                        {b.student.name || "Student"} and {b.expert.user.name}. {whoEnded(b)}
+                        {b.statusChangedAt ? `, ${fmtDateTime(b.statusChangedAt)} IST` : ""}.
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-semibold text-muted">
+                      {PAY_LABEL[b.paymentStatus] ?? b.paymentStatus}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
       ) : experts.length === 0 ? (
         <div className="card border-dashed p-10 text-center text-muted">Nothing in this list.</div>
       ) : (

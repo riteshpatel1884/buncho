@@ -44,13 +44,13 @@ enum PaymentStatus {
 }
 
 model User {
-  id            String   @id @default(cuid())
-  clerkUserId   String   @unique
-  email         String   @unique
-  name          String?
-  avatarUrl     String?
-  role          Role?
-  createdAt     DateTime @default(now())
+  id          String   @id @default(cuid())
+  clerkUserId String   @unique
+  email       String   @unique
+  name        String?
+  avatarUrl   String?
+  role        Role?
+  createdAt   DateTime @default(now())
 
   studentProfile StudentProfile?
   expertProfile  ExpertProfile?
@@ -69,7 +69,8 @@ model StudentProfile {
   problems   String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model ExpertProfile {
@@ -92,20 +93,22 @@ model ExpertProfile {
   employmentVerified Boolean      @default(false)
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
-  blueTickUntil       DateTime?
-  dodoSubscriptionId  String?   @unique
-  dodoCustomerId      String?
-  dodoStatus          String?   // ACTIVE | ON_HOLD | CANCELLING | CANCELLED | EXPIRED
-  
+
+  // Blue tick (paid)
+  blueTickUntil      DateTime?
+  dodoSubscriptionId String?   @unique
+  dodoCustomerId     String?
+  dodoStatus         String?   // ACTIVE | ON_HOLD | CANCELLING | CANCELLED | EXPIRED | ONE_TIME
+
+  // Set when a verified expert changes details, so an admin re-checks them
+  needsReview      Boolean  @default(false)
+  unverifiedFields String[] @default([])
+
   user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   services     Service[]
   availability Availability[]
   bookings     Booking[]
-  
-  needsReview       Boolean  @default(false)
-  unverifiedFields  String[] @default([])
 
-  
   @@index([status, createdAt])
 }
 
@@ -128,6 +131,7 @@ model Service {
 }
 
 // Weekly recurring window, in India time. weekday: 0 = Sunday ... 6 = Saturday.
+// Not used by booking any more. Kept until you decide to remove it.
 model Availability {
   id       String @id @default(cuid())
   expertId String
@@ -141,30 +145,30 @@ model Availability {
 }
 
 model Booking {
-  id         String        @id @default(cuid())
-  studentId  String
-  expertId   String
-  serviceId  String
-  startsAt   DateTime
-  endsAt     DateTime
-  status     BookingStatus @default(PENDING)
-  note       String?
-  meetingUrl String?
-  priceInr   Int
+  id            String        @id @default(cuid())
+  studentId     String
+  expertId      String
+  serviceId     String
+  status        BookingStatus @default(PENDING)
+  note          String?       // the student's question
+  meetingUrl    String?       // no longer used, meeting links are not allowed
+  priceInr      Int
   paymentStatus PaymentStatus @default(FREE) // FREE default keeps old bookings valid
   dodoPaymentId String?       @unique
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
-  cancelledBy     String?        // "EXPERT" or "STUDENT"
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  cancelledBy     String?   // "EXPERT" or "STUDENT"
   statusChangedAt DateTime?
-  replies         BookingReply[]
+  resolvedAt      DateTime? // set when the admin has dealt with a refund case
 
   student User          @relation("StudentBookings", fields: [studentId], references: [id])
   expert  ExpertProfile @relation(fields: [expertId], references: [id])
   service Service       @relation(fields: [serviceId], references: [id])
+  replies BookingReply[]
 
-  @@index([expertId, startsAt])
-  @@index([studentId, startsAt])
+  @@index([expertId, createdAt])
+  @@index([studentId, createdAt])
   @@index([paymentStatus, createdAt])
 }
 

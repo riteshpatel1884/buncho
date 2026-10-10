@@ -8,7 +8,7 @@ import Avatar from "@/components/Avatar";
 import StatusBadge from "@/components/StatusBadge";
 import SubmitButton from "@/components/SubmitButton";
 import ReplyForm from "@/components/ReplyForm";
-import { confirmBooking, declineBooking, completeBooking, cancelBooking } from "./actions";
+import { confirmBooking, declineBooking, cancelBooking } from "./actions";
 import { fmtDateTime, inr } from "@/lib/constants";
 import { FIELD_LABELS } from "@/lib/review";
 
@@ -48,12 +48,11 @@ function CancelForm({ id }) {
 
 // What happened to the student's money when a request was declined or cancelled.
 function refundLine(b) {
-  if (b.paymentStatus === "REFUNDED") return `Your payment of ${inr(b.priceInr)} will be refunded to your original payment method.`;
-  if (b.paymentStatus === "REFUND_FAILED") return "We couldn't start your refund automatically. The Buncho team will fix this and email you.";
+  if (b.paymentStatus === "REFUNDED") return `Your payment of ${inr(b.priceInr)} has been refunded to your original payment method.`;
+  if (b.paymentStatus === "REFUND_FAILED") return "We couldn't start your refund automatically. The Buncho team is fixing this and will email you.";
   if (b.paymentStatus === "PAID") {
-    return b.cancelledBy === "STUDENT"
-      ? "You cancelled after the expert accepted, so there is no automatic refund. Contact Buncho if something went wrong."
-      : "Your refund is being processed.";
+    if (b.resolvedAt) return "Buncho reviewed this cancellation and the payment was kept.";
+    return b.cancelledBy === "STUDENT" ? "Buncho is reviewing your refund and will email you." : "Your refund is being processed.";
   }
   if (b.paymentStatus === "FREE") return "Nothing was charged.";
   return "";
@@ -61,9 +60,9 @@ function refundLine(b) {
 
 function endedLine(b) {
   if (b.status === "DECLINED") return "The expert couldn't take this request.";
-  if (b.cancelledBy === "EXPERT") return "The expert cancelled this session.";
-  if (b.cancelledBy === "STUDENT") return "You cancelled this session.";
-  return "This session was cancelled.";
+  if (b.cancelledBy === "EXPERT") return "The expert cancelled this request.";
+  if (b.cancelledBy === "STUDENT") return "You cancelled this request.";
+  return "This request was cancelled.";
 }
 
 // ---------- Student ----------
@@ -72,7 +71,7 @@ async function StudentView({ user, sp }) {
     prisma.studentProfile.findUnique({ where: { userId: user.id } }),
     prisma.booking.findMany({
       where: { studentId: user.id },
-      orderBy: { startsAt: "desc" },
+      orderBy: { createdAt: "desc" },
       include: {
         service: true,
         expert: { include: { user: { select: { name: true, avatarUrl: true } } } },
@@ -86,10 +85,8 @@ async function StudentView({ user, sp }) {
 
   // Unpaid requests are not real requests. Only show one while its payment can still go through.
   const shown = bookings.filter((b) => b.paymentStatus !== "UNPAID" || (b.status === "PENDING" && b.createdAt > holdCutoff));
-  const upcoming = shown
-    .filter((b) => ["PENDING", "CONFIRMED"].includes(b.status) && (b.status === "CONFIRMED" || b.endsAt >= now))
-    .reverse();
-  const past = shown.filter((b) => !upcoming.includes(b));
+  const open = shown.filter((b) => ["PENDING", "CONFIRMED"].includes(b.status));
+  const done = shown.filter((b) => !open.includes(b));
 
   // Recent declines and expert cancellations, shown on top so they are not missed.
   const alerts = shown.filter(
@@ -103,7 +100,7 @@ async function StudentView({ user, sp }) {
         <div className="min-w-0 flex-1">
           <Link href={`/experts/${b.expert.slug}`} className="block truncate font-semibold hover:underline">{b.expert.user.name}</Link>
           <p className="truncate text-sm text-muted">{b.service.title}, {inr(b.priceInr)}</p>
-          <p className="text-sm">{fmtDateTime(b.startsAt)} IST</p>
+          <p className="text-xs text-muted">Requested {fmtDateTime(b.createdAt)} IST</p>
         </div>
         <StatusBadge status={b.status} />
       </div>
@@ -111,13 +108,13 @@ async function StudentView({ user, sp }) {
       {b.status === "PENDING" && (
         <p className="mt-3 text-sm text-muted">
           {b.paymentStatus === "UNPAID"
-            ? `Waiting for your payment to go through. This time is held for ${HOLD_MINUTES} minutes.`
+            ? `Waiting for your payment to go through. This request stays here for ${HOLD_MINUTES} minutes.`
             : "Paid. Waiting for the expert to accept."}
         </p>
       )}
       {b.status === "CONFIRMED" && (
         <p className="mt-3 text-sm text-muted">
-          The expert accepted. Their reply arrives by email.
+          The expert accepted. Their reply is emailed to you once Buncho has checked it, and it shows here too.
         </p>
       )}
       {["DECLINED", "CANCELLED"].includes(b.status) && (
@@ -133,11 +130,11 @@ async function StudentView({ user, sp }) {
         </div>
       ))}
 
-      {["PENDING", "CONFIRMED"].includes(b.status) && b.endsAt >= now && (
+      {["PENDING", "CONFIRMED"].includes(b.status) && (
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <CancelForm id={b.id} />
           {b.status === "CONFIRMED" && b.paymentStatus === "PAID" && (
-            <p className="text-xs text-muted">Cancelling after the expert accepts doesn't refund automatically.</p>
+            <p className="text-xs text-muted">After the expert accepts, Buncho reviews a cancellation before any refund.</p>
           )}
         </div>
       )}
@@ -152,8 +149,8 @@ async function StudentView({ user, sp }) {
         <div className="space-y-3">
           {alerts.map((b) => (
             <div key={b.id} role="alert" className="rounded-xl bg-danger-soft p-4 text-sm text-danger">
-              <p className="font-semibold">{b.expert.user.name} {b.status === "DECLINED" ? "declined" : "cancelled"} your session</p>
-              <p className="mt-1">{b.service.title}, {fmtDateTime(b.startsAt)} IST.</p>
+              <p className="font-semibold">{b.expert.user.name} {b.status === "DECLINED" ? "declined" : "cancelled"} your request</p>
+              <p className="mt-1">{b.service.title}.</p>
               {refundLine(b) && <p className="mt-1">{refundLine(b)}</p>}
               <Link href="/experts" className="mt-2 inline-block font-medium underline">Find another expert</Link>
             </div>
@@ -172,10 +169,10 @@ async function StudentView({ user, sp }) {
         </div>
       </div>
 
-      <Section title="Upcoming" count={upcoming.length}>
-        {upcoming.length === 0 ? <Empty>No sessions booked. <Link href="/experts" className="font-medium text-brand hover:underline">Find an expert</Link></Empty> : <ul className="space-y-3">{upcoming.map(row)}</ul>}
+      <Section title="In progress" count={open.length}>
+        {open.length === 0 ? <Empty>Nothing in progress. <Link href="/experts" className="font-medium text-brand hover:underline">Find an expert</Link></Empty> : <ul className="space-y-3">{open.map(row)}</ul>}
       </Section>
-      {past.length > 0 && <Section title="Past" count={past.length}><ul className="space-y-3">{past.map(row)}</ul></Section>}
+      {done.length > 0 && <Section title="Done" count={done.length}><ul className="space-y-3">{done.map(row)}</ul></Section>}
     </div>
   );
 }
@@ -184,22 +181,21 @@ async function StudentView({ user, sp }) {
 async function ExpertView({ user, sp }) {
   const expert = await prisma.expertProfile.findUnique({
     where: { userId: user.id },
-    include: { _count: { select: { services: true, availability: true } } },
+    include: { _count: { select: { services: true } } },
   });
   if (!expert) redirect("/onboarding/expert");
 
   // Unpaid requests never reach the expert.
   const bookings = await prisma.booking.findMany({
     where: { expertId: expert.id, paymentStatus: { not: "UNPAID" } },
-    orderBy: { startsAt: "asc" },
+    orderBy: { createdAt: "asc" },
     include: {
       service: true,
       student: { include: { studentProfile: true } },
       replies: { orderBy: { createdAt: "asc" } },
     },
   });
-  const now = new Date();
-  const requests = bookings.filter((b) => b.status === "PENDING" && b.endsAt >= now);
+  const requests = bookings.filter((b) => b.status === "PENDING");
   const accepted = bookings.filter((b) => b.status === "CONFIRMED");
   const past = bookings.filter((b) => !requests.includes(b) && !accepted.includes(b)).reverse();
   const completed = bookings.filter((b) => b.status === "COMPLETED");
@@ -213,12 +209,11 @@ async function ExpertView({ user, sp }) {
   const stats = [["Requests", requests.length], ["Accepted", accepted.length], ["Completed", completed.length], ["Total value", inr(earned)]];
   const todo = [];
   if (expert._count.services === 0) todo.push(["Add a service", "/dashboard/services"]);
-  if (expert._count.availability === 0) todo.push(["Set your availability", "/dashboard/availability"]);
 
   return (
     <div className="space-y-8">
       {sp.welcome === "expert" && <p role="status" className="rounded-xl bg-brand-soft p-4 text-sm font-medium text-brand">Profile submitted. Buncho will check your details, then your profile goes live.</p>}
-      {expert.status === "PENDING" && <p className="rounded-xl bg-warn-soft p-4 text-sm text-warn">Your profile is under review. Students can't see it yet. Add your services and availability while you wait.</p>}
+      {expert.status === "PENDING" && <p className="rounded-xl bg-warn-soft p-4 text-sm text-warn">Your profile is under review. Students can't see it yet. Add your services while you wait.</p>}
       {expert.status === "SUSPENDED" && <p className="rounded-xl bg-danger-soft p-4 text-sm text-danger">Your profile is suspended. Contact the Buncho team.</p>}
       {expert.unverifiedFields?.length > 0 && (
         <p className="rounded-xl bg-warn-soft p-4 text-sm text-warn">
@@ -237,7 +232,6 @@ async function ExpertView({ user, sp }) {
 
       <div className="flex flex-wrap gap-2">
         <Link href="/dashboard/services" className="btn-outline">Services</Link>
-        <Link href="/dashboard/availability" className="btn-outline">Availability</Link>
         <Link href="/dashboard/profile" className="btn-outline">Edit profile</Link>
         <Link href="/dashboard/verification" className="btn-outline">Blue tick</Link>
         <Link href={`/experts/${expert.slug}`} className="btn-outline">View public profile</Link>
@@ -250,7 +244,7 @@ async function ExpertView({ user, sp }) {
         </div>
       )}
 
-      <Section title="Booking requests" count={requests.length}>
+      <Section title="Requests" count={requests.length}>
         {requests.length === 0 ? <Empty>No pending requests.</Empty> : (
           <ul className="space-y-3">
             {requests.map((b) => (
@@ -258,9 +252,9 @@ async function ExpertView({ user, sp }) {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-semibold">{b.service.title}, {inr(b.priceInr)}</p>
-                    <p className="text-sm">{fmtDateTime(b.startsAt)} IST ({b.service.durationMin} min)</p>
+                    <p className="text-xs text-muted">Requested {fmtDateTime(b.createdAt)} IST</p>
                     <p className="mt-1 text-sm text-muted">{studentLine(b)}</p>
-                    {b.note && <p className="mt-2 whitespace-pre-line rounded-xl bg-surface-2 p-3 text-sm">{b.note}</p>}
+                    {b.note && <p className="mt-2 whitespace-pre-line break-words rounded-xl bg-surface-2 p-3 text-sm">{b.note}</p>}
                   </div>
                   <StatusBadge status={b.status} />
                 </div>
@@ -291,24 +285,15 @@ async function ExpertView({ user, sp }) {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="font-semibold">{b.service.title}</p>
-                      <p className="text-sm">{fmtDateTime(b.startsAt)} IST</p>
                       <p className="text-sm text-muted">{studentLine(b)}</p>
                     </div>
-                    <div className="flex gap-2">
-                      {b.startsAt <= now && (
-                        <form action={completeBooking}>
-                          <input type="hidden" name="id" value={b.id} />
-                          <SubmitButton className="btn-primary" pendingText="Saving">Mark completed</SubmitButton>
-                        </form>
-                      )}
-                      <CancelForm id={b.id} />
-                    </div>
+                    <CancelForm id={b.id} />
                   </div>
 
                   {b.note && (
                     <div>
                       <p className="text-xs text-muted">The student wrote</p>
-                      <p className="mt-1 whitespace-pre-line rounded-xl bg-surface-2 p-3 text-sm">{b.note}</p>
+                      <p className="mt-1 whitespace-pre-line break-words rounded-xl bg-surface-2 p-3 text-sm">{b.note}</p>
                     </div>
                   )}
 
@@ -328,7 +313,7 @@ async function ExpertView({ user, sp }) {
                   )}
 
                   {waiting ? (
-                    <p className="text-sm text-muted">Your reply is with Buncho for review. The student gets it once it is approved.</p>
+                    <p className="text-sm text-muted">Your reply is with Buncho for review. When it is approved and sent, this request is completed.</p>
                   ) : (
                     <ReplyForm bookingId={b.id} />
                   )}
@@ -346,7 +331,7 @@ async function ExpertView({ user, sp }) {
               <li key={b.id} className="card flex flex-wrap items-center justify-between gap-3 p-4">
                 <div className="min-w-0">
                   <p className="truncate font-semibold">{b.service.title}</p>
-                  <p className="text-sm text-muted">{fmtDateTime(b.startsAt)} IST, {b.student.name || "Student"}</p>
+                  <p className="text-sm text-muted">{fmtDateTime(b.createdAt)} IST, {b.student.name || "Student"}</p>
                 </div>
                 <StatusBadge status={b.status} />
               </li>
@@ -378,7 +363,7 @@ export default async function Dashboard({ searchParams }) {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-display text-3xl font-bold sm:text-4xl">{user.role === "EXPERT" ? "Expert dashboard" : "My sessions"}</h1>
+        <h1 className="font-display text-3xl font-bold sm:text-4xl">{user.role === "EXPERT" ? "Expert dashboard" : "My requests"}</h1>
         <p className="mt-1 text-muted">{user.name ? `Welcome, ${user.name.split(" ")[0]}.` : "Welcome."}</p>
       </div>
       {user.role === "EXPERT" ? <ExpertView user={user} sp={sp} /> : <StudentView user={user} sp={sp} />}
