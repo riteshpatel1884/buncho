@@ -4,6 +4,7 @@ import { Schibsted_Grotesk, Onest } from "next/font/google";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import NavProgress from "@/components/NavProgress";
+import MobileTabBar from "@/components/MobileTabBar";
 import "./globals.css";
 
 const display = Schibsted_Grotesk({ subsets: ["latin"], variable: "--font-schibsted" });
@@ -30,8 +31,9 @@ export default function RootLayout({ children }) {
             <NavProgress />
           </Suspense>
           <Navbar />
-          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-12">{children}</main>
+          <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-10 pt-6 sm:px-6 md:py-12">{children}</main>
           <Footer />
+          <MobileTabBar />
         </body>
       </html>
     </ClerkProvider>

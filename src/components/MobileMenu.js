@@ -22,7 +22,7 @@ export default function MobileMenu({ children }) {
         aria-label={open ? "Close menu" : "Open menu"}
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-surface-2"
+        className="cursor-pointer flex h-10 w-10 items-center justify-center rounded-full border border-line bg-surface-2"
       >
         <span className="relative block h-3.5 w-5">
           <span className={`absolute left-0 top-0 h-0.5 w-5 rounded bg-ink transition-transform duration-300 ${open ? "translate-y-[6px] rotate-45" : ""}`} />
@@ -32,7 +32,7 @@ export default function MobileMenu({ children }) {
       </button>
       {open && (
         <div
-          className="page-in absolute inset-x-0 top-full border-b border-line bg-paper px-4 py-3 shadow-2xl"
+          className="page-in absolute inset-x-0 top-full mt-2 rounded-2xl border border-line bg-surface px-3 py-2 shadow-2xl"
           onClick={(e) => e.target.closest("a") && setOpen(false)}
         >
           {children}

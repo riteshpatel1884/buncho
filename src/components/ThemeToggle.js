@@ -21,7 +21,7 @@ export default function ThemeToggle() {
       onClick={toggle}
       aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
       title={dark ? "Light theme" : "Dark theme"}
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-surface-2 text-ink transition-colors hover:border-brand"
+      className="cursor-pointer flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-surface-2 text-ink transition-colors hover:border-brand"
     >
       <span key={theme} className="icon-turn flex">
         {dark ? (

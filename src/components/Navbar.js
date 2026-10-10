@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { Show } from "@clerk/nextjs";
-import { isAdmin } from "@/lib/user";
+import { isAdmin, getDbUser } from "@/lib/user";
 import { prisma } from "@/lib/prisma";
 import Logo from "./Logo";
+import NavShell from "./NavShell";
 import MobileMenu from "./MobileMenu";
 import ThemeToggle from "./ThemeToggle";
 import UserMenu from "./UserMenu";
@@ -10,6 +11,17 @@ import { REVIEW_WHERE, REPLY_OPEN } from "@/lib/review";
 
 export default async function Navbar() {
   const admin = await isAdmin();
+
+  // Experts get a link to their own public profile (/experts/their-slug).
+  const me = await getDbUser().catch(() => null);
+  const myProfile =
+    me?.role === "EXPERT"
+      ? await prisma.expertProfile.findUnique({ where: { userId: me.id }, select: { slug: true } }).catch(() => null)
+      : null;
+  // Experts don't need "Find experts" or "Become an expert". Students don't need "Become an expert".
+  const showFind = me?.role !== "EXPERT";
+  const showBecome = !me?.role;
+  const profileHref = myProfile ? `/experts/${myProfile.slug}` : null;
   const [toReview, repliesOpen] = admin
     ? await Promise.all([
         prisma.expertProfile.count({ where: REVIEW_WHERE }).catch(() => 0),
@@ -24,13 +36,12 @@ export default async function Navbar() {
   const link = "hidden text-muted transition-colors hover:text-ink md:block";
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-surface/85 backdrop-blur-md">
-      <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
-        <div className="flex items-center gap-10">
+    <NavShell>
+        <div className="flex items-center gap-6 sm:gap-10">
           <Link href="/" aria-label="Buncho home"><Logo /></Link>
           <div className="hidden items-center gap-7 text-sm font-medium md:flex">
-            <Link href="/experts" className="text-muted transition-colors hover:text-ink">Find experts</Link>
-            <Link href="/onboarding/expert" className="text-muted transition-colors hover:text-ink">Become an expert</Link>
+            {showFind && <Link href="/experts" className="text-muted transition-colors hover:text-ink">Find experts</Link>}
+            {showBecome && <Link href="/onboarding/expert" className="text-muted transition-colors hover:text-ink">Become an expert</Link>}
           </div>
         </div>
 
@@ -38,20 +49,22 @@ export default async function Navbar() {
           <ThemeToggle />
           <Show when="signed-in">
             <Link href="/dashboard" className={link}>Dashboard</Link>
+            {profileHref && <Link href={profileHref} className={link}>My profile</Link>}
             {admin && <Link href="/admin" className={link}>Admin{adminBadge}</Link>}
-            <UserMenu />
+            
           </Show>
           <Show when="signed-out">
             <Link href="/sign-in" className={link}>Sign in</Link>
-            <Link href="/sign-up" className="btn-primary !px-4 sm:!px-5">Get started</Link>
+            <Link href="/sign-up" className="btn-primary !rounded-full !px-4 sm:!px-5">Get started</Link>
           </Show>
 
           <MobileMenu>
             <div className="flex flex-col">
-              <Link href="/experts" className={item}>Find experts</Link>
-              <Link href="/onboarding/expert" className={item}>Become an expert</Link>
+              {showFind && <Link href="/experts" className={item}>Find experts</Link>}
+              {showBecome && <Link href="/onboarding/expert" className={item}>Become an expert</Link>}
               <Show when="signed-in">
                 <Link href="/dashboard" className={item}>Dashboard</Link>
+                {profileHref && <Link href={profileHref} className={item}>My profile</Link>}
                 {admin && <Link href="/admin" className={item}>Admin{adminBadge}</Link>}
               </Show>
               <Show when="signed-out">
@@ -60,7 +73,6 @@ export default async function Navbar() {
             </div>
           </MobileMenu>
         </div>
-      </nav>
-    </header>
+    </NavShell>
   );
 }

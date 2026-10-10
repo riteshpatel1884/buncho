@@ -27,15 +27,18 @@ const REPLY_STATUS = {
 
 function Section({ title, count, children }) {
   return (
-    <section className="space-y-3">
-      <h2 className="font-display text-xl font-bold">{title} {count !== undefined && <span className="text-sm font-normal text-muted">({count})</span>}</h2>
+    <section className="space-y-4">
+      <h2 className="flex items-center gap-2 font-display text-xl">
+        {title}
+        {count !== undefined && <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs font-semibold text-muted">{count}</span>}
+      </h2>
       {children}
     </section>
   );
 }
 
 function Empty({ children }) {
-  return <div className="card border-dashed p-6 text-center text-sm text-muted">{children}</div>;
+  return <div className="rounded-xl border border-dashed border-line p-6 text-center text-sm text-muted">{children}</div>;
 }
 
 function CancelForm({ id }) {
@@ -66,6 +69,24 @@ function endedLine(b) {
   return "This request was cancelled.";
 }
 
+// Four steps a request moves through. Only shown while a request is open or done.
+function Progress({ step }) {
+  const labels = ["Requested", "Accepted", "Answered", "Done"];
+  return (
+    <ol className="flex items-center gap-2 text-xs" aria-label="Progress">
+      {labels.map((l, i) => (
+        <li key={l} className="flex items-center gap-2">
+          <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${i <= step ? "bg-brand text-on-brand" : "bg-surface-2 text-muted"}`}>
+            {i < step || step === 3 ? "✓" : i + 1}
+          </span>
+          <span className={`hidden sm:inline ${i <= step ? "font-medium" : "text-muted"}`}>{l}</span>
+          {i < labels.length - 1 && <span className={`h-px w-4 sm:w-8 ${i < step ? "bg-brand" : "bg-line"}`} />}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 // ---------- Student ----------
 async function StudentView({ user, sp }) {
   const [profile, bookings] = await Promise.all([
@@ -87,50 +108,61 @@ async function StudentView({ user, sp }) {
   // Unpaid requests are not real requests. Only show one while its payment can still go through.
   const shown = bookings.filter((b) => b.paymentStatus !== "UNPAID" || (b.status === "PENDING" && b.createdAt > holdCutoff));
   const open = shown.filter((b) => ["PENDING", "CONFIRMED"].includes(b.status));
-  const done = shown.filter((b) => !open.includes(b));
+  const completed = shown.filter((b) => b.status === "COMPLETED");
+  const ended = shown.filter((b) => ["CANCELLED", "DECLINED"].includes(b.status));
 
   // Recent declines and expert cancellations, shown on top so they are not missed.
-  const alerts = shown.filter(
-    (b) => ["DECLINED", "CANCELLED"].includes(b.status) && b.cancelledBy === "EXPERT" && b.statusChangedAt && b.statusChangedAt > weekAgo
-  );
+  const alerts = ended.filter((b) => b.cancelledBy === "EXPERT" && b.statusChangedAt && b.statusChangedAt > weekAgo);
 
   const row = (b) => {
     const c = replyCycle(b, b.replies);
+    const closed = ["DECLINED", "CANCELLED"].includes(b.status);
+    const step = b.status === "COMPLETED" ? 3 : c.delivered ? 2 : b.status === "CONFIRMED" ? 1 : 0;
+    const latest = b.replies.length - 1;
     return (
-      <li key={b.id} className="card p-4 sm:p-5">
-        <div className="flex flex-wrap items-center gap-3">
+      <li key={b.id} className="card p-5 sm:p-6">
+        <div className="flex items-start gap-3.5">
           <Avatar name={b.expert.user.name} src={b.expert.user.avatarUrl} size={44} />
           <div className="min-w-0 flex-1">
-            <Link href={`/experts/${b.expert.slug}`} className="block truncate font-semibold hover:underline">{b.expert.user.name}</Link>
+            <Link href={`/experts/${b.expert.slug}`} className="block truncate font-semibold hover:text-brand">{b.expert.user.name}</Link>
             <p className="truncate text-sm text-muted">{b.service.title}, {inr(b.priceInr)}</p>
             <p className="text-xs text-muted">Requested {fmtDateTime(b.createdAt)} IST</p>
           </div>
           <StatusBadge status={b.status} />
         </div>
 
+        {!closed && <div className="mt-5"><Progress step={step} /></div>}
+
         {b.status === "PENDING" && (
-          <p className="mt-3 text-sm text-muted">
+          <p className={`mt-4 rounded-lg p-3 text-sm ${b.paymentStatus === "UNPAID" ? "bg-warn-soft text-warn" : "bg-surface-2 text-muted"}`}>
             {b.paymentStatus === "UNPAID"
               ? `Waiting for your payment to go through. This request stays here for ${HOLD_MINUTES} minutes.`
-              : "Paid. Waiting for the expert to accept."}
+              : "Paid. Waiting for the expert to accept. If they decline, you get a full refund."}
           </p>
         )}
-        {["DECLINED", "CANCELLED"].includes(b.status) && (
-          <p className={`mt-3 rounded-xl p-3 text-sm ${b.cancelledBy === "STUDENT" ? "bg-surface-2 text-muted" : "bg-danger-soft text-danger"}`}>
+        {closed && (
+          <p className={`mt-4 rounded-lg p-3 text-sm ${b.cancelledBy === "STUDENT" ? "bg-surface-2 text-muted" : "bg-danger-soft text-danger"}`}>
             {endedLine(b)} {refundLine(b)}
           </p>
         )}
 
-        {b.replies.map((r) => (
-          <div key={r.id} className="mt-3 rounded-xl border border-line bg-surface-2 p-4">
-            <p className="text-xs text-muted">Reply from {b.expert.user.name}{r.sentAt ? `, ${fmtDateTime(r.sentAt)} IST` : ""}</p>
-            <p className="mt-2 whitespace-pre-line break-words text-sm">{r.body}</p>
-          </div>
-        ))}
+        {b.replies.map((r, i) =>
+          i === latest ? (
+            <div key={r.id} className="mt-4 rounded-lg border border-line bg-surface-2 p-4">
+              <p className="text-xs text-muted">Reply from {b.expert.user.name}{r.sentAt ? `, ${fmtDateTime(r.sentAt)} IST` : ""}</p>
+              <p className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed">{r.body}</p>
+            </div>
+          ) : (
+            <details key={r.id} className="mt-4 rounded-lg border border-line bg-surface-2 p-4">
+              <summary className="cursor-pointer text-xs text-muted">Earlier reply{r.sentAt ? `, ${fmtDateTime(r.sentAt)} IST` : ""}</summary>
+              <p className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed">{r.body}</p>
+            </details>
+          )
+        )}
 
         {b.status === "CONFIRMED" &&
           (c.delivered ? (
-            <div className="mt-4 space-y-3 rounded-xl border border-brand p-4">
+            <div className="mt-4 space-y-3 rounded-lg border border-brand p-4">
               <p className="font-semibold">Did this answer your question?</p>
               <form action={resolveBooking}>
                 <input type="hidden" name="id" value={b.id} />
@@ -148,14 +180,14 @@ async function StudentView({ user, sp }) {
               )}
             </div>
           ) : c.followUpPending ? (
-            <p className="mt-3 text-sm text-muted">You asked the expert for more. Their new reply is emailed to you once Buncho has checked it.</p>
+            <p className="mt-4 rounded-lg bg-surface-2 p-3 text-sm text-muted">You asked the expert for more. Their new reply is emailed to you once Buncho has checked it.</p>
           ) : (
-            <p className="mt-3 text-sm text-muted">The expert accepted. Their reply is emailed to you once Buncho has checked it, and it shows here too.</p>
+            <p className="mt-4 rounded-lg bg-brand-soft p-3 text-sm text-brand">The expert accepted. Their reply is emailed to you once Buncho has checked it, and it shows here too.</p>
           ))}
 
         {/* No cancelling once an answer has been delivered */}
         {["PENDING", "CONFIRMED"].includes(b.status) && !c.lastSent && (
-          <div className="mt-3 flex flex-wrap items-center gap-3">
+          <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-4">
             <CancelForm id={b.id} />
             {b.status === "CONFIRMED" && b.paymentStatus === "PAID" && (
               <p className="text-xs text-muted">After the expert accepts, Buncho reviews a cancellation before any refund.</p>
@@ -183,21 +215,33 @@ async function StudentView({ user, sp }) {
         </div>
       )}
 
-      <div className="card flex flex-wrap items-center justify-between gap-4 p-5">
-        <div className="min-w-0">
-          <p className="font-semibold">{profile?.college}, {profile?.branch}, {profile?.year}</p>
-          <p className="text-sm text-muted">Target: {profile?.targetRole}</p>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_auto]">
+        <div className="card flex flex-wrap items-center justify-between gap-4 p-5">
+          <div className="min-w-0">
+            <p className="font-semibold">{profile ? `${profile.college}, ${profile.branch}, ${profile.year}` : "Complete your profile"}</p>
+            <p className="text-sm text-muted">{profile ? `Target: ${profile.targetRole}` : "Experts use this to help you better."}</p>
+          </div>
+          <Link href="/dashboard/profile" className="btn-outline !py-2">Edit profile</Link>
         </div>
-        <div className="flex gap-2">
-          <Link href="/dashboard/profile" className="btn-outline">Edit profile</Link>
-          <Link href="/experts" className="btn-primary">Find experts</Link>
-        </div>
+        <dl className="card grid grid-cols-3 divide-x divide-line text-center">
+          {[["Active", open.length], ["Completed", completed.length], ["Cancelled", ended.length]].map(([l, n]) => (
+            <div key={l} className="px-5 py-4">
+              <dd className="font-display text-2xl">{n}</dd>
+              <dt className="text-xs text-muted">{l}</dt>
+            </div>
+          ))}
+        </dl>
       </div>
 
       <Section title="In progress" count={open.length}>
-        {open.length === 0 ? <Empty>Nothing in progress. <Link href="/experts" className="font-medium text-brand hover:underline">Find an expert</Link></Empty> : <ul className="space-y-3">{open.map(row)}</ul>}
+        {open.length === 0 ? (
+          <Empty>Nothing in progress. <Link href="/experts" className="font-medium text-brand hover:underline">Find an expert</Link></Empty>
+        ) : (
+          <ul className="space-y-4">{open.map(row)}</ul>
+        )}
       </Section>
-      {done.length > 0 && <Section title="Done" count={done.length}><ul className="space-y-3">{done.map(row)}</ul></Section>}
+      {completed.length > 0 && <Section title="Completed" count={completed.length}><ul className="space-y-4">{completed.map(row)}</ul></Section>}
+      {ended.length > 0 && <Section title="Cancelled" count={ended.length}><ul className="space-y-4">{ended.map(row)}</ul></Section>}
     </div>
   );
 }
@@ -249,7 +293,7 @@ async function ExpertView({ user, sp }) {
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {stats.map(([label, value], i) => (
           <div key={label} className="card rise p-4 sm:p-5" style={{ "--i": i }}>
-            <p className="font-display text-2xl font-bold sm:text-3xl">{value}</p>
+            <p className="font-display text-2xl sm:text-3xl">{value}</p>
             <p className="mt-1 text-sm text-muted">{label}</p>
           </div>
         ))}
@@ -395,13 +439,19 @@ export default async function Dashboard({ searchParams }) {
     }
   }
 
+  const first = user.name ? user.name.split(" ")[0] : "";
+  const isExpert = user.role === "EXPERT";
+
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="font-display text-3xl font-bold sm:text-4xl">{user.role === "EXPERT" ? "Expert dashboard" : "My requests"}</h1>
-        <p className="mt-1 text-muted">{user.name ? `Welcome, ${user.name.split(" ")[0]}.` : "Welcome."}</p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="font-display text-3xl sm:text-4xl">{isExpert ? "Expert dashboard" : first ? `Hi, ${first}` : "My requests"}</h1>
+          <p className="mt-1 text-muted">{isExpert ? (first ? `Welcome, ${first}.` : "Welcome.") : "Track your requests and read answers from experts."}</p>
+        </div>
+        {!isExpert && <Link href="/experts" className="btn-primary">Find experts</Link>}
       </div>
-      {user.role === "EXPERT" ? <ExpertView user={user} sp={sp} /> : <StudentView user={user} sp={sp} />}
+      {isExpert ? <ExpertView user={user} sp={sp} /> : <StudentView user={user} sp={sp} />}
     </div>
   );
 }
