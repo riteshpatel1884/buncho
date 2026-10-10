@@ -1,7 +1,38 @@
 @import "tailwindcss";
 
-/* ---------- Theme tokens: dark is the default, light is switched with data-theme="light" ---------- */
+/* Buncho design tokens. Light is the default; dark via data-theme="dark".
+   Token names are unchanged so pages not included in the redesign keep working. */
 :root,
+:root[data-theme="light"] {
+  color-scheme: light;
+  --paper: #f6f8fb;
+  --surface: #ffffff;
+  --surface-2: #eef2f8;
+  --ink: #0b1b33;
+  --muted: #566277;
+  --line: #dde3ee;
+  --brand: #2347f5;
+  --brand-dark: #1a36c4;
+  --brand-soft: #e7ecff;
+  --on-brand: #ffffff;
+  --edge: #1a36c4;
+  --sticker-border: #dde3ee;
+  --sticker-shadow: rgba(11, 27, 51, 0.08);
+  --mint: #0f766e;
+  --mint-soft: #ddf4f0;
+  --warn: #8a5300;
+  --warn-soft: #fff1d6;
+  --danger: #b42318;
+  --danger-soft: #fee4e2;
+  --scroll: #c3cddf;
+  --shadow: 0 1px 2px rgba(11, 27, 51, 0.05), 0 4px 16px rgba(11, 27, 51, 0.04);
+  --tick-bg: #1d6df2;
+  --tick-fg: #ffffff;
+  --navy: #0b1b33;
+  --on-navy: #b8c4da;
+  --navy-accent: #8da5ff;
+}
+
 :root[data-theme="dark"] {
   color-scheme: dark;
   --paper: #070b08;
@@ -14,8 +45,8 @@
   --brand-dark: #6bea9f;
   --brand-soft: #0f2a1b;
   --on-brand: #04140a;
-  --edge: #1a8a4b;            /* bottom edge of primary buttons */
-  --sticker-border: #34d67b;  /* the hero message box */
+  --edge: #1a8a4b;
+  --sticker-border: #34d67b;
   --sticker-shadow: #1b6b3d;
   --mint: #6ee7a8;
   --mint-soft: #10291b;
@@ -24,30 +55,12 @@
   --danger: #fca5a5;
   --danger-soft: #2b1313;
   --scroll: #2b3a31;
-}
-
-:root[data-theme="light"] {
-  color-scheme: light;
-  --paper: #f4f7f2;
-  --surface: #ffffff;
-  --surface-2: #edf2ec;
-  --ink: #0d1b14;
-  --muted: #546459;
-  --line: #d9e3db;
-  --brand: #15803d;
-  --brand-dark: #166534;
-  --brand-soft: #dcfce7;
-  --on-brand: #ffffff;
-  --edge: #0b4d22;
-  --sticker-border: #0d1b14;
-  --sticker-shadow: #15803d;
-  --mint: #166534;
-  --mint-soft: #dcfce7;
-  --warn: #92400e;
-  --warn-soft: #fef3c7;
-  --danger: #b91c1c;
-  --danger-soft: #fee2e2;
-  --scroll: #c5d3ca;
+  --tick-bg: #164d25;
+  --tick-fg: #31ca74;
+  --navy: #07170f;
+  --on-navy: #a3c9b3;
+  --navy-accent: #34d67b;
+  --shadow: none;
 }
 
 @theme inline {
@@ -67,12 +80,12 @@
   --color-warn-soft: var(--warn-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
-  --color-navy: #07170f;
-  --color-on-navy: #a3c9b3;
-  /* Headlines: Young Serif. Body: Hanken Grotesk. Logo keeps Bricolage so it stays exactly as before. */
-  --font-display: var(--font-young), ui-serif, Georgia, serif;
-  --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
-  --font-logo: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --color-navy: var(--navy);
+  --color-on-navy: var(--on-navy);
+  /* Headlines and logo: Schibsted Grotesk. Body: Onest. */
+  --font-display: var(--font-schibsted), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-onest), ui-sans-serif, system-ui, sans-serif;
+  --font-logo: var(--font-schibsted), ui-sans-serif, system-ui, sans-serif;
 }
 
 * {
@@ -85,17 +98,16 @@
 body {
   background: var(--paper);
   color: var(--ink);
-  font-family: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-onest), ui-sans-serif, system-ui, sans-serif;
   font-size: 16px;
-  line-height: 1.55;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   overflow-x: clip;
 }
 ::selection { background: var(--brand); color: var(--on-brand); }
 :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
-/* Young Serif has one weight. Stops the browser faking bold on headings that still say font-bold. */
-.font-display { font-synthesis: none; }
+.font-display { font-weight: 650; letter-spacing: -0.025em; }
 
 html.theme-anim,
 html.theme-anim * {
@@ -103,52 +115,40 @@ html.theme-anim * {
 }
 
 @layer components {
-  .card {
-    @apply rounded-2xl border border-line bg-surface;
-  }
+  .card { @apply rounded-xl border border-line bg-surface; box-shadow: var(--shadow); }
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-[10px] bg-brand px-5 py-2.5 text-sm font-semibold text-on-brand hover:bg-brand-dark disabled:opacity-60;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-on-brand hover:bg-brand-dark disabled:opacity-60;
   }
   .btn-outline {
-    @apply inline-flex items-center justify-center gap-2 rounded-[10px] border border-line bg-transparent px-5 py-2.5 text-sm font-semibold text-ink hover:border-brand disabled:opacity-60;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-surface px-5 py-2.5 text-sm font-semibold text-ink hover:border-brand hover:text-brand disabled:opacity-60;
   }
   .btn-invert {
-    @apply inline-flex items-center justify-center gap-2 rounded-[10px] bg-on-brand px-5 py-2.5 text-sm font-semibold text-brand;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-[#0b1b33] hover:bg-brand-soft;
   }
   .input {
-    @apply w-full rounded-[10px] border border-line bg-surface-2 px-3.5 py-2.5 text-sm text-ink placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/25;
+    @apply w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15;
   }
-  .chip {
-    @apply inline-flex items-center rounded-full bg-mint-soft px-2.5 py-0.5 text-xs font-medium text-mint;
-  }
+  .chip { @apply inline-flex items-center rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-medium text-brand; }
 }
 
-/* ---------- Buttons press like keys: a solid bottom edge that sinks when clicked ---------- */
-.btn-primary {
-  box-shadow: 0 3px 0 var(--edge);
-  transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.2s ease;
-}
-.btn-invert {
-  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
-}
-.btn-outline { transition: border-color 0.2s ease, background-color 0.2s ease; }
-@media (hover: hover) {
-  .btn-primary:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 4px 0 var(--edge); }
-  .btn-invert:hover { transform: translateY(-1px); box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35); }
-}
-.btn-primary:not(:disabled):active { transform: translateY(2px); box-shadow: 0 1px 0 var(--edge); }
-.btn-invert:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35); }
-.btn-primary:disabled { box-shadow: none; }
+.btn-primary, .btn-invert, .btn-outline { transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease; }
+.btn-primary:not(:disabled):active { transform: translateY(1px); }
+.btn-primary:disabled { cursor: not-allowed; }
 
-/* The message box on the home page */
+/* Raised panel (home search box) */
 .sticker {
-  border: 1.5px solid var(--sticker-border);
+  border: 1px solid var(--sticker-border);
+  box-shadow: 0 1px 2px var(--sticker-shadow), 0 12px 32px var(--sticker-shadow);
+}
+:root[data-theme="dark"] .sticker {
+  border-width: 1.5px;
   box-shadow: 5px 5px 0 var(--sticker-shadow);
 }
 
-.card-hover { transition: border-color 0.2s ease; }
-@media (hover: hover) { .card-hover:hover { border-color: var(--brand); } }
+.card-hover { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+@media (hover: hover) {
+  .card-hover:hover { border-color: var(--brand); box-shadow: 0 6px 24px color-mix(in srgb, var(--brand) 14%, transparent); }
+}
 
 .link-underline {
   background: linear-gradient(currentColor, currentColor) 0 100% / 0 2px no-repeat;
@@ -157,15 +157,14 @@ html.theme-anim * {
 }
 @media (hover: hover) { .link-underline:hover { background-size: 100% 2px; } }
 
-/* ---------- Motion: one short entrance on the home page, a quick fade between pages ---------- */
+/* Motion: one entrance on the home hero, a quick fade between pages */
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes spin-turn { from { transform: rotate(-90deg); opacity: 0; } to { transform: none; opacity: 1; } }
-
 .rise { animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; animation-delay: calc(var(--i, 0) * 90ms); }
 .page-in { animation: fade 0.25s ease backwards; }
 .icon-turn { animation: spin-turn 0.4s ease; }
-.glow { /* kept so older pages still render; no effect */ }
+.glow { }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }

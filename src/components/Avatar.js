@@ -9,7 +9,7 @@ export default function Avatar({ name, src, size = 48 }) {
   return (
     <span
       style={{ ...style, fontSize: size * 0.38 }}
-      className="flex shrink-0 items-center justify-center rounded-[28%] bg-mint-soft font-display text-mint"
+      className="flex shrink-0 items-center justify-center rounded-[28%] bg-brand-soft font-display text-brand"
     >
       {initials(name)}
     </span>

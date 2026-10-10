@@ -1,21 +1,19 @@
 import { Suspense } from "react";
 import { ClerkProvider } from "@clerk/nextjs";
-import { Bricolage_Grotesque, Young_Serif, Hanken_Grotesk } from "next/font/google";
+import { Schibsted_Grotesk, Onest } from "next/font/google";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import NavProgress from "@/components/NavProgress";
 import "./globals.css";
 
-// Bricolage is only for the logo, so the logo looks exactly as it did.
-const logoFont = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-bricolage" });
-const display = Young_Serif({ subsets: ["latin"], weight: "400", variable: "--font-young" });
-const sans = Hanken_Grotesk({ subsets: ["latin"], variable: "--font-hanken" });
+const display = Schibsted_Grotesk({ subsets: ["latin"], variable: "--font-schibsted" });
+const sans = Onest({ subsets: ["latin"], variable: "--font-onest" });
 
 export const metadata = {
   title: "Buncho",
   description: "Book verified seniors and professionals for resume reviews, mock interviews, career guidance and project reviews.",
 };
-export const viewport = { themeColor: "#070b08" };
+export const viewport = { themeColor: "#f6f8fb" };
 
 // Applies the saved theme before the page paints, so there is no flash.
 const themeScript = `try{var t=localStorage.getItem("theme");if(t==="light"||t==="dark"){document.documentElement.dataset.theme=t}}catch(e){}`;
@@ -23,7 +21,7 @@ const themeScript = `try{var t=localStorage.getItem("theme");if(t==="light"||t==
 export default function RootLayout({ children }) {
   return (
     <ClerkProvider>
-      <html lang="en" data-theme="dark" suppressHydrationWarning className={`${logoFont.variable} ${display.variable} ${sans.variable}`}>
+      <html lang="en" data-theme="light" suppressHydrationWarning className={`${display.variable} ${sans.variable}`}>
         <head>
           <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         </head>
