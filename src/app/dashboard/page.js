@@ -4,11 +4,13 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/user";
 import { dodo } from "@/lib/dodo";
 import { applyBookingPayment, HOLD_MINUTES } from "@/lib/bookingPayment";
+import { replyCycle, MAX_FOLLOW_UPS } from "@/lib/replyCycle";
 import Avatar from "@/components/Avatar";
 import StatusBadge from "@/components/StatusBadge";
 import SubmitButton from "@/components/SubmitButton";
 import ReplyForm from "@/components/ReplyForm";
-import { confirmBooking, declineBooking, cancelBooking } from "./actions";
+import FollowUpForm from "@/components/FollowUpForm";
+import { confirmBooking, declineBooking, cancelBooking, resolveBooking } from "./actions";
 import { fmtDateTime, inr } from "@/lib/constants";
 import { FIELD_LABELS } from "@/lib/review";
 
@@ -22,7 +24,6 @@ const REPLY_STATUS = {
   SENT: ["Sent to the student", "bg-brand-soft text-brand"],
   REJECTED: ["Not sent", "bg-danger-soft text-danger"],
 };
-const OPEN_REPLY = ["PENDING", "SENDING", "SEND_FAILED"];
 
 function Section({ title, count, children }) {
   return (
@@ -93,53 +94,77 @@ async function StudentView({ user, sp }) {
     (b) => ["DECLINED", "CANCELLED"].includes(b.status) && b.cancelledBy === "EXPERT" && b.statusChangedAt && b.statusChangedAt > weekAgo
   );
 
-  const row = (b) => (
-    <li key={b.id} className="card p-4 sm:p-5">
-      <div className="flex flex-wrap items-center gap-3">
-        <Avatar name={b.expert.user.name} src={b.expert.user.avatarUrl} size={44} />
-        <div className="min-w-0 flex-1">
-          <Link href={`/experts/${b.expert.slug}`} className="block truncate font-semibold hover:underline">{b.expert.user.name}</Link>
-          <p className="truncate text-sm text-muted">{b.service.title}, {inr(b.priceInr)}</p>
-          <p className="text-xs text-muted">Requested {fmtDateTime(b.createdAt)} IST</p>
+  const row = (b) => {
+    const c = replyCycle(b, b.replies);
+    return (
+      <li key={b.id} className="card p-4 sm:p-5">
+        <div className="flex flex-wrap items-center gap-3">
+          <Avatar name={b.expert.user.name} src={b.expert.user.avatarUrl} size={44} />
+          <div className="min-w-0 flex-1">
+            <Link href={`/experts/${b.expert.slug}`} className="block truncate font-semibold hover:underline">{b.expert.user.name}</Link>
+            <p className="truncate text-sm text-muted">{b.service.title}, {inr(b.priceInr)}</p>
+            <p className="text-xs text-muted">Requested {fmtDateTime(b.createdAt)} IST</p>
+          </div>
+          <StatusBadge status={b.status} />
         </div>
-        <StatusBadge status={b.status} />
-      </div>
 
-      {b.status === "PENDING" && (
-        <p className="mt-3 text-sm text-muted">
-          {b.paymentStatus === "UNPAID"
-            ? `Waiting for your payment to go through. This request stays here for ${HOLD_MINUTES} minutes.`
-            : "Paid. Waiting for the expert to accept."}
-        </p>
-      )}
-      {b.status === "CONFIRMED" && (
-        <p className="mt-3 text-sm text-muted">
-          The expert accepted. Their reply is emailed to you once Buncho has checked it, and it shows here too.
-        </p>
-      )}
-      {["DECLINED", "CANCELLED"].includes(b.status) && (
-        <p className={`mt-3 rounded-xl p-3 text-sm ${b.cancelledBy === "STUDENT" ? "bg-surface-2 text-muted" : "bg-danger-soft text-danger"}`}>
-          {endedLine(b)} {refundLine(b)}
-        </p>
-      )}
+        {b.status === "PENDING" && (
+          <p className="mt-3 text-sm text-muted">
+            {b.paymentStatus === "UNPAID"
+              ? `Waiting for your payment to go through. This request stays here for ${HOLD_MINUTES} minutes.`
+              : "Paid. Waiting for the expert to accept."}
+          </p>
+        )}
+        {["DECLINED", "CANCELLED"].includes(b.status) && (
+          <p className={`mt-3 rounded-xl p-3 text-sm ${b.cancelledBy === "STUDENT" ? "bg-surface-2 text-muted" : "bg-danger-soft text-danger"}`}>
+            {endedLine(b)} {refundLine(b)}
+          </p>
+        )}
 
-      {b.replies.map((r) => (
-        <div key={r.id} className="mt-3 rounded-xl border border-line bg-surface-2 p-4">
-          <p className="text-xs text-muted">Reply from {b.expert.user.name}{r.sentAt ? `, ${fmtDateTime(r.sentAt)} IST` : ""}</p>
-          <p className="mt-2 whitespace-pre-line break-words text-sm">{r.body}</p>
-        </div>
-      ))}
+        {b.replies.map((r) => (
+          <div key={r.id} className="mt-3 rounded-xl border border-line bg-surface-2 p-4">
+            <p className="text-xs text-muted">Reply from {b.expert.user.name}{r.sentAt ? `, ${fmtDateTime(r.sentAt)} IST` : ""}</p>
+            <p className="mt-2 whitespace-pre-line break-words text-sm">{r.body}</p>
+          </div>
+        ))}
 
-      {["PENDING", "CONFIRMED"].includes(b.status) && (
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <CancelForm id={b.id} />
-          {b.status === "CONFIRMED" && b.paymentStatus === "PAID" && (
-            <p className="text-xs text-muted">After the expert accepts, Buncho reviews a cancellation before any refund.</p>
-          )}
-        </div>
-      )}
-    </li>
-  );
+        {b.status === "CONFIRMED" &&
+          (c.delivered ? (
+            <div className="mt-4 space-y-3 rounded-xl border border-brand p-4">
+              <p className="font-semibold">Did this answer your question?</p>
+              <form action={resolveBooking}>
+                <input type="hidden" name="id" value={b.id} />
+                <SubmitButton className="btn-primary" pendingText="Closing">Yes, this resolved my question</SubmitButton>
+              </form>
+              {c.canFollowUp ? (
+                <details>
+                  <summary className="cursor-pointer text-sm font-medium text-brand">No, I still need help (free)</summary>
+                  <div className="mt-3">
+                    <FollowUpForm bookingId={b.id} left={MAX_FOLLOW_UPS - b.followUpCount} />
+                  </div>
+                </details>
+              ) : (
+                <p className="text-sm text-muted">You've used all your free follow-ups on this request. If you still need help, contact Buncho.</p>
+              )}
+            </div>
+          ) : c.followUpPending ? (
+            <p className="mt-3 text-sm text-muted">You asked the expert for more. Their new reply is emailed to you once Buncho has checked it.</p>
+          ) : (
+            <p className="mt-3 text-sm text-muted">The expert accepted. Their reply is emailed to you once Buncho has checked it, and it shows here too.</p>
+          ))}
+
+        {/* No cancelling once an answer has been delivered */}
+        {["PENDING", "CONFIRMED"].includes(b.status) && !c.lastSent && (
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <CancelForm id={b.id} />
+            {b.status === "CONFIRMED" && b.paymentStatus === "PAID" && (
+              <p className="text-xs text-muted">After the expert accepts, Buncho reviews a cancellation before any refund.</p>
+            )}
+          </div>
+        )}
+      </li>
+    );
+  };
 
   return (
     <div className="space-y-8">
@@ -279,7 +304,7 @@ async function ExpertView({ user, sp }) {
         {accepted.length === 0 ? <Empty>Nothing accepted yet.</Empty> : (
           <ul className="space-y-3">
             {accepted.map((b) => {
-              const waiting = b.replies.some((r) => OPEN_REPLY.includes(r.status));
+              const c = replyCycle(b, b.replies);
               return (
                 <li key={b.id} className="card space-y-4 p-4 sm:p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -287,13 +312,21 @@ async function ExpertView({ user, sp }) {
                       <p className="font-semibold">{b.service.title}</p>
                       <p className="text-sm text-muted">{studentLine(b)}</p>
                     </div>
-                    <CancelForm id={b.id} />
+                    {/* No cancelling once an answer has been delivered */}
+                    {!c.lastSent && <CancelForm id={b.id} />}
                   </div>
 
                   {b.note && (
                     <div>
                       <p className="text-xs text-muted">The student wrote</p>
                       <p className="mt-1 whitespace-pre-line break-words rounded-xl bg-surface-2 p-3 text-sm">{b.note}</p>
+                    </div>
+                  )}
+
+                  {c.followUpPending && b.followUpNote && (
+                    <div className="rounded-xl bg-warn-soft p-3 text-sm text-warn">
+                      <p className="font-semibold">The student needs more (free follow-up {b.followUpCount} of {MAX_FOLLOW_UPS})</p>
+                      <p className="mt-1 whitespace-pre-line break-words">{b.followUpNote}</p>
                     </div>
                   )}
 
@@ -312,8 +345,10 @@ async function ExpertView({ user, sp }) {
                     </ul>
                   )}
 
-                  {waiting ? (
-                    <p className="text-sm text-muted">Your reply is with Buncho for review. When it is approved and sent, this request is completed.</p>
+                  {c.open ? (
+                    <p className="text-sm text-muted">Your reply is with Buncho for review. After it is sent, the student confirms it solved their question or asks for a free follow-up.</p>
+                  ) : c.delivered ? (
+                    <p className="text-sm text-muted">Delivered. Waiting for the student to confirm it solved their question. If they need more, they'll ask here.</p>
                   ) : (
                     <ReplyForm bookingId={b.id} />
                   )}

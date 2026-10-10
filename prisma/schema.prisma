@@ -161,6 +161,9 @@ model Booking {
   cancelledBy     String?   // "EXPERT" or "STUDENT"
   statusChangedAt DateTime?
   resolvedAt      DateTime? // set when the admin has dealt with a refund case
+  followUpNote  String?
+  followUpAt    DateTime?
+  followUpCount Int       @default(0)
 
   student User          @relation("StudentBookings", fields: [studentId], references: [id])
   expert  ExpertProfile @relation(fields: [expertId], references: [id])

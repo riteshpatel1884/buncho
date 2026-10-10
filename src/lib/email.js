@@ -140,3 +140,19 @@ export function emailReplyRejected({ to, title, note }) {
     )
   );
 }
+
+export function emailFollowUp({ to, studentName, title, note }) {
+  return send(
+    to,
+    `Follow-up needed: ${title}`,
+    wrap(
+      "The student needs a bit more",
+      [
+        `<b>${esc(studentName || "The student")}</b> read your reply for <b>${esc(title)}</b> and still needs help.`,
+        `They wrote: ${esc(note).replace(/\n/g, "<br>")}`,
+        "This follow-up is free for the student. Send a new reply from your dashboard.",
+      ],
+      { label: "Open dashboard", path: "/dashboard" }
+    )
+  );
+}

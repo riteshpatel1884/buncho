@@ -3,9 +3,11 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/user";
 import { SERVICE_TYPES, DURATIONS, timeToMinutes } from "@/lib/constants";
-import { emailConfirmed, emailDeclined, emailCancelled } from "@/lib/email";
 import { refundBooking } from "@/lib/bookingPayment";
 import { findContactInfo } from "@/lib/contactCheck";
+import { emailConfirmed, emailDeclined, emailCancelled, emailFollowUp } from "@/lib/email";
+import { replyCycle, MAX_FOLLOW_UPS } from "@/lib/replyCycle";
+
 
 const get = (fd, k) => String(fd.get(k) || "").trim();
 const refresh = () => {
@@ -66,9 +68,15 @@ export async function declineBooking(formData) {
   refresh();
 }
 
+
 export async function cancelBooking(formData) {
   const { booking, isExpert } = await myBooking(formData);
   if (!booking || !["PENDING", "CONFIRMED"].includes(booking.status)) return;
+
+  // Once the expert's reply has reached the student, the work is done and it can't be cancelled.
+  const delivered = await prisma.bookingReply.count({ where: { bookingId: booking.id, status: "SENT" } });
+  if (delivered > 0) return;
+
   const done = await prisma.booking.updateMany({
     where: { id: booking.id, status: { in: ["PENDING", "CONFIRMED"] } },
     data: { status: "CANCELLED", cancelledBy: isExpert ? "EXPERT" : "STUDENT", statusChangedAt: new Date() },
@@ -97,18 +105,64 @@ export async function sendReply(_prev, formData) {
   if (booking.status === "COMPLETED") return { error: "This request is already completed." };
   if (booking.status !== "CONFIRMED") return { error: "Accept the request before you reply." };
 
+  const replies = await prisma.bookingReply.findMany({ where: { bookingId: booking.id } });
+  const cycle = replyCycle(booking, replies);
+  if (cycle.open) return { error: "Your last reply is still waiting for Buncho's review." };
+  if (cycle.delivered) return { error: "The student has your reply. You can answer again if they ask for a follow-up." };
+
   const body = get(formData, "body");
   if (body.length < 20) return { error: "Write at least 20 characters." };
   if (body.length > 4000) return { error: "Keep the reply under 4000 characters." };
 
-  const waiting = await prisma.bookingReply.count({
-    where: { bookingId: booking.id, status: { in: ["PENDING", "SENDING", "SEND_FAILED"] } },
-  });
-  if (waiting > 0) return { error: "Your last reply is still waiting for Buncho's review." };
-
   await prisma.bookingReply.create({ data: { bookingId: booking.id, body, flags: findContactInfo(body) } });
   revalidatePath("/dashboard");
   revalidatePath("/admin");
+  return { ok: true };
+}
+
+// The student says the reply answered their question. This is what completes the request.
+export async function resolveBooking(formData) {
+  const { booking, isStudent } = await myBooking(formData);
+  if (!booking || !isStudent || booking.status !== "CONFIRMED") return;
+
+  const replies = await prisma.bookingReply.findMany({ where: { bookingId: booking.id } });
+  if (!replyCycle(booking, replies).lastSent) return; // nothing has been delivered yet
+
+  const done = await prisma.booking.updateMany({
+    where: { id: booking.id, status: "CONFIRMED" },
+    data: { status: "COMPLETED", statusChangedAt: new Date() },
+  });
+  if (done.count > 0) refresh();
+}
+
+// The student says the reply was not enough. The expert answers again at no extra cost.
+export async function requestFollowUp(_prev, formData) {
+  const { booking, isStudent } = await myBooking(formData);
+  if (!booking || !isStudent) return { error: "Request not found." };
+  if (booking.status !== "CONFIRMED") return { error: "This request is closed." };
+
+  const replies = await prisma.bookingReply.findMany({ where: { bookingId: booking.id } });
+  if (!replyCycle(booking, replies).delivered) return { error: "There is no new reply to respond to." };
+  if (booking.followUpCount >= MAX_FOLLOW_UPS) return { error: "You've used all your free follow-ups. Contact Buncho if you still need help." };
+
+  const note = get(formData, "note");
+  if (note.length < 10) return { error: "Tell the expert what is still missing, in at least 10 characters." };
+  if (note.length > 1000) return { error: "Keep it under 1000 characters." };
+
+  // Matching the old count means a double click can't use two follow-ups at once.
+  const saved = await prisma.booking.updateMany({
+    where: { id: booking.id, status: "CONFIRMED", followUpCount: booking.followUpCount },
+    data: { followUpNote: note, followUpAt: new Date(), followUpCount: { increment: 1 } },
+  });
+  if (saved.count === 0) return { error: "That was already sent." };
+
+  await emailFollowUp({
+    to: booking.expert.user.email,
+    studentName: booking.student.name,
+    title: booking.service.title,
+    note,
+  });
+  refresh();
   return { ok: true };
 }
 

@@ -136,6 +136,13 @@ export default async function Admin({ searchParams }) {
                       </div>
                     )}
 
+                    {r.booking.followUpCount > 0 && r.booking.followUpNote && (
+                      <div>
+                        <p className="text-xs text-muted">The student's follow-up (number {r.booking.followUpCount})</p>
+                        <p className="mt-1 whitespace-pre-line break-words rounded-xl bg-warn-soft p-3 text-sm text-warn">{r.booking.followUpNote}</p>
+                      </div>
+                    )}
+
                     <form action={approveReply} className="space-y-3">
                       <input type="hidden" name="id" value={r.id} />
                       <label className="block text-sm font-medium">
@@ -143,7 +150,7 @@ export default async function Admin({ searchParams }) {
                         <textarea name="body" required rows={8} maxLength={4000} defaultValue={r.body} className="input mt-1.5" />
                       </label>
                       <p className="text-xs text-muted">
-                        Goes to {r.booking.student.email} from {r.booking.expert.slug}@{EMAIL_DOMAIN}. The request is completed once it is sent.
+                        Goes to {r.booking.student.email} from {r.booking.expert.slug}@{EMAIL_DOMAIN}. The student then confirms it solved their question, or asks for a free follow-up.
                       </p>
                       <SubmitButton className="btn-primary" pendingText="Sending">Approve and send</SubmitButton>
                     </form>

@@ -45,8 +45,8 @@ export async function toggleVerification(formData) {
   refresh();
 }
 
-// ---------- Replies ----------
-// Sends the (optionally edited) reply to the student, as the expert, then completes the request.
+// Sends the (optionally edited) reply to the student, as the expert.
+// The request stays open: the student decides whether it solved their question.
 export async function approveReply(formData) {
   if (!(await isAdmin())) return;
   const id = String(formData.get("id") || "");
@@ -90,21 +90,12 @@ export async function approveReply(formData) {
     body,
   });
 
-  if (ok) {
-    await prisma.$transaction([
-      prisma.bookingReply.update({
-        where: { id },
-        data: { status: "SENT", body, sentAt: new Date(), reviewedAt: new Date() },
-      }),
-      // The student has their answer, so the request is finished for both sides.
-      prisma.booking.updateMany({
-        where: { id: reply.bookingId, status: "CONFIRMED" },
-        data: { status: "COMPLETED", statusChangedAt: new Date() },
-      }),
-    ]);
-  } else {
-    await prisma.bookingReply.update({ where: { id }, data: { status: "SEND_FAILED", body } });
-  }
+  await prisma.bookingReply.update({
+    where: { id },
+    data: ok
+      ? { status: "SENT", body, sentAt: new Date(), reviewedAt: new Date() }
+      : { status: "SEND_FAILED", body },
+  });
   refresh();
 }
 
