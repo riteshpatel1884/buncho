@@ -2,7 +2,8 @@
 import { UserButton } from "@clerk/nextjs";
 import { useTheme, CLERK_VARS } from "@/lib/useTheme";
 
-export default function UserMenu() {
+// showName puts the account name next to the avatar (used inside the mobile menu).
+export default function UserMenu({ showName = false }) {
   const theme = useTheme();
-  return <UserButton appearance={{ variables: CLERK_VARS[theme] }} />;
+  return <UserButton showName={showName} appearance={{ variables: CLERK_VARS[theme] }} />;
 }

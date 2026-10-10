@@ -51,7 +51,7 @@ export default async function Navbar() {
             <Link href="/dashboard" className={link}>Dashboard</Link>
             {profileHref && <Link href={profileHref} className={link}>My profile</Link>}
             {admin && <Link href="/admin" className={link}>Admin{adminBadge}</Link>}
-            
+            <div className="hidden md:block"><UserMenu /></div>
           </Show>
           <Show when="signed-out">
             <Link href="/sign-in" className={link}>Sign in</Link>
@@ -66,6 +66,9 @@ export default async function Navbar() {
                 <Link href="/dashboard" className={item}>Dashboard</Link>
                 {profileHref && <Link href={profileHref} className={item}>My profile</Link>}
                 {admin && <Link href="/admin" className={item}>Admin{adminBadge}</Link>}
+                <div className="mt-1 border-t border-line px-3 pb-1 pt-3">
+                  <UserMenu showName />
+                </div>
               </Show>
               <Show when="signed-out">
                 <Link href="/sign-in" className={item}>Sign in</Link>
