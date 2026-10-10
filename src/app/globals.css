@@ -169,3 +169,13 @@ html.theme-anim * {
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* Floating navbar: inner items shrink with the bar, on every screen size */
+nav[data-compact] button,
+nav[data-compact] .font-logo,
+nav[data-compact] .font-logo > span:first-child {
+  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1), height 0.5s cubic-bezier(0.22, 1, 0.36, 1), font-size 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+nav[data-compact="true"] button { width: 2rem; height: 2rem; }
+nav[data-compact="true"] .font-logo { font-size: 1.05rem; }
+nav[data-compact="true"] .font-logo > span:first-child { width: 1.75rem; height: 1.75rem; font-size: 1rem; }

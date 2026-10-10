@@ -55,7 +55,7 @@ export default async function Navbar() {
           </Show>
           <Show when="signed-out">
             <Link href="/sign-in" className={link}>Sign in</Link>
-            <Link href="/sign-up" className="btn-primary !rounded-full !px-4 sm:!px-5">Get started</Link>
+            {/* <Link href="/sign-up" className="btn-primary !rounded-full !px-4 sm:!px-5">Get started</Link> */}
           </Show>
 
           <MobileMenu>
