@@ -4,50 +4,50 @@
 :root,
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --paper: #050505;
-  --surface: #0e1110;
-  --surface-2: #161b18;
-  --ink: #ecf3ee;
-  --muted: #8a9a90;
-  --line: #232d27;
+  --paper: #070b08;
+  --surface: #0e1511;
+  --surface-2: #151e18;
+  --ink: #edf4ee;
+  --muted: #8fa095;
+  --line: #24312a;
   --brand: #34d67b;
   --brand-dark: #6bea9f;
   --brand-soft: #0f2a1b;
   --on-brand: #04140a;
+  --edge: #1a8a4b;            /* bottom edge of primary buttons */
+  --sticker-border: #34d67b;  /* the hero message box */
+  --sticker-shadow: #1b6b3d;
   --mint: #6ee7a8;
   --mint-soft: #10291b;
   --warn: #fbbf24;
   --warn-soft: #2a2410;
   --danger: #fca5a5;
   --danger-soft: #2b1313;
-  --face-1: #52ea98;
-  --face-2: #2dc772;
   --scroll: #2b3a31;
-  --shadow-card: none;
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --paper: #f3f6f4;
+  --paper: #f4f7f2;
   --surface: #ffffff;
-  --surface-2: #eef3ef;
+  --surface-2: #edf2ec;
   --ink: #0d1b14;
   --muted: #546459;
-  --line: #dbe4de;
+  --line: #d9e3db;
   --brand: #15803d;
   --brand-dark: #166534;
   --brand-soft: #dcfce7;
   --on-brand: #ffffff;
+  --edge: #0b4d22;
+  --sticker-border: #0d1b14;
+  --sticker-shadow: #15803d;
   --mint: #166534;
   --mint-soft: #dcfce7;
   --warn: #92400e;
   --warn-soft: #fef3c7;
   --danger: #b91c1c;
   --danger-soft: #fee2e2;
-  --face-1: #22a455;
-  --face-2: #15803d;
   --scroll: #c5d3ca;
-  --shadow-card: 0 1px 2px rgba(13, 27, 20, 0.06), 0 10px 28px -14px rgba(13, 27, 20, 0.14);
 }
 
 @theme inline {
@@ -69,9 +69,10 @@
   --color-danger-soft: var(--danger-soft);
   --color-navy: #07170f;
   --color-on-navy: #a3c9b3;
-  --color-gold: #ffc93c;
-  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+  /* Headlines: Young Serif. Body: Hanken Grotesk. Logo keeps Bricolage so it stays exactly as before. */
+  --font-display: var(--font-young), ui-serif, Georgia, serif;
+  --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+  --font-logo: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
 }
 
 * {
@@ -84,14 +85,18 @@
 body {
   background: var(--paper);
   color: var(--ink);
-  font-family: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   overflow-x: clip;
 }
 ::selection { background: var(--brand); color: var(--on-brand); }
 :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
-/* smooth colour change when the theme is toggled */
+/* Young Serif has one weight. Stops the browser faking bold on headings that still say font-bold. */
+.font-display { font-synthesis: none; }
+
 html.theme-anim,
 html.theme-anim * {
   transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease !important;
@@ -100,123 +105,67 @@ html.theme-anim * {
 @layer components {
   .card {
     @apply rounded-2xl border border-line bg-surface;
-    box-shadow: var(--shadow-card);
   }
   .btn-primary {
-    @apply relative inline-flex items-center justify-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-on-brand transition-colors hover:bg-brand-dark disabled:opacity-60;
+    @apply inline-flex items-center justify-center gap-2 rounded-[10px] bg-brand px-5 py-2.5 text-sm font-semibold text-on-brand hover:bg-brand-dark disabled:opacity-60;
   }
   .btn-outline {
-    @apply inline-flex items-center justify-center gap-2 rounded-full border border-line bg-surface-2 px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-brand disabled:opacity-60;
+    @apply inline-flex items-center justify-center gap-2 rounded-[10px] border border-line bg-transparent px-5 py-2.5 text-sm font-semibold text-ink hover:border-brand disabled:opacity-60;
   }
-  .btn-onnavy {
-    @apply inline-flex items-center justify-center gap-2 rounded-full border border-white/25 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/10;
+  .btn-invert {
+    @apply inline-flex items-center justify-center gap-2 rounded-[10px] bg-on-brand px-5 py-2.5 text-sm font-semibold text-brand;
   }
   .input {
-    @apply w-full rounded-xl border border-line bg-surface-2 px-3.5 py-2.5 text-sm text-ink placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/25;
+    @apply w-full rounded-[10px] border border-line bg-surface-2 px-3.5 py-2.5 text-sm text-ink placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/25;
   }
   .chip {
     @apply inline-flex items-center rounded-full bg-mint-soft px-2.5 py-0.5 text-xs font-medium text-mint;
   }
 }
 
-/* ---------- Motion (transform and opacity only) ---------- */
-@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-@keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.3); } 100% { transform: scale(1); } }
-@keyframes float { 0%, 100% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(28px, -20px, 0); } }
-@keyframes shimmer { to { background-position: 200% center; } }
-@keyframes aurora { to { background-position: 100% 100%; } }
-@keyframes spin-turn { from { transform: rotate(-90deg); opacity: 0; } to { transform: none; opacity: 1; } }
-
-.rise { animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; animation-delay: calc(var(--i, 0) * 70ms); }
-.page-in { animation: rise 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
-.anim-pop { animation: pop 0.35s ease; }
-.icon-turn { animation: spin-turn 0.4s ease; }
-.blob { animation: float 12s ease-in-out infinite; }
-
-.text-shimmer {
-  background-image: linear-gradient(90deg, #34d67b, #c4ffdd, #34d67b);
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: shimmer 4s linear infinite;
+/* ---------- Buttons press like keys: a solid bottom edge that sinks when clicked ---------- */
+.btn-primary {
+  box-shadow: 0 3px 0 var(--edge);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.2s ease;
 }
-
-@supports (animation-timeline: view()) {
-  .reveal {
-    animation: rise linear both;
-    animation-timeline: view();
-    animation-range: entry 5% entry 45%;
-  }
+.btn-invert {
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
-
-.btn-primary, .btn-outline { transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease; }
+.btn-outline { transition: border-color 0.2s ease, background-color 0.2s ease; }
 @media (hover: hover) {
-  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 28px -8px rgba(52, 214, 123, 0.55); }
-  .btn-outline:hover { transform: translateY(-2px); }
+  .btn-primary:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 4px 0 var(--edge); }
+  .btn-invert:hover { transform: translateY(-1px); box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35); }
 }
-.btn-primary:active, .btn-outline:active { transform: scale(0.97); }
+.btn-primary:not(:disabled):active { transform: translateY(2px); box-shadow: 0 1px 0 var(--edge); }
+.btn-invert:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35); }
+.btn-primary:disabled { box-shadow: none; }
 
-.card-hover { transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease; }
-@media (hover: hover) {
-  .card-hover:hover { transform: translateY(-3px); border-color: rgba(52, 214, 123, 0.5); }
-  .glow:hover { background-image: radial-gradient(280px circle at var(--mx, 50%) var(--my, 50%), rgba(52, 214, 123, 0.12), transparent 65%); }
-  .glow:hover > .spot { opacity: 1; }
+/* The message box on the home page */
+.sticker {
+  border: 1.5px solid var(--sticker-border);
+  box-shadow: 5px 5px 0 var(--sticker-shadow);
 }
-.spot {
-  position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.3s ease;
-  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, 0.09), transparent 60%);
-}
+
+.card-hover { transition: border-color 0.2s ease; }
+@media (hover: hover) { .card-hover:hover { border-color: var(--brand); } }
 
 .link-underline {
   background: linear-gradient(currentColor, currentColor) 0 100% / 0 2px no-repeat;
   padding-bottom: 3px;
-  transition: background-size 0.25s ease, color 0.2s ease;
+  transition: background-size 0.25s ease;
 }
 @media (hover: hover) { .link-underline:hover { background-size: 100% 2px; } }
 
-.dots {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.14) 1px, transparent 1px);
-  background-size: 22px 22px;
-  -webkit-mask-image: radial-gradient(ellipse at 25% 15%, #000 0%, transparent 70%);
-  mask-image: radial-gradient(ellipse at 25% 15%, #000 0%, transparent 70%);
-}
-.aurora {
-  background-image:
-    radial-gradient(60% 80% at 20% 20%, rgba(52, 214, 123, 0.26), transparent 60%),
-    radial-gradient(50% 70% at 85% 80%, rgba(52, 214, 123, 0.14), transparent 60%);
-  background-size: 140% 140%;
-  animation: aurora 14s ease-in-out infinite alternate;
-}
+/* ---------- Motion: one short entrance on the home page, a quick fade between pages ---------- */
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes spin-turn { from { transform: rotate(-90deg); opacity: 0; } to { transform: none; opacity: 1; } }
 
-/* Main call to action: two comets of green light orbit the border */
-@property --angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
-@keyframes spin-angle { to { --angle: 360deg; } }
-@keyframes bloom { 0%, 100% { opacity: 0.45; } 50% { opacity: 0.85; } }
-.btn-ring {
-  --ring: conic-gradient(from var(--angle), transparent 0%, rgba(52, 214, 123, 0.2) 10%, rgba(52, 214, 123, 0.85) 24%, #b8ffd5 31%, transparent 33%, transparent 50%, rgba(45, 212, 191, 0.2) 60%, rgba(45, 212, 191, 0.85) 74%, #b3fff0 81%, transparent 83%, transparent 100%);
-  position: relative;
-  isolation: isolate;
-  border: 2px solid transparent;
-  background: var(--ring) border-box, linear-gradient(rgba(52, 214, 123, 0.22), rgba(52, 214, 123, 0.22)) border-box;
-  animation: spin-angle 4s linear infinite;
-}
-.btn-ring::before {
-  content: ""; position: absolute; inset: -6px; z-index: -1; border-radius: 9999px;
-  background: var(--ring); filter: blur(9px); opacity: 0.55;
-  transition: inset 0.3s ease, filter 0.3s ease; animation: bloom 3s ease-in-out infinite;
-}
-.btn-ring::after {
-  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: 9999px;
-  background: linear-gradient(180deg, var(--face-1), var(--face-2));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
-}
-@media (hover: hover) { .btn-ring:hover::before { inset: -9px; filter: blur(12px); } }
-
-@supports (animation-timeline: scroll()) {
-  .nav-scroll { animation: navshadow linear both; animation-timeline: scroll(); animation-range: 0 120px; }
-}
-@keyframes navshadow { from { box-shadow: none; } to { box-shadow: 0 10px 30px -14px rgba(52, 214, 123, 0.25); } }
+.rise { animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; animation-delay: calc(var(--i, 0) * 90ms); }
+.page-in { animation: fade 0.25s ease backwards; }
+.icon-turn { animation: spin-turn 0.4s ease; }
+.glow { /* kept so older pages still render; no effect */ }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }

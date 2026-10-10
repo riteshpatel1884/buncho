@@ -36,7 +36,7 @@ export default async function ExpertPage({ params }) {
   const unv = (f) => expert.unverifiedFields?.includes(f);
 
   return (
-    <article className="space-y-8">
+    <article className="space-y-10">
       <Link href="/experts" className="text-sm font-medium text-muted hover:text-ink">Back to experts</Link>
 
       {expert.status !== "ACTIVE" && (
@@ -51,19 +51,19 @@ export default async function ExpertPage({ params }) {
         </p>
       )}
 
-      <header className="card rise flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-8">
-        <Avatar name={expert.user.name} src={expert.user.avatarUrl} size={96} />
+      <header className="flex flex-col gap-6 sm:flex-row sm:items-center">
+        <Avatar name={expert.user.name} src={expert.user.avatarUrl} size={112} />
         <div className="min-w-0 flex-1 space-y-2">
-          <h1 className="flex items-center gap-2 font-display text-2xl font-bold leading-tight sm:text-3xl">
+          <h1 className="flex items-center gap-3 font-display text-4xl leading-tight sm:text-5xl">
             <span className="min-w-0 break-words">{expert.user.name}</span>
-            {isBlueTick(expert) && <BlueTick className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" />}
+            {isBlueTick(expert) && <BlueTick className="h-7 w-7 shrink-0 sm:h-8 sm:w-8" />}
           </h1>
-          {expert.headline && <p className="text-muted sm:text-lg">{expert.headline}</p>}
-          <p className="text-sm">
+          {expert.headline && <p className="max-w-xl text-lg text-muted">{expert.headline}</p>}
+          <p>
             {expert.jobTitle} at {expert.company}, {expert.experienceYears} {expert.experienceYears === 1 ? "year" : "years"} of experience
             <NotVerified show={unv("role") || unv("company")} />
           </p>
-          <p className="text-sm text-muted">
+          <p className="text-muted">
             {expert.college}, {expert.branch}, class of {expert.graduationYear}
             <NotVerified show={unv("college")} />
           </p>
@@ -73,15 +73,15 @@ export default async function ExpertPage({ params }) {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="space-y-8">
-          <section className="card reveal p-5 sm:p-8">
-            <h2 className="font-display text-xl font-bold">About</h2>
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="space-y-12">
+          <section className="border-t border-line pt-6">
+            <h2 className="font-display text-2xl">About</h2>
             <p className="mt-3 max-w-2xl whitespace-pre-line leading-relaxed">{expert.bio}</p>
             {expert.skills.length > 0 && (
               <div className="mt-4 flex flex-wrap gap-2">{expert.skills.map((s) => <span key={s} className="chip">{s}</span>)}</div>
             )}
-            <div className="mt-5 flex flex-wrap gap-3 text-sm">
+            <div className="mt-5 flex flex-wrap gap-5 text-sm">
               <span>
                 <a href={expert.linkedinUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-brand hover:underline">LinkedIn</a>
                 <NotVerified show={unv("linkedin")} />
@@ -95,22 +95,22 @@ export default async function ExpertPage({ params }) {
             </div>
           </section>
 
-          <section className="space-y-4">
-            <h2 className="font-display text-xl font-bold">Services</h2>
+          <section className="border-t border-line pt-6">
+            <h2 className="font-display text-2xl">Sessions you can book</h2>
             {expert.services.length === 0 ? (
-              <div className="card border-dashed p-8 text-center text-muted">No services listed yet.</div>
+              <p className="mt-4 rounded-2xl border border-dashed border-line p-8 text-center text-muted">No services listed yet.</p>
             ) : (
-              <ul className="space-y-4">
-                {expert.services.map((s, i) => (
-                  <li key={s.id} className="card card-hover rise p-5" style={{ "--i": i }}>
+              <ul className="mt-5 space-y-4">
+                {expert.services.map((s) => (
+                  <li key={s.id} className="card p-5">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <span className="chip">{SERVICE_TYPES[s.type]}</span>
-                        <h3 className="mt-2 font-display text-lg font-semibold">{s.title}</h3>
-                        <p className="mt-1 text-sm text-muted">{s.description}</p>
+                        <h3 className="mt-2 font-display text-xl">{s.title}</h3>
+                        <p className="mt-1 max-w-xl text-sm text-muted">{s.description}</p>
                       </div>
                       <div className="text-right">
-                        <p className="font-display text-2xl font-bold">{inr(s.priceInr)}</p>
+                        <p className="font-display text-3xl">{inr(s.priceInr)}</p>
                         <p className="text-xs text-muted">{s.durationMin} min</p>
                       </div>
                     </div>
@@ -120,7 +120,7 @@ export default async function ExpertPage({ params }) {
                       </ul>
                     )}
                     {canBook ? (
-                      <Link href={`/book/${s.id}`} className="btn-primary mt-4">Book this</Link>
+                      <Link href={`/book/${s.id}`} className="btn-primary mt-4">Book this session</Link>
                     ) : (
                       !isOwner && me?.role === "EXPERT" && <p className="mt-4 text-xs text-muted">Booking is for student accounts.</p>
                     )}
@@ -131,15 +131,15 @@ export default async function ExpertPage({ params }) {
           </section>
         </div>
 
-        <aside className="space-y-5">
+        <aside className="space-y-5 lg:sticky lg:top-24 lg:self-start">
           <div className="card p-5">
-            <h3 className="font-display text-lg font-bold">Usually available</h3>
+            <h3 className="font-display text-xl">Usually free on</h3>
             {expert.availability.length === 0 ? (
               <p className="mt-2 text-sm text-muted">No times set yet.</p>
             ) : (
-              <ul className="mt-3 space-y-2 text-sm">
+              <ul className="mt-3 divide-y divide-line text-sm">
                 {expert.availability.map((a) => (
-                  <li key={a.id} className="flex justify-between gap-3">
+                  <li key={a.id} className="flex justify-between gap-3 py-2">
                     <span className="text-muted">{WEEKDAYS[a.weekday]}</span>
                     <span className="font-medium">{fmtMinutes(a.startMin)} to {fmtMinutes(a.endMin)}</span>
                   </li>

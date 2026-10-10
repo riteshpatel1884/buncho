@@ -4,6 +4,15 @@ import Spinner from "./Spinner";
 import { createBooking } from "@/app/book/[serviceId]/actions";
 import { inr } from "@/lib/constants";
 
+function StepTitle({ n, children, hint }) {
+  return (
+    <h2 className="flex items-center gap-3 font-display text-xl">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-soft font-sans text-sm font-bold text-brand">{n}</span>
+      <span>{children}{hint && <span className="ml-2 font-sans text-sm text-muted">{hint}</span>}</span>
+    </h2>
+  );
+}
+
 export default function BookingPicker({ serviceId, days, priceInr = 0 }) {
   const [state, action, pending] = useActionState(createBooking, null);
   const [dayIdx, setDayIdx] = useState(0);
@@ -13,8 +22,8 @@ export default function BookingPicker({ serviceId, days, priceInr = 0 }) {
 
   if (days.length === 0) {
     return (
-      <div className="card border-dashed p-8 text-center">
-        <p className="font-display text-lg font-semibold">No open times in the next 2 weeks</p>
+      <div className="rounded-2xl border border-dashed border-line p-8">
+        <p className="font-display text-2xl">No open times in the next 2 weeks.</p>
         <p className="mt-1 text-sm text-muted">Check back soon, or look at another expert.</p>
       </div>
     );
@@ -31,16 +40,17 @@ export default function BookingPicker({ serviceId, days, priceInr = 0 }) {
 
   const day = days[dayIdx];
   return (
-    <form onSubmit={onSubmit} className="card space-y-6 p-5 sm:p-8">
+    <form onSubmit={onSubmit} className="card space-y-8 p-5 sm:p-8">
       <div>
-        <h2 className="font-display text-xl font-bold">1. Pick a day</h2>
-        <div className="no-scrollbar -mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1">
+        <StepTitle n={1}>Pick a day</StepTitle>
+        <div className="no-scrollbar -mx-1 mt-4 flex gap-2 overflow-x-auto px-1 pb-1">
           {days.map((d, i) => (
             <button
               type="button"
               key={d.ymd}
               onClick={() => { setDayIdx(i); setSlot(""); }}
-              className={`shrink-0 rounded-xl border px-4 py-2 text-sm font-medium transition-colors ${
+              aria-pressed={i === dayIdx}
+              className={`shrink-0 rounded-[10px] border px-4 py-2 text-sm font-medium transition-colors ${
                 i === dayIdx ? "border-brand bg-brand text-on-brand" : "border-line bg-surface-2 hover:border-brand"
               }`}
             >
@@ -51,15 +61,15 @@ export default function BookingPicker({ serviceId, days, priceInr = 0 }) {
       </div>
 
       <div>
-        <h2 className="font-display text-xl font-bold">2. Pick a time <span className="text-sm font-normal text-muted">(India time)</span></h2>
-        <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+        <StepTitle n={2} hint="India time">Pick a time</StepTitle>
+        <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
           {day.slots.map((s) => (
             <button
               type="button"
               key={s.iso}
               onClick={() => setSlot(s.iso)}
               aria-pressed={slot === s.iso}
-              className={`rounded-xl border px-2 py-2 text-sm font-medium transition-colors ${
+              className={`rounded-[10px] border px-2 py-2 text-sm font-medium transition-colors ${
                 slot === s.iso ? "border-brand bg-brand text-on-brand" : "border-line bg-surface-2 hover:border-brand"
               }`}
             >
@@ -70,20 +80,20 @@ export default function BookingPicker({ serviceId, days, priceInr = 0 }) {
       </div>
 
       <div>
-        <h2 className="font-display text-xl font-bold">3. What should they know? <span className="text-sm font-normal text-muted">(optional)</span></h2>
+        <StepTitle n={3} hint="optional">What should they know?</StepTitle>
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={3}
           maxLength={500}
           placeholder="For example: I'm applying for AI internships and my resume gets no replies."
-          className="input mt-3"
+          className="input mt-4"
         />
       </div>
 
       {state?.error && <p role="alert" className="rounded-xl bg-danger-soft p-3 text-sm text-danger">{state.error}</p>}
 
-      <div className="space-y-2">
+      <div className="space-y-2 border-t border-dashed border-line pt-6">
         <button disabled={pending || !slot} className="btn-primary w-full sm:w-auto">
           {pending ? (
             <><Spinner />{paid ? "Opening payment" : "Sending request"}</>

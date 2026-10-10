@@ -1,12 +1,13 @@
 import Link from "next/link";
+import Logo from "./Logo";
 
 export default function Footer() {
   return (
-    <footer className="border-t border-line bg-surface">
-      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-8 px-4 py-10 sm:px-6 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)]">
+    <footer className="border-t border-line">
+      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-10 px-4 py-12 sm:px-6 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <div className="col-span-2 md:col-span-1">
-          <p className="font-display text-lg font-bold">buncho<span className="text-brand">.</span></p>
-          <p className="mt-2 max-w-xs text-sm text-muted">Get help from people who've already done it.</p>
+          <Logo />
+          <p className="mt-4 max-w-xs font-display text-xl leading-snug">Get help from people who've already done it.</p>
         </div>
         <div className="space-y-2 text-sm">
           <p className="font-semibold">Students</p>

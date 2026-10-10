@@ -1,10 +1,17 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import ExpertCard from "@/components/ExpertCard";
+import Avatar from "@/components/Avatar";
 import { SERVICE_TYPES, SERVICE_BLURBS, inr } from "@/lib/constants";
 import { BlueTick, isBlueTick } from "@/components/Badges";
 
 export const dynamic = "force-dynamic";
+
+const STEPS = [
+  ["Say what you're stuck on", "Describe it in your own words, or filter by college, role and service. Every expert is checked by Buncho before they go live."],
+  ["Pick a time that works", "Choose a service and a slot in India time. The expert confirms and shares a meeting link."],
+  ["Leave with something to fix", "A resume with notes on it, an interview you've already practised, or a plan from someone a few steps ahead."],
+];
 
 export default async function Home() {
   const [featured, byType, expertCount] = await Promise.all([
@@ -28,80 +35,86 @@ export default async function Home() {
   const typeInfo = new Map(byType.map((t) => [t.type, t]));
 
   return (
-    <div className="space-y-10 sm:space-y-14">
-      {/* Hero */}
-      <section
-        className="glow relative grid grid-cols-1 gap-10 overflow-hidden rounded-3xl bg-navy p-6 text-white sm:p-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:items-center lg:p-12"
-        style={{ backgroundImage: "radial-gradient(circle at 88% 8%, rgba(52,214,123,0.22), transparent 42%)" }}
-      >
-        <div aria-hidden="true" className="dots pointer-events-none absolute inset-0" />
-        <div aria-hidden="true" className="spot" />
-        <div aria-hidden="true" className="blob pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-[#34d67b]/20 blur-3xl" />
-
-        <div className="rise relative">
-          <h1 className="font-display text-4xl font-bold leading-[1.05] sm:text-5xl lg:text-6xl">
-            Get help from people who've <span className="text-shimmer">already done it.</span>
+    <div>
+      {/* Hero: the message box is the page. You write your problem, seniors answer. */}
+      <section className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:gap-16">
+        <div>
+          <h1 className="rise font-display text-5xl leading-[1.02] tracking-tight sm:text-6xl lg:text-7xl">
+            Ask a senior who's already been through it.
           </h1>
-          <p className="mt-4 max-w-md text-lg text-on-navy">
-            Book verified seniors and professionals for resume reviews, mock interviews and career guidance.
+          <p className="rise mt-6 max-w-lg text-lg text-muted" style={{ "--i": 1 }}>
+            Book a short call with someone from a college like yours. They cleared the interview, built the project or got the offer, and they'll tell you what actually worked.
           </p>
-          <form action="/experts" data-nav className="mt-7 flex max-w-lg flex-col gap-2 sm:flex-row">
-            <input
+
+          <form action="/experts" data-nav className="rise sticker mt-9 max-w-xl rounded-2xl bg-surface p-3" style={{ "--i": 2 }}>
+            <label htmlFor="q" className="block px-2 pt-1 text-sm font-medium">What are you stuck on?</label>
+            <textarea
+              id="q"
               name="q"
+              rows={2}
               placeholder="I want an AI internship but my resume isn't getting shortlisted"
-              aria-label="Describe what you need help with"
-              className="w-full rounded-full bg-surface px-5 py-3 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-white/60"
+              className="w-full resize-none bg-transparent px-2 py-2 text-base text-ink placeholder:text-muted/70 focus:outline-none"
             />
-            <button className="btn-primary btn-ring shrink-0">Find experts</button>
+            <div className="flex items-center justify-between gap-3 border-t border-dashed border-line pt-3">
+              <p className="px-2 text-xs text-muted">Write it like you'd say it to a friend.</p>
+              <button className="btn-primary shrink-0">Find experts</button>
+            </div>
           </form>
-          <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-on-navy">
-            <Link href="/onboarding/expert" className="btn-onnavy !py-2">Become an expert</Link>
-            <span>{expertCount} {expertCount === 1 ? "expert" : "experts"} verified and live</span>
-          </div>
+
+          <p className="rise mt-5 text-sm text-muted" style={{ "--i": 3 }}>
+            {expertCount} {expertCount === 1 ? "expert is" : "experts are"} live, each checked by Buncho before approval.
+          </p>
         </div>
 
-        <div className="rise relative rounded-2xl bg-surface p-5 text-ink shadow-xl" style={{ "--i": 2 }}>
-          <h2 className="font-display text-lg font-bold">New experts</h2>
+        <aside className="rise self-start rounded-2xl border border-line bg-surface p-5 sm:p-6" style={{ "--i": 3 }}>
+          <h2 className="font-display text-2xl">Recently joined</h2>
           {featured.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted">Experts are joining now. Be one of the first.</p>
+            <div className="py-6 text-sm text-muted">
+              <p>Experts are joining now.</p>
+              <Link href="/onboarding/expert" className="mt-2 inline-block font-medium text-brand hover:underline">Be one of the first</Link>
+            </div>
           ) : (
-            <ul className="mt-3 space-y-1">
-              {featured.map((e) => (
-                <li key={e.id}>
-                  <Link href={`/experts/${e.slug}`} className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-surface-2">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mint-soft font-bold text-mint">{(e.user.name || "?")[0]}</span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-1 font-semibold">
-                        <span className="truncate">{e.user.name}</span>
-                           {isBlueTick(e) && <BlueTick className="h-4 w-4 shrink-0" />}
+            <ul className="mt-2 divide-y divide-line">
+              {featured.map((e) => {
+                const from = e.services.length ? Math.min(...e.services.map((s) => s.priceInr)) : null;
+                return (
+                  <li key={e.id}>
+                    <Link href={`/experts/${e.slug}`} className="-mx-2 flex items-center gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-surface-2">
+                      <Avatar name={e.user.name} src={e.user.avatarUrl} size={44} />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1.5 font-semibold">
+                          <span className="truncate">{e.user.name}</span>
+                          {isBlueTick(e) && <BlueTick className="h-4 w-4 shrink-0" />}
                         </span>
-                      <span className="block truncate text-xs text-muted">{e.jobTitle} at {e.company}</span>
-                    </span>
-                    {e.services.length > 0 && <span className="text-sm font-semibold text-brand">{inr(Math.min(...e.services.map((s) => s.priceInr)))}</span>}
-                  </Link>
-                </li>
-              ))}
+                        <span className="block truncate text-xs text-muted">{e.jobTitle} at {e.company}</span>
+                        <span className="block truncate text-xs text-muted">{e.college}</span>
+                      </span>
+                      {from !== null && <span className="text-sm font-semibold text-brand">{inr(from)}</span>}
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           )}
-        </div>
+        </aside>
       </section>
 
-      {/* What you can book */}
-      <section className="space-y-5">
-        <div>
-          <h2 className="font-display text-2xl font-bold sm:text-3xl">What do you need help with?</h2>
-          <p className="mt-1 text-muted">Pick a service to see experts who offer it.</p>
-        </div>
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {Object.entries(SERVICE_TYPES).filter(([k]) => k !== "OTHER").map(([key, label], i) => {
+      {/* Services as a plain list, not a grid of cards */}
+      <section className="mt-24">
+        <h2 className="max-w-xl font-display text-3xl leading-tight sm:text-4xl">What do you need help with?</h2>
+        <ul className="mt-8 border-t border-line">
+          {Object.entries(SERVICE_TYPES).filter(([k]) => k !== "OTHER").map(([key, label]) => {
             const info = typeInfo.get(key);
             return (
-              <li key={key} className="rise" style={{ "--i": i }}>
-                <Link href={`/experts?service=${key}`} className="card card-hover glow flex h-full flex-col gap-2 p-5">
-                  <h3 className="font-display text-lg font-bold">{label}</h3>
-                  <p className="text-sm text-muted">{SERVICE_BLURBS[key]}</p>
-                  <p className="mt-auto pt-3 text-sm font-medium text-brand">
-                    {info ? `${info._count._all} ${info._count._all === 1 ? "offer" : "offers"}, from ${inr(info._min.priceInr)}` : "Coming soon"}
+              <li key={key} className="border-b border-line">
+                <Link
+                  href={`/experts?service=${key}`}
+                  className="-mx-3 grid grid-cols-[1fr_auto] items-baseline gap-x-6 gap-y-1 rounded-xl px-3 py-6 transition-colors hover:bg-surface sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_auto]"
+                >
+                  <h3 className="font-display text-2xl sm:order-1">{label}</h3>
+                  <p className="col-span-2 order-3 text-muted sm:order-2 sm:col-span-1">{SERVICE_BLURBS[key]}</p>
+                  <p className="order-2 text-right text-sm font-medium text-brand sm:order-3">
+                    {info ? `from ${inr(info._min.priceInr)}` : "Coming soon"}
                   </p>
                 </Link>
               </li>
@@ -111,47 +124,38 @@ export default async function Home() {
       </section>
 
       {featured.length > 0 && (
-        <section className="space-y-5">
+        <section className="mt-24">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h2 className="font-display text-2xl font-bold sm:text-3xl">Meet the experts</h2>
-            <Link href="/experts" className="text-sm font-medium text-brand hover:underline">See all</Link>
+            <h2 className="font-display text-3xl leading-tight sm:text-4xl">Meet the experts</h2>
+            <Link href="/experts" className="text-sm font-medium text-brand hover:underline">See everyone</Link>
           </div>
-          <ul className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            {featured.map((e, i) => <ExpertCard key={e.id} expert={e} index={i} />)}
+          <ul className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+            {featured.map((e) => <ExpertCard key={e.id} expert={e} />)}
           </ul>
         </section>
       )}
 
-      {/* How it works */}
-      <section className="card reveal p-6 sm:p-10">
-        <h2 className="font-display text-2xl font-bold">How it works</h2>
-        <ol className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
-          {[
-            ["Find", "Describe your problem or filter by college, role and service. Experts are checked by Buncho."],
-            ["Book", "Pick a service and a time that suits you. The expert confirms and shares a meeting link."],
-            ["Improve", "Get a resume review, a mock interview or advice from someone who has been where you are."],
-          ].map(([t, d], i) => (
-            <li key={t} className="flex gap-4">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-mint-soft font-display font-bold text-mint">{i + 1}</span>
-              <div>
-                <p className="font-semibold">{t}</p>
-                <p className="mt-1 text-sm text-muted">{d}</p>
-              </div>
+      {/* An actual sequence, so numbers are earned here */}
+      <section className="mt-24 grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
+        <h2 className="font-display text-3xl leading-tight sm:text-4xl">Three steps, no back and forth.</h2>
+        <ol className="relative space-y-9 pl-14">
+          <span aria-hidden="true" className="absolute bottom-2 left-4 top-2 w-px bg-line" />
+          {STEPS.map(([title, text], i) => (
+            <li key={title} className="relative">
+              <span className="absolute -left-14 top-0 flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-sm font-bold text-on-brand">{i + 1}</span>
+              <p className="font-display text-xl">{title}</p>
+              <p className="mt-1 max-w-md text-muted">{text}</p>
             </li>
           ))}
         </ol>
       </section>
 
-      {/* Expert call to action */}
-      <section className="aurora reveal card relative grid grid-cols-1 items-center gap-6 overflow-hidden p-6 sm:p-10 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:p-12">
+      {/* For experts */}
+      <section className="mt-24 grid grid-cols-1 gap-8 rounded-[28px] bg-brand p-8 text-on-brand sm:p-12 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-end">
+        <h2 className="font-display text-4xl leading-[1.05] sm:text-5xl">Been there? Help someone get there.</h2>
         <div>
-          <h2 className="font-display text-3xl font-bold leading-tight sm:text-4xl">Been there? Help someone get there.</h2>
-          <p className="mt-3 max-w-md text-muted">
-            Placed at a company, cleared a tough interview or built something real? Set your own prices and help students from your college.
-          </p>
-        </div>
-        <div>
-          <Link href="/onboarding/expert" className="btn-primary btn-ring">Become an expert</Link>
+          <p className="max-w-sm">Placed at a company, cleared a tough interview or built something real? Set your own prices and help students from your college.</p>
+          <Link href="/onboarding/expert" className="btn-invert mt-6">Become an expert</Link>
         </div>
       </section>
     </div>

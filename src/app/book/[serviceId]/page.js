@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/user";
 import { buildSlots } from "@/lib/slots";
+import { activeHold } from "@/lib/bookingPayment";
 import { SERVICE_TYPES, inr } from "@/lib/constants";
 import Avatar from "@/components/Avatar";
 import VerificationBadges, { BlueTick, isBlueTick } from "@/components/Badges";
@@ -27,37 +28,39 @@ export default async function BookPage({ params }) {
 
   if (user.role !== "STUDENT" || expert.user.id === user.id) {
     return (
-      <div className="mx-auto max-w-lg py-16 text-center">
-        <h1 className="font-display text-2xl font-bold">Booking is for student accounts</h1>
-        <p className="mt-2 text-muted">You're signed in as an expert, so you can't book sessions.</p>
+      <div className="mx-auto max-w-lg py-16">
+        <h1 className="font-display text-4xl leading-tight">Booking is for student accounts.</h1>
+        <p className="mt-3 text-muted">You're signed in as an expert, so you can't book sessions.</p>
         <Link href="/dashboard" className="btn-primary mt-6">Go to dashboard</Link>
       </div>
     );
   }
 
+  // Same rule as createBooking: paid requests that were never paid stop blocking a slot after 20 minutes.
   const horizon = new Date(Date.now() + 16 * 24 * 60 * 60 * 1000);
   const busy = await prisma.booking.findMany({
-    where: { expertId: expert.id, status: { in: ["PENDING", "CONFIRMED"] }, startsAt: { lt: horizon } },
+    where: { expertId: expert.id, startsAt: { lt: horizon }, ...activeHold() },
     select: { startsAt: true, endsAt: true },
   });
   const days = buildSlots({ availability: expert.availability, busy, durationMin: service.durationMin });
+  const paid = service.priceInr > 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <Link href={`/experts/${expert.slug}`} className="text-sm font-medium text-muted hover:text-ink">Back to {expert.user.name}</Link>
-      <h1 className="font-display text-3xl font-bold sm:text-4xl">Book a session</h1>
+      <h1 className="font-display text-4xl leading-tight sm:text-5xl">Book a session</h1>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <BookingPicker serviceId={service.id} days={days} />
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <BookingPicker serviceId={service.id} days={days} priceInr={service.priceInr} />
 
         <aside className="space-y-4 lg:order-last">
           <div className="card p-5">
             <span className="chip">{SERVICE_TYPES[service.type]}</span>
-            <h2 className="mt-2 font-display text-xl font-bold">{service.title}</h2>
+            <h2 className="mt-2 font-display text-2xl leading-tight">{service.title}</h2>
             <p className="mt-1 text-sm text-muted">{service.description}</p>
-            <div className="mt-4 flex items-baseline justify-between border-t border-line pt-4">
+            <div className="mt-4 flex items-baseline justify-between border-t border-dashed border-line pt-4">
               <span className="text-sm text-muted">{service.durationMin} minutes</span>
-              <span className="font-display text-3xl font-bold">{inr(service.priceInr)}</span>
+              <span className="font-display text-4xl">{inr(service.priceInr)}</span>
             </div>
             {service.deliverables.length > 0 && (
               <ul className="mt-4 space-y-1 text-sm">
@@ -77,7 +80,9 @@ export default async function BookPage({ params }) {
             </div>
           </div>
           <p className="rounded-xl bg-surface-2 p-4 text-xs text-muted">
-            Online payments are coming soon. For now your request goes to the expert, who confirms the time and shares a meeting link.
+            {paid
+              ? "You pay first. The expert is told only after your payment goes through. They accept your request and answer your question by email, after Buncho has checked the reply."
+              : "Your request goes to the expert, who accepts it and answers your question by email, after Buncho has checked the reply."}
           </p>
         </aside>
       </div>

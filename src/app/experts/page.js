@@ -56,34 +56,34 @@ export default async function Experts({ searchParams }) {
 
   const fromPrice = (e) => (e.services.length ? Math.min(...e.services.map((s) => s.priceInr)) : Infinity);
   const relevance = (e) => {
-  const hay = [e.headline, e.jobTitle, e.company, e.bio, e.college, e.user.name, ...e.skills, ...e.services.map((s) => s.title)]
-    .filter(Boolean).join(" ").toLowerCase();
-  return (
-    tokens.filter((t) => hay.includes(t)).length +
-    (e.educationVerified ? 0.5 : 0) +
-    (e.employmentVerified ? 0.5 : 0) +
-    (isBlueTick(e) ? 1 : 0)
-  );
-};
-if (sort === "priceLow") experts.sort((a, b) => fromPrice(a) - fromPrice(b));
-else if (sort === "priceHigh") experts.sort((a, b) => (fromPrice(b) === Infinity ? -1 : fromPrice(b)) - (fromPrice(a) === Infinity ? -1 : fromPrice(a)));
-else if (sort === "relevance") experts.sort((a, b) => relevance(b) - relevance(a));
-else if (sort === "newest") experts.sort((a, b) => Number(isBlueTick(b)) - Number(isBlueTick(a))); // stable: newest-first order is kept inside each group
+    const hay = [e.headline, e.jobTitle, e.company, e.bio, e.college, e.user.name, ...e.skills, ...e.services.map((s) => s.title)]
+      .filter(Boolean).join(" ").toLowerCase();
+    return (
+      tokens.filter((t) => hay.includes(t)).length +
+      (e.educationVerified ? 0.5 : 0) +
+      (e.employmentVerified ? 0.5 : 0) +
+      (isBlueTick(e) ? 1 : 0)
+    );
+  };
+  if (sort === "priceLow") experts.sort((a, b) => fromPrice(a) - fromPrice(b));
+  else if (sort === "priceHigh") experts.sort((a, b) => (fromPrice(b) === Infinity ? -1 : fromPrice(b)) - (fromPrice(a) === Infinity ? -1 : fromPrice(a)));
+  else if (sort === "relevance") experts.sort((a, b) => relevance(b) - relevance(a));
+  else if (sort === "newest") experts.sort((a, b) => Number(isBlueTick(b)) - Number(isBlueTick(a))); // stable: newest-first order is kept inside each group
 
   const active = [q, service, college, branch, gradYear, maxPrice].filter(Boolean).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-10">
       <div>
-        <h1 className="font-display text-3xl font-bold sm:text-4xl">Find an expert</h1>
-        <p className="mt-1 text-muted">Describe what you need, or filter by college, role and service.</p>
-        {sp.welcome && <p role="status" className="mt-4 rounded-xl bg-brand-soft p-3 text-sm font-medium text-brand">You're all set. Find an expert to book your first session.</p>}
+        <h1 className="font-display text-4xl leading-tight sm:text-5xl">Find an expert</h1>
+        <p className="mt-2 max-w-xl text-muted">Describe what you need, or filter by college, role and service.</p>
+        {sp.welcome && <p role="status" className="mt-5 max-w-xl rounded-xl bg-brand-soft p-3 text-sm font-medium text-brand">You're all set. Find an expert to book your first session.</p>}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <details className="card group h-fit p-4 lg:sticky lg:top-24 lg:p-5" open>
-          <summary className="cursor-pointer font-display text-lg font-bold lg:pointer-events-none">
-            Search and filters {active > 0 && <span className="chip ml-1">{active}</span>}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <details className="group h-fit rounded-2xl border border-line bg-surface p-4 lg:sticky lg:top-24 lg:p-5" open>
+          <summary className="cursor-pointer font-display text-xl lg:pointer-events-none">
+            Search and filters {active > 0 && <span className="chip ml-1 align-middle">{active}</span>}
           </summary>
           <form data-nav className="mt-4 space-y-4">
             <label className="block text-sm font-medium">What do you need help with?
@@ -127,14 +127,14 @@ else if (sort === "newest") experts.sort((a, b) => Number(isBlueTick(b)) - Numbe
         <section>
           <p className="mb-4 text-sm text-muted">{experts.length} {experts.length === 1 ? "expert" : "experts"}</p>
           {experts.length === 0 ? (
-            <div className="card border-dashed p-10 text-center">
-              <p className="font-display text-lg font-semibold">No experts match yet</p>
-              <p className="mt-1 text-sm text-muted">Try fewer filters, or check back soon. New experts join every week.</p>
+            <div className="rounded-2xl border border-dashed border-line p-10">
+              <p className="font-display text-2xl">No one matches yet.</p>
+              <p className="mt-2 max-w-sm text-sm text-muted">Try fewer filters, or check back soon. New experts join every week.</p>
               {active > 0 && <Link href="/experts" className="btn-primary mt-5">Clear filters</Link>}
             </div>
           ) : (
             <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {experts.map((e, i) => <ExpertCard key={e.id} expert={e} index={i} />)}
+              {experts.map((e) => <ExpertCard key={e.id} expert={e} />)}
             </ul>
           )}
         </section>

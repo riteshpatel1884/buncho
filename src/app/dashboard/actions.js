@@ -2,9 +2,10 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/user";
-import { isHttpUrl } from "@/lib/utils";
 import { SERVICE_TYPES, DURATIONS, timeToMinutes } from "@/lib/constants";
 import { emailConfirmed, emailDeclined, emailCancelled } from "@/lib/email";
+import { refundBooking } from "@/lib/bookingPayment";
+import { findContactInfo } from "@/lib/contactCheck";
 
 const get = (fd, k) => String(fd.get(k) || "").trim();
 const refresh = () => {
@@ -29,21 +30,20 @@ async function myBooking(formData) {
   return isExpert || isStudent ? { booking, isExpert, isStudent } : {};
 }
 
+// The expert accepts a paid (or free) request. No meeting link: the expert answers by written reply.
 export async function confirmBooking(formData) {
   const { booking, isExpert } = await myBooking(formData);
-  if (!booking || !isExpert || booking.status !== "PENDING") return;
-  const meetingUrl = get(formData, "meetingUrl");
-  const link = meetingUrl && isHttpUrl(meetingUrl) ? meetingUrl : null;
-  await prisma.booking.update({
-    where: { id: booking.id },
-    data: { status: "CONFIRMED", meetingUrl: link },
+  if (!booking || !isExpert || booking.status !== "PENDING" || booking.paymentStatus === "UNPAID") return;
+  const done = await prisma.booking.updateMany({
+    where: { id: booking.id, status: "PENDING" },
+    data: { status: "CONFIRMED", statusChangedAt: new Date() },
   });
+  if (done.count === 0) return;
   await emailConfirmed({
     to: booking.student.email,
     expertName: booking.expert.user.name,
     title: booking.service.title,
     startsAt: booking.startsAt,
-    meetingUrl: link,
   });
   refresh();
 }
@@ -51,12 +51,18 @@ export async function confirmBooking(formData) {
 export async function declineBooking(formData) {
   const { booking, isExpert } = await myBooking(formData);
   if (!booking || !isExpert || booking.status !== "PENDING") return;
-  await prisma.booking.update({ where: { id: booking.id }, data: { status: "DECLINED" } });
+  const done = await prisma.booking.updateMany({
+    where: { id: booking.id, status: "PENDING" },
+    data: { status: "DECLINED", cancelledBy: "EXPERT", statusChangedAt: new Date() },
+  });
+  if (done.count === 0) return;
+  await refundBooking(booking); // does nothing unless the booking was paid
   await emailDeclined({
     to: booking.student.email,
     expertName: booking.expert.user.name,
     title: booking.service.title,
     startsAt: booking.startsAt,
+    refunded: booking.paymentStatus === "PAID",
   });
   refresh();
 }
@@ -64,14 +70,23 @@ export async function declineBooking(formData) {
 export async function completeBooking(formData) {
   const { booking, isExpert } = await myBooking(formData);
   if (!booking || !isExpert || booking.status !== "CONFIRMED" || booking.startsAt > new Date()) return;
-  await prisma.booking.update({ where: { id: booking.id }, data: { status: "COMPLETED" } });
+  await prisma.booking.update({ where: { id: booking.id }, data: { status: "COMPLETED", statusChangedAt: new Date() } });
   refresh();
 }
 
 export async function cancelBooking(formData) {
   const { booking, isExpert } = await myBooking(formData);
   if (!booking || !["PENDING", "CONFIRMED"].includes(booking.status)) return;
-  await prisma.booking.update({ where: { id: booking.id }, data: { status: "CANCELLED" } });
+  const done = await prisma.booking.updateMany({
+    where: { id: booking.id, status: { in: ["PENDING", "CONFIRMED"] } },
+    data: { status: "CANCELLED", cancelledBy: isExpert ? "EXPERT" : "STUDENT", statusChangedAt: new Date() },
+  });
+  if (done.count === 0) return;
+
+  // Refund rule: when the expert cancels, or when the student cancels before the expert accepted.
+  const refund = isExpert || booking.status === "PENDING";
+  if (refund) await refundBooking(booking);
+
   const other = isExpert ? booking.student : booking.expert.user;
   const by = isExpert ? booking.expert.user : booking.student;
   await emailCancelled({
@@ -79,8 +94,30 @@ export async function cancelBooking(formData) {
     byName: by.name,
     title: booking.service.title,
     startsAt: booking.startsAt,
+    refunded: isExpert && booking.paymentStatus === "PAID",
   });
   refresh();
+}
+
+// The expert's written answer. It is NOT sent to the student: it waits in the admin dashboard.
+export async function sendReply(_prev, formData) {
+  const { booking, isExpert } = await myBooking(formData);
+  if (!booking || !isExpert) return { error: "Booking not found." };
+  if (booking.status !== "CONFIRMED") return { error: "Accept the request before you reply." };
+
+  const body = get(formData, "body");
+  if (body.length < 20) return { error: "Write at least 20 characters." };
+  if (body.length > 4000) return { error: "Keep the reply under 4000 characters." };
+
+  const waiting = await prisma.bookingReply.count({
+    where: { bookingId: booking.id, status: { in: ["PENDING", "SENDING", "SEND_FAILED"] } },
+  });
+  if (waiting > 0) return { error: "Your last reply is still waiting for Buncho's review." };
+
+  await prisma.bookingReply.create({ data: { bookingId: booking.id, body, flags: findContactInfo(body) } });
+  revalidatePath("/dashboard");
+  revalidatePath("/admin");
+  return { ok: true };
 }
 
 // ---------- Services ----------

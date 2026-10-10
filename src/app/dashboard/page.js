@@ -2,15 +2,27 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/user";
+import { dodo } from "@/lib/dodo";
+import { applyBookingPayment, HOLD_MINUTES } from "@/lib/bookingPayment";
 import Avatar from "@/components/Avatar";
 import StatusBadge from "@/components/StatusBadge";
 import SubmitButton from "@/components/SubmitButton";
+import ReplyForm from "@/components/ReplyForm";
 import { confirmBooking, declineBooking, completeBooking, cancelBooking } from "./actions";
 import { fmtDateTime, inr } from "@/lib/constants";
 import { FIELD_LABELS } from "@/lib/review";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Dashboard | buncho" };
+
+const REPLY_STATUS = {
+  PENDING: ["Waiting for Buncho's review", "bg-warn-soft text-warn"],
+  SENDING: ["Waiting for Buncho's review", "bg-warn-soft text-warn"],
+  SEND_FAILED: ["Waiting for Buncho's review", "bg-warn-soft text-warn"],
+  SENT: ["Sent to the student", "bg-brand-soft text-brand"],
+  REJECTED: ["Not sent", "bg-danger-soft text-danger"],
+};
+const OPEN_REPLY = ["PENDING", "SENDING", "SEND_FAILED"];
 
 function Section({ title, count, children }) {
   return (
@@ -34,6 +46,26 @@ function CancelForm({ id }) {
   );
 }
 
+// What happened to the student's money when a request was declined or cancelled.
+function refundLine(b) {
+  if (b.paymentStatus === "REFUNDED") return `Your payment of ${inr(b.priceInr)} will be refunded to your original payment method.`;
+  if (b.paymentStatus === "REFUND_FAILED") return "We couldn't start your refund automatically. The Buncho team will fix this and email you.";
+  if (b.paymentStatus === "PAID") {
+    return b.cancelledBy === "STUDENT"
+      ? "You cancelled after the expert accepted, so there is no automatic refund. Contact Buncho if something went wrong."
+      : "Your refund is being processed.";
+  }
+  if (b.paymentStatus === "FREE") return "Nothing was charged.";
+  return "";
+}
+
+function endedLine(b) {
+  if (b.status === "DECLINED") return "The expert couldn't take this request.";
+  if (b.cancelledBy === "EXPERT") return "The expert cancelled this session.";
+  if (b.cancelledBy === "STUDENT") return "You cancelled this session.";
+  return "This session was cancelled.";
+}
+
 // ---------- Student ----------
 async function StudentView({ user, sp }) {
   const [profile, bookings] = await Promise.all([
@@ -41,12 +73,28 @@ async function StudentView({ user, sp }) {
     prisma.booking.findMany({
       where: { studentId: user.id },
       orderBy: { startsAt: "desc" },
-      include: { service: true, expert: { include: { user: { select: { name: true, avatarUrl: true } } } } },
+      include: {
+        service: true,
+        expert: { include: { user: { select: { name: true, avatarUrl: true } } } },
+        replies: { where: { status: "SENT" }, orderBy: { sentAt: "asc" } },
+      },
     }),
   ]);
   const now = new Date();
-  const upcoming = bookings.filter((b) => ["PENDING", "CONFIRMED"].includes(b.status) && b.endsAt >= now).reverse();
-  const past = bookings.filter((b) => !upcoming.includes(b));
+  const holdCutoff = new Date(now.getTime() - HOLD_MINUTES * 60000);
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  // Unpaid requests are not real requests. Only show one while its payment can still go through.
+  const shown = bookings.filter((b) => b.paymentStatus !== "UNPAID" || (b.status === "PENDING" && b.createdAt > holdCutoff));
+  const upcoming = shown
+    .filter((b) => ["PENDING", "CONFIRMED"].includes(b.status) && (b.status === "CONFIRMED" || b.endsAt >= now))
+    .reverse();
+  const past = shown.filter((b) => !upcoming.includes(b));
+
+  // Recent declines and expert cancellations, shown on top so they are not missed.
+  const alerts = shown.filter(
+    (b) => ["DECLINED", "CANCELLED"].includes(b.status) && b.cancelledBy === "EXPERT" && b.statusChangedAt && b.statusChangedAt > weekAgo
+  );
 
   const row = (b) => (
     <li key={b.id} className="card p-4 sm:p-5">
@@ -59,18 +107,59 @@ async function StudentView({ user, sp }) {
         </div>
         <StatusBadge status={b.status} />
       </div>
-      {b.status === "CONFIRMED" && (
-        <p className="mt-3 text-sm">
-          {b.meetingUrl ? <a href={b.meetingUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-brand hover:underline">Join the session</a> : <span className="text-muted">The expert will share a meeting link here.</span>}
+
+      {b.status === "PENDING" && (
+        <p className="mt-3 text-sm text-muted">
+          {b.paymentStatus === "UNPAID"
+            ? `Waiting for your payment to go through. This time is held for ${HOLD_MINUTES} minutes.`
+            : "Paid. Waiting for the expert to accept."}
         </p>
       )}
-      {["PENDING", "CONFIRMED"].includes(b.status) && b.endsAt >= now && <div className="mt-3"><CancelForm id={b.id} /></div>}
+      {b.status === "CONFIRMED" && (
+        <p className="mt-3 text-sm text-muted">
+          The expert accepted. Their reply arrives by email.
+        </p>
+      )}
+      {["DECLINED", "CANCELLED"].includes(b.status) && (
+        <p className={`mt-3 rounded-xl p-3 text-sm ${b.cancelledBy === "STUDENT" ? "bg-surface-2 text-muted" : "bg-danger-soft text-danger"}`}>
+          {endedLine(b)} {refundLine(b)}
+        </p>
+      )}
+
+      {b.replies.map((r) => (
+        <div key={r.id} className="mt-3 rounded-xl border border-line bg-surface-2 p-4">
+          <p className="text-xs text-muted">Reply from {b.expert.user.name}{r.sentAt ? `, ${fmtDateTime(r.sentAt)} IST` : ""}</p>
+          <p className="mt-2 whitespace-pre-line break-words text-sm">{r.body}</p>
+        </div>
+      ))}
+
+      {["PENDING", "CONFIRMED"].includes(b.status) && b.endsAt >= now && (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <CancelForm id={b.id} />
+          {b.status === "CONFIRMED" && b.paymentStatus === "PAID" && (
+            <p className="text-xs text-muted">Cancelling after the expert accepts doesn't refund automatically.</p>
+          )}
+        </div>
+      )}
     </li>
   );
 
   return (
     <div className="space-y-8">
-      {sp.booked && <p role="status" className="rounded-xl bg-brand-soft p-4 text-sm font-medium text-brand">Request sent. The expert will confirm your session soon.</p>}
+      {sp.booked && <p role="status" className="rounded-xl bg-brand-soft p-4 text-sm font-medium text-brand">Request sent. The expert will accept it soon.</p>}
+
+      {alerts.length > 0 && (
+        <div className="space-y-3">
+          {alerts.map((b) => (
+            <div key={b.id} role="alert" className="rounded-xl bg-danger-soft p-4 text-sm text-danger">
+              <p className="font-semibold">{b.expert.user.name} {b.status === "DECLINED" ? "declined" : "cancelled"} your session</p>
+              <p className="mt-1">{b.service.title}, {fmtDateTime(b.startsAt)} IST.</p>
+              {refundLine(b) && <p className="mt-1">{refundLine(b)}</p>}
+              <Link href="/experts" className="mt-2 inline-block font-medium underline">Find another expert</Link>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="card flex flex-wrap items-center justify-between gap-4 p-5">
         <div className="min-w-0">
@@ -99,15 +188,20 @@ async function ExpertView({ user, sp }) {
   });
   if (!expert) redirect("/onboarding/expert");
 
+  // Unpaid requests never reach the expert.
   const bookings = await prisma.booking.findMany({
-    where: { expertId: expert.id },
+    where: { expertId: expert.id, paymentStatus: { not: "UNPAID" } },
     orderBy: { startsAt: "asc" },
-    include: { service: true, student: { include: { studentProfile: true } } },
+    include: {
+      service: true,
+      student: { include: { studentProfile: true } },
+      replies: { orderBy: { createdAt: "asc" } },
+    },
   });
   const now = new Date();
   const requests = bookings.filter((b) => b.status === "PENDING" && b.endsAt >= now);
-  const upcoming = bookings.filter((b) => b.status === "CONFIRMED" && b.endsAt >= now);
-  const past = bookings.filter((b) => !requests.includes(b) && !upcoming.includes(b)).reverse();
+  const accepted = bookings.filter((b) => b.status === "CONFIRMED");
+  const past = bookings.filter((b) => !requests.includes(b) && !accepted.includes(b)).reverse();
   const completed = bookings.filter((b) => b.status === "COMPLETED");
   const earned = completed.reduce((sum, b) => sum + b.priceInr, 0);
 
@@ -116,7 +210,7 @@ async function ExpertView({ user, sp }) {
     return p ? `${b.student.name || "Student"}, ${p.college}, ${p.year}. Target: ${p.targetRole}` : b.student.name || "Student";
   };
 
-  const stats = [["Requests", requests.length], ["Upcoming", upcoming.length], ["Completed", completed.length], ["Total value", inr(earned)]];
+  const stats = [["Requests", requests.length], ["Accepted", accepted.length], ["Completed", completed.length], ["Total value", inr(earned)]];
   const todo = [];
   if (expert._count.services === 0) todo.push(["Add a service", "/dashboard/services"]);
   if (expert._count.availability === 0) todo.push(["Set your availability", "/dashboard/availability"]);
@@ -166,22 +260,20 @@ async function ExpertView({ user, sp }) {
                     <p className="font-semibold">{b.service.title}, {inr(b.priceInr)}</p>
                     <p className="text-sm">{fmtDateTime(b.startsAt)} IST ({b.service.durationMin} min)</p>
                     <p className="mt-1 text-sm text-muted">{studentLine(b)}</p>
-                    {b.note && <p className="mt-2 rounded-xl bg-surface-2 p-3 text-sm">{b.note}</p>}
+                    {b.note && <p className="mt-2 whitespace-pre-line rounded-xl bg-surface-2 p-3 text-sm">{b.note}</p>}
                   </div>
                   <StatusBadge status={b.status} />
                 </div>
-                <div className="mt-4 flex flex-wrap items-end gap-3 border-t border-line pt-4">
-                  <form action={confirmBooking} className="flex flex-1 flex-wrap items-end gap-2">
+                <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-4">
+                  <form action={confirmBooking}>
                     <input type="hidden" name="id" value={b.id} />
-                    <label className="min-w-[200px] flex-1 text-xs text-muted">Meeting link (optional)
-                      <input name="meetingUrl" type="url" placeholder="https://meet.google.com/..." className="input mt-1" />
-                    </label>
-                    <SubmitButton className="btn-primary" pendingText="Confirming">Confirm</SubmitButton>
+                    <SubmitButton className="btn-primary" pendingText="Accepting">Accept</SubmitButton>
                   </form>
                   <form action={declineBooking}>
                     <input type="hidden" name="id" value={b.id} />
                     <SubmitButton className="btn-outline" pendingText="Declining">Decline</SubmitButton>
                   </form>
+                  {b.paymentStatus === "PAID" && <p className="text-xs text-muted">If you decline, the student is refunded in full.</p>}
                 </div>
               </li>
             ))}
@@ -189,30 +281,60 @@ async function ExpertView({ user, sp }) {
         )}
       </Section>
 
-      <Section title="Upcoming sessions" count={upcoming.length}>
-        {upcoming.length === 0 ? <Empty>Nothing confirmed yet.</Empty> : (
+      <Section title="Accepted requests" count={accepted.length}>
+        {accepted.length === 0 ? <Empty>Nothing accepted yet.</Empty> : (
           <ul className="space-y-3">
-            {upcoming.map((b) => (
-              <li key={b.id} className="card p-4 sm:p-5">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-semibold">{b.service.title}</p>
-                    <p className="text-sm">{fmtDateTime(b.startsAt)} IST</p>
-                    <p className="text-sm text-muted">{studentLine(b)}</p>
-                    {b.meetingUrl && <a href={b.meetingUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-brand hover:underline">Meeting link</a>}
+            {accepted.map((b) => {
+              const waiting = b.replies.some((r) => OPEN_REPLY.includes(r.status));
+              return (
+                <li key={b.id} className="card space-y-4 p-4 sm:p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold">{b.service.title}</p>
+                      <p className="text-sm">{fmtDateTime(b.startsAt)} IST</p>
+                      <p className="text-sm text-muted">{studentLine(b)}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      {b.startsAt <= now && (
+                        <form action={completeBooking}>
+                          <input type="hidden" name="id" value={b.id} />
+                          <SubmitButton className="btn-primary" pendingText="Saving">Mark completed</SubmitButton>
+                        </form>
+                      )}
+                      <CancelForm id={b.id} />
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    {b.startsAt <= now && (
-                      <form action={completeBooking}>
-                        <input type="hidden" name="id" value={b.id} />
-                        <SubmitButton className="btn-primary" pendingText="Saving">Mark completed</SubmitButton>
-                      </form>
-                    )}
-                    <CancelForm id={b.id} />
-                  </div>
-                </div>
-              </li>
-            ))}
+
+                  {b.note && (
+                    <div>
+                      <p className="text-xs text-muted">The student wrote</p>
+                      <p className="mt-1 whitespace-pre-line rounded-xl bg-surface-2 p-3 text-sm">{b.note}</p>
+                    </div>
+                  )}
+
+                  {b.replies.length > 0 && (
+                    <ul className="space-y-2">
+                      {b.replies.map((r) => {
+                        const [label, cls] = REPLY_STATUS[r.status] ?? REPLY_STATUS.PENDING;
+                        return (
+                          <li key={r.id} className="rounded-xl border border-line p-3 text-sm">
+                            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${cls}`}>{label}</span>
+                            <p className="mt-2 line-clamp-3 whitespace-pre-line break-words text-muted">{r.body}</p>
+                            {r.status === "REJECTED" && r.adminNote && <p className="mt-2 text-danger">Buncho: {r.adminNote}</p>}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+
+                  {waiting ? (
+                    <p className="text-sm text-muted">Your reply is with Buncho for review. The student gets it once it is approved.</p>
+                  ) : (
+                    <ReplyForm bookingId={b.id} />
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </Section>
@@ -240,6 +362,18 @@ export default async function Dashboard({ searchParams }) {
   const sp = await searchParams;
   const user = await requireUser("/dashboard");
   if (!user.role) redirect("/onboarding");
+
+  // Coming back from Dodo checkout: confirm the payment now, in case the webhook is late or can't reach this server.
+  const paymentId = typeof sp.payment_id === "string" ? sp.payment_id : null;
+  if (paymentId && user.role === "STUDENT") {
+    try {
+      const payment = await dodo.payments.retrieve(paymentId);
+      const res = await applyBookingPayment(payment, { studentId: user.id });
+      console.log("[booking] payment sync", paymentId, res);
+    } catch (e) {
+      console.error("[booking] payment sync failed:", e?.message);
+    }
+  }
 
   return (
     <div className="space-y-8">
