@@ -3,7 +3,6 @@ import { useActionState, useEffect, useRef, useState, startTransition } from "re
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Spinner from "../Spinner";
-import { showToast } from "../Toast";
 import { createPost } from "@/app/feed/actions";
 import { TOPICS, MAX_POST } from "@/lib/feed/feed";
 import { inr } from "@/lib/constants";
@@ -57,7 +56,6 @@ export default function PostComposer({ services = [], optionalTopic = false }) {
     setDone(true);
     setText("");
     formRef.current?.reset();
-    showToast("Post published", "success");
     router.refresh();
     const t = setTimeout(() => { setOpen(false); setDone(false); }, 1900);
     return () => clearTimeout(t);
