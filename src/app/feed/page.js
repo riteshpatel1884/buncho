@@ -44,7 +44,7 @@ export default async function FeedPage({ searchParams }) {
         : undefined;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h1 className="font-display text-3xl leading-tight sm:text-4xl">Buncho Feed</h1>
       </div>
