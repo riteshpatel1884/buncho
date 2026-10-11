@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import NavProgress from "@/components/NavProgress";
 import MobileTabBar from "@/components/MobileTabBar";
+import ToastHost from "@/components/Toast";
 import "./globals.css";
 
 const display = Schibsted_Grotesk({ subsets: ["latin"], variable: "--font-schibsted" });
@@ -34,6 +35,7 @@ export default function RootLayout({ children }) {
           <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-10 pt-6 sm:px-6 md:py-12">{children}</main>
           <Footer />
           <MobileTabBar />
+          <ToastHost />
         </body>
       </html>
     </ClerkProvider>

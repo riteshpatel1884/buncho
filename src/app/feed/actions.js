@@ -115,6 +115,8 @@ export async function loadComments(postId) {
   return rows.map((c) => ({
     id: c.id,
     body: c.body,
+    parentId: c.parentId,
+    replyToName: c.parentId ? rows.find((r) => r.id === c.parentId)?.user.name ?? null : null,
     createdAt: c.createdAt.toISOString(),
     name: c.user.name,
     avatarUrl: c.user.avatarUrl,
@@ -131,7 +133,7 @@ export async function deleteComment(commentId) {
   return { ok: true };
 }
 
-export async function addComment(postId, text) {
+export async function addComment(postId, text, parentId = null) {
   const me = await getDbUser();
   if (!me) return SIGN_IN;
   if (!me.role && !(await isAdmin())) return { error: "Finish setting up your account first." };
@@ -143,10 +145,16 @@ export async function addComment(postId, text) {
   const post = await prisma.post.findFirst({ where: { id: String(postId), hidden: false }, select: { id: true } });
   if (!post) return { error: "Post not found." };
 
+  let parent = null;
+  if (parentId) {
+    parent = await prisma.postComment.findFirst({ where: { id: String(parentId), postId: post.id }, select: { id: true, user: { select: { name: true } } } });
+    if (!parent) return { error: "That comment no longer exists." };
+  }
+
   const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
   if ((await prisma.postComment.count({ where: { userId: me.id, createdAt: { gte: hourAgo } } })) >= 20) {
     return { error: "You're commenting very fast. Please wait a bit." };
   }
-  const c = await prisma.postComment.create({ data: { postId: post.id, userId: me.id, body } });
-  return { ok: true, comment: { id: c.id, body, createdAt: c.createdAt.toISOString(), name: me.name, avatarUrl: me.avatarUrl, expert: me.role === "EXPERT", official: await isAdmin() } };
+  const c = await prisma.postComment.create({ data: { postId: post.id, userId: me.id, body, parentId: parent?.id ?? null } });
+  return { ok: true, comment: { id: c.id, body, parentId: parent?.id ?? null, replyToName: parent?.user.name ?? null, createdAt: c.createdAt.toISOString(), name: me.name, avatarUrl: me.avatarUrl, expert: me.role === "EXPERT", official: await isAdmin() } };
 }

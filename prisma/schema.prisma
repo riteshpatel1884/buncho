@@ -241,7 +241,7 @@ model Post {
   authorId  String
   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   body      String
-  topic     String   // CAREER | PLACEMENTS | RESEARCH | TECHNOLOGY
+  topic     String?  // CAREER | PLACEMENTS | RESEARCH | TECHNOLOGY, null = admin "No category"
   serviceId String?
   service   Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   hidden    Boolean  @default(false) // set true to take a post down without deleting it
@@ -282,11 +282,15 @@ model PostComment {
   postId    String
   userId    String
   body      String
+  parentId  String?  // set when this is a reply to another comment
   createdAt DateTime @default(now())
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent    PostComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   PostComment[] @relation("CommentReplies")
 
   @@index([postId, createdAt])
+  @@index([parentId])
 }
 
 model Follow {

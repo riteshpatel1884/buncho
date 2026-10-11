@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -7,6 +7,7 @@ import Avatar from "../Avatar";
 import { LogoMark } from "../Logo";
 import { BlueTick, OfficialTick } from "../Badges";
 import ReportButton from "../ReportButton";
+import { showToast } from "../Toast";
 import { toggleLike, toggleSave, toggleFollow, loadComments, addComment, deletePost, deleteComment } from "@/app/feed/actions";
 import { TOPICS, MAX_COMMENT, timeAgo } from "@/lib/feed/feed";
 import { inr } from "@/lib/constants";
@@ -18,9 +19,20 @@ const ICON = {
   share: "M12 3v12M7 8l5-5 5 5M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4",
 };
 
-function Icon({ name, filled }) {
+// Small particles and a ring that fly out of an icon when it is switched on. `k` restarts it.
+function Burst({ k }) {
+  if (!k) return null;
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <span key={k} aria-hidden="true" className="pointer-events-none absolute inset-0">
+      <span className="burst-ring" />
+      {Array.from({ length: 8 }, (_, i) => <span key={i} className="burst-dot" style={{ "--a": `${i * 45}deg` }} />)}
+    </span>
+  );
+}
+
+function Icon({ name, filled, anim }) {
+  return (
+    <svg className={anim} width="18" height="18" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d={ICON[name]} />
     </svg>
   );
@@ -104,6 +116,10 @@ export default function PostCard({ post, signedIn, defaultOpen = false }) {
   const [copied, setCopied] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(null); // { type: "post" } or { type: "comment", id }
   const [busy, setBusy] = useState(false);
+  const [replyTo, setReplyTo] = useState(null); // { id, name } of the comment being answered
+  const inputRef = useRef(null);
+  const [fx, setFx] = useState({ like: 0, save: 0, share: 0 }); // bumped to replay an effect
+  const bump = (name) => setFx((f) => ({ ...f, [name]: f[name] + 1 }));
   const [, startTransition] = useTransition();
 
   const signIn = `/sign-in?redirect_url=${encodeURIComponent("/feed")}`;
@@ -127,25 +143,43 @@ export default function PostCard({ post, signedIn, defaultOpen = false }) {
   const flipLike = (x) => ({ ...x, liked: !x.liked, likes: x.likes + (x.liked ? -1 : 1) });
   const flipSave = (x) => ({ ...x, saved: !x.saved });
   const flipFollow = (x) => ({ ...x, following: !x.following, author: { ...x.author, followers: x.author.followers + (x.following ? -1 : 1) } });
-  const like = () => optimistic(flipLike, () => toggleLike(p.id));
-  const save = () => optimistic(flipSave, () => toggleSave(p.id));
-  const follow = () => optimistic(flipFollow, () => toggleFollow(p.author.id));
+  const like = () => {
+    if (!p.liked) bump("like");
+    optimistic(flipLike, () => toggleLike(p.id));
+  };
+  const save = () => {
+    bump("save");
+    showToast(p.saved ? "Removed from saved" : "Saved to your bookmarks", p.saved ? "info" : "save");
+    optimistic(flipSave, () => toggleSave(p.id));
+  };
+  const follow = () => {
+    showToast(p.following ? `Unfollowed ${p.author.name}` : `You're following ${p.author.name}`, p.following ? "info" : "success");
+    optimistic(flipFollow, () => toggleFollow(p.author.id));
+  };
 
   async function send(e) {
     e.preventDefault();
     setError("");
-    const res = await addComment(p.id, draft);
+    const res = await addComment(p.id, draft, replyTo?.id);
     if (res?.error) return setError(res.error);
     setComments((c) => [...(c ?? []), res.comment]);
     setP((x) => ({ ...x, comments: x.comments + 1 }));
     setDraft("");
+    setReplyTo(null);
+    showToast(replyTo ? `Replied to ${replyTo.name}` : "Comment posted", "success");
   }
 
   async function share() {
     const url = `${location.origin}/feed/${p.id}`;
     try {
       if (navigator.share) await navigator.share({ url, title: `${p.author.name} on Buncho` });
-      else { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1500); }
+      else {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+        showToast("Link copied to clipboard", "success");
+      }
+      bump("share");
     } catch {}
   }
 
@@ -158,6 +192,7 @@ export default function PostCard({ post, signedIn, defaultOpen = false }) {
       const res = await deletePost(p.id);
       if (res?.error) setError(res.error);
       else {
+        showToast("Post deleted", "info");
         setModal(false);
         if (defaultOpen) router.push("/feed"); // on the post's own page there is nothing left to show
         else router.refresh();
@@ -167,8 +202,17 @@ export default function PostCard({ post, signedIn, defaultOpen = false }) {
       const res = await deleteComment(id);
       if (res?.error) setError(res.error);
       else {
-        setComments((c) => (c ?? []).filter((x) => x.id !== id));
+        showToast("Reply deleted", "info");
+        // Replies under a deleted comment are removed with it on the server.
+        const gone = new Set([id]);
+        setComments((c) => {
+          const list = c ?? [];
+          let grew = true;
+          while (grew) { grew = false; for (const x of list) if (x.parentId && gone.has(x.parentId) && !gone.has(x.id)) { gone.add(x.id); grew = true; } }
+          return list.filter((x) => !gone.has(x.id));
+        });
         setP((x) => ({ ...x, comments: Math.max(0, x.comments - 1) }));
+        setReplyTo((r) => (r && r.id === id ? null : r));
       }
     }
     setBusy(false);
@@ -176,16 +220,72 @@ export default function PostCard({ post, signedIn, defaultOpen = false }) {
   }
 
   const act = "inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-surface-2";
-  const Btn = ({ onClick, on, icon, label, count }) =>
+  // Like and save buttons. A plain function (not a component) so it is not remounted on every render.
+  const renderBtn = ({ onClick, on, icon, label, count, fxKey }) =>
     signedIn ? (
-      <button type="button" onClick={onClick} aria-pressed={on} className={`${act} ${on ? "text-brand" : "text-muted"}`}>
-        <Icon name={icon} filled={on} />{count !== undefined && <span>{count}</span>}<span className="sr-only">{label}</span>
+      <button type="button" onClick={onClick} aria-pressed={on} className={`${act} ${on ? "text-brand" : "text-muted"} ${icon === "heart" && on ? "!text-[#f43f5e]" : ""}`}>
+        <span className="relative inline-flex">
+          <Icon name={icon} filled={on} anim={on && fxKey ? (icon === "heart" ? "anim-pop" : "anim-drop") : undefined} key={fxKey} />
+          {icon === "heart" && <Burst k={fxKey} />}
+        </span>
+        {count !== undefined && <span>{count}</span>}<span className="sr-only">{label}</span>
       </button>
     ) : (
       <Link href={signIn} className={`${act} text-muted`}>
         <Icon name={icon} />{count !== undefined && <span>{count}</span>}<span className="sr-only">{label} (sign in)</span>
       </Link>
     );
+
+  // Top-level comments, each followed by every reply beneath it (oldest first).
+  const threads = useMemo(() => {
+    const list = comments ?? [];
+    const byId = new Map(list.map((c) => [c.id, c]));
+    const rootOf = (c) => {
+      let cur = c, hops = 0;
+      while (cur.parentId && byId.has(cur.parentId) && hops++ < 50) cur = byId.get(cur.parentId);
+      return cur.id;
+    };
+    const groups = new Map();
+    for (const c of list) {
+      const r = rootOf(c);
+      if (!groups.has(r)) groups.set(r, []);
+      groups.get(r).push(c);
+    }
+    return [...groups.values()].map((g) => ({ root: g.find((c) => !c.parentId || !byId.has(c.parentId)) ?? g[0], replies: g.filter((c) => c.parentId && byId.has(c.parentId)) }));
+  }, [comments]);
+
+  const startReply = (c) => {
+    setReplyTo({ id: c.id, name: c.name || "Someone" });
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  const renderComment = (c, isReply) => (
+    <li key={c.id} className={`flex gap-2.5 ${isReply ? "rise" : ""}`} style={isReply ? { "--i": 0 } : undefined}>
+      {c.official ? <LogoMark size={isReply ? 26 : 30} /> : <Avatar name={c.name} src={c.avatarUrl} size={isReply ? 26 : 30} />}
+      <div className="min-w-0 flex-1">
+        <div className="rounded-xl bg-surface-2 px-3 py-2">
+          <p className="flex flex-wrap items-center text-xs">
+            <b>{c.name || "Someone"}</b>
+            {c.official ? <OfficialTick className="ml-1 h-3.5 w-3.5" /> : c.expert && <span className="ml-1.5 text-brand">Expert</span>}
+            {isReply && c.replyToName && (
+              <span className="ml-1.5 inline-flex items-center gap-1 text-muted">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4v6a4 4 0 0 0 4 4h12M16 9l5 5-5 5" /></svg>
+                <span className="font-medium text-brand">{c.replyToName}</span>
+              </span>
+            )}
+            <span className="ml-1.5 text-muted">{timeAgo(c.createdAt)}</span>
+            {p.viewerIsAdmin && (
+              <button type="button" onClick={() => setPendingDelete({ type: "comment", id: c.id })} className="ml-auto cursor-pointer font-medium text-muted underline hover:text-danger">Delete</button>
+            )}
+          </p>
+          <p className="mt-0.5 whitespace-pre-line break-words text-sm">{c.body}</p>
+        </div>
+        {signedIn && (
+          <button type="button" onClick={() => startReply(c)} className="ml-3 mt-0.5 cursor-pointer text-xs font-medium text-muted hover:text-brand">Reply</button>
+        )}
+      </div>
+    </li>
+  );
 
   // The same post, drawn once for the feed card and once for the pop-up. They share all state.
   const content = (inModal) => {
@@ -250,7 +350,7 @@ export default function PostCard({ post, signedIn, defaultOpen = false }) {
         )}
 
         <footer className="mt-4 flex flex-wrap items-center gap-1 border-t border-line pt-3">
-          <Btn onClick={like} on={p.liked} icon="heart" label="Like" count={p.likes} />
+          {renderBtn({ onClick: like, on: p.liked, icon: "heart", label: "Like", count: p.likes, fxKey: fx.like })}
           {inModal ? (
             <span className={`${act} cursor-default text-brand`}><Icon name="chat" /><span>{p.comments}</span><span className="sr-only">Comments</span></span>
           ) : (
@@ -258,9 +358,9 @@ export default function PostCard({ post, signedIn, defaultOpen = false }) {
               <Icon name="chat" /><span>{p.comments}</span><span className="sr-only">Comments</span>
             </button>
           )}
-          <Btn onClick={save} on={p.saved} icon="mark" label="Save" />
+          {renderBtn({ onClick: save, on: p.saved, icon: "mark", label: "Save", fxKey: fx.save })}
           <button type="button" onClick={share} className={`${act} text-muted`}>
-            <Icon name="share" /><span className="text-xs">{copied ? "Link copied" : "Share"}</span>
+            <Icon name="share" anim={fx.share ? "anim-wiggle" : undefined} key={fx.share} /><span className="text-xs">{copied ? "Link copied" : "Share"}</span>
           </button>
           <span className="ml-auto flex items-center gap-3">
             {p.mine || p.viewerIsAdmin ? (
@@ -282,29 +382,32 @@ export default function PostCard({ post, signedIn, defaultOpen = false }) {
             ) : comments.length === 0 ? (
               <p className="text-sm text-muted">No comments yet. Start the conversation.</p>
             ) : (
-              <ul className="space-y-3">
-                {comments.map((c) => (
-                  <li key={c.id} className="flex gap-2.5">
-                    {c.official ? <LogoMark size={30} /> : <Avatar name={c.name} src={c.avatarUrl} size={30} />}
-                    <div className="min-w-0 flex-1 rounded-xl bg-surface-2 px-3 py-2">
-                      <p className="flex flex-wrap items-center text-xs">
-                        <b>{c.name || "Someone"}</b>
-                        {c.official ? <OfficialTick className="ml-1 h-3.5 w-3.5" /> : c.expert && <span className="ml-1.5 text-brand">Expert</span>}
-                        <span className="ml-1.5 text-muted">{timeAgo(c.createdAt)}</span>
-                        {p.viewerIsAdmin && (
-                          <button type="button" onClick={() => setPendingDelete({ type: "comment", id: c.id })} className="ml-auto cursor-pointer font-medium text-muted underline hover:text-danger">Delete</button>
-                        )}
-                      </p>
-                      <p className="mt-0.5 whitespace-pre-line break-words text-sm">{c.body}</p>
-                    </div>
+              <ul className="space-y-4">
+                {threads.map(({ root, replies }) => (
+                  <li key={root.id}>
+                    <ul>{renderComment(root, false)}</ul>
+                    {replies.length > 0 && (
+                      <ul className="ml-[15px] mt-2 space-y-2.5 border-l-2 border-line pl-4">
+                        {replies.map((r) => renderComment(r, true))}
+                      </ul>
+                    )}
                   </li>
                 ))}
               </ul>
             )}
             {signedIn ? (
-              <form onSubmit={send} className="flex gap-2">
-                <input value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={MAX_COMMENT} placeholder="Add a comment" className="input" />
-                <button disabled={draft.trim().length < 2} className="btn-primary shrink-0">Post</button>
+              <form onSubmit={send} className="space-y-2">
+                {replyTo && (
+                  <p className="page-in flex items-center gap-1.5 text-xs text-muted">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4v6a4 4 0 0 0 4 4h12M16 9l5 5-5 5" /></svg>
+                    Replying to <b className="text-brand">{replyTo.name}</b>
+                    <button type="button" onClick={() => setReplyTo(null)} aria-label="Cancel reply" className="ml-1 cursor-pointer rounded p-0.5 hover:text-ink">✕</button>
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  <input ref={inputRef} value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={MAX_COMMENT} placeholder={replyTo ? `Reply to ${replyTo.name}` : "Add a comment"} className="input" />
+                  <button disabled={draft.trim().length < 2} className="btn-primary shrink-0">{replyTo ? "Reply" : "Post"}</button>
+                </div>
               </form>
             ) : (
               <p className="text-sm text-muted"><Link href={signIn} className="font-medium text-brand hover:underline">Sign in</Link> to comment.</p>

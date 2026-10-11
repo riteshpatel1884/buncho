@@ -35,7 +35,7 @@ function PostRow({ p }) {
           </p>
           <p className="text-xs text-muted">{timeAgo(p.createdAt)} · {p._count.likes} likes · {p._count.comments} replies{p.hidden ? " · hidden" : ""}</p>
         </div>
-        <span className="chip">{TOPICS[p.topic] ?? p.topic}</span>
+        {p.topic && <span className="chip">{TOPICS[p.topic] ?? p.topic}</span>}
       </div>
       <p className="mt-3 whitespace-pre-line break-words text-sm leading-relaxed">{p.body}</p>
       <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-3">
