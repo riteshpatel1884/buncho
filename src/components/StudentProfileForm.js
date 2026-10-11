@@ -5,7 +5,7 @@ import Spinner from "./Spinner";
 import { saveStudentProfile } from "@/app/onboarding/actions";
 import { STUDY_YEARS } from "@/lib/constants";
 
-export default function StudentProfileForm({ profile, name, submitLabel = "Save profile" }) {
+export default function StudentProfileForm({ profile, name, username, submitLabel = "Save profile" }) {
   const [state, action, pending] = useActionState(saveStudentProfile, null);
 
   // Keeps what was typed if validation fails.
@@ -19,6 +19,23 @@ export default function StudentProfileForm({ profile, name, submitLabel = "Save 
     <form onSubmit={onSubmit} className="card space-y-4 p-5 sm:p-8">
       <Field label="Your name">
         <input name="name" required maxLength={80} defaultValue={name ?? ""} className="input" />
+      </Field>
+      <Field label="Username" hint="Unique. 3 to 20 letters, numbers or underscores. People use it to report someone, so it must not be a phone number.">
+        <div className="flex items-center rounded-lg border border-line bg-surface focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/15">
+          <span className="pl-3.5 text-sm text-muted">@</span>
+          <input
+            name="username"
+            required
+            minLength={3}
+            maxLength={20}
+            pattern="[A-Za-z][A-Za-z0-9_]{2,19}"
+            defaultValue={username ?? ""}
+            autoCapitalize="none"
+            autoComplete="off"
+            spellCheck={false}
+            className="w-full bg-transparent px-2 py-2.5 text-sm text-ink focus:outline-none"
+          />
+        </div>
       </Field>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="College"><input name="college" required maxLength={100} defaultValue={profile?.college} className="input" /></Field>

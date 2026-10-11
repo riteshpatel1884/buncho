@@ -2,6 +2,7 @@ import Link from "next/link";
 import Logo from "./Logo";
 import { getDbUser } from "@/lib/user";
 import { prisma } from "@/lib/prisma";
+import ReportButton from "./ReportButton";
 
 export default async function Footer() {
   const me = await getDbUser().catch(() => null);
@@ -58,6 +59,7 @@ export default async function Footer() {
           <Link href="/refund-policy" className={link}>Refund and Cancellation</Link>
           <Link href="/community-guidelines" className={link}>Community Guidelines</Link>
           <Link href="/contact" className={link}>Contact and Grievances</Link>
+          <ReportButton signedIn={!!me} label="Report a problem" className="block text-left text-muted hover:text-brand" />
         </div>
       </div>
       <div className="border-t border-line py-4 text-center text-xs text-muted">© {new Date().getFullYear()} Buncho. Made in India.</div>

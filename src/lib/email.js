@@ -6,6 +6,7 @@ const APP = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 const EMAIL_DOMAIN = process.env.EMAIL_DOMAIN || "bunch.live";
 const SUPPORT = process.env.SUPPORT_EMAIL || "";
 const REPLY_BCC = process.env.REPLY_BCC || "bunchohq@gmail.com";
+const ADMIN_NOTIFY = process.env.ADMIN_NOTIFY_EMAIL || REPLY_BCC;
 
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -151,6 +152,44 @@ export function emailFollowUp({ to, studentName, title, note }) {
         `<b>${esc(studentName || "The student")}</b> read your reply for <b>${esc(title)}</b> and still needs help.`,
         `They wrote: ${esc(note).replace(/\n/g, "<br>")}`,
         "This follow-up is free for the student. Send a new reply from your dashboard.",
+      ],
+      { label: "Open dashboard", path: "/dashboard" }
+    )
+  );
+}
+
+// A short notice to the Buncho team.
+export function emailAdmin({ subject, lines, path = "/admin" }) {
+  return send(ADMIN_NOTIFY, subject, wrap(subject, lines.map((l) => esc(l)), { label: "Open admin", path }));
+}
+
+export function emailRequestRejected({ to, title, note, refunded = false }) {
+  return send(
+    to,
+    `Your request wasn't sent: ${title}`,
+    wrap(
+      "Buncho didn't send your request",
+      [
+        `Your request for <b>${esc(title)}</b> wasn't sent to the expert.`,
+        `Reason: ${esc(note)}`,
+        ...(refunded ? ["Your payment is being refunded in full."] : []),
+        "You can send it again without phone numbers, emails, links or social handles.",
+      ],
+      { label: "Find experts", path: "/experts" }
+    )
+  );
+}
+
+export function emailReportResolved({ to, note }) {
+  return send(
+    to,
+    "We looked into your report",
+    wrap(
+      "Thanks for your report",
+      [
+        "The Buncho team has reviewed it.",
+        ...(note ? [`Our note: ${esc(note)}`] : []),
+        "If something is still wrong, please send another report from your dashboard.",
       ],
       { label: "Open dashboard", path: "/dashboard" }
     )

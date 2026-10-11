@@ -10,6 +10,7 @@ import StatusBadge from "@/components/StatusBadge";
 import SubmitButton from "@/components/SubmitButton";
 import ReplyForm from "@/components/ReplyForm";
 import FollowUpForm from "@/components/FollowUpForm";
+import ReportButton from "@/components/ReportButton";
 import { confirmBooking, declineBooking, cancelBooking, resolveBooking } from "./actions";
 import { fmtDateTime, inr } from "@/lib/constants";
 import { FIELD_LABELS } from "@/lib/review";
@@ -63,6 +64,7 @@ function refundLine(b) {
 }
 
 function endedLine(b) {
+  if (b.cancelledBy === "ADMIN") return `Buncho couldn't send this request to the expert.${b.reviewNote ? ` ${b.reviewNote}` : ""}`;
   if (b.status === "DECLINED") return "The expert couldn't take this request.";
   if (b.cancelledBy === "EXPERT") return "The expert cancelled this request.";
   if (b.cancelledBy === "STUDENT") return "You cancelled this request.";
@@ -96,7 +98,7 @@ async function StudentView({ user, sp }) {
       orderBy: { createdAt: "desc" },
       include: {
         service: true,
-        expert: { include: { user: { select: { name: true, avatarUrl: true } } } },
+        expert: { include: { user: { select: { name: true, avatarUrl: true, username: true } } } },
         replies: { where: { status: "SENT" }, orderBy: { sentAt: "asc" } },
       },
     }),
@@ -111,8 +113,14 @@ async function StudentView({ user, sp }) {
   const completed = shown.filter((b) => b.status === "COMPLETED");
   const ended = shown.filter((b) => ["CANCELLED", "DECLINED"].includes(b.status));
 
-  // Recent declines and expert cancellations, shown on top so they are not missed.
-  const alerts = ended.filter((b) => b.cancelledBy === "EXPERT" && b.statusChangedAt && b.statusChangedAt > weekAgo);
+  // Recent declines and cancellations by the expert or by Buncho, shown on top so they are not missed.
+  const alerts = shown.filter(
+    (b) =>
+      ["DECLINED", "CANCELLED"].includes(b.status) &&
+      ["EXPERT", "ADMIN"].includes(b.cancelledBy) &&
+      b.statusChangedAt &&
+      b.statusChangedAt > weekAgo
+  );
 
   const row = (b) => {
     const c = replyCycle(b, b.replies);
@@ -134,10 +142,14 @@ async function StudentView({ user, sp }) {
         {!closed && <div className="mt-5"><Progress step={step} /></div>}
 
         {b.status === "PENDING" && (
-          <p className={`mt-4 rounded-lg p-3 text-sm ${b.paymentStatus === "UNPAID" ? "bg-warn-soft text-warn" : "bg-surface-2 text-muted"}`}>
+          <p className="mt-3 text-sm text-muted">
             {b.paymentStatus === "UNPAID"
               ? `Waiting for your payment to go through. This request stays here for ${HOLD_MINUTES} minutes.`
-              : "Paid. Waiting for the expert to accept. If they decline, you get a full refund."}
+              : b.reviewStatus === "PENDING_REVIEW"
+                ? "Buncho is checking your request before it goes to the expert."
+                : b.paymentStatus === "PAID"
+                  ? "Paid. Waiting for the expert to accept."
+                  : "Waiting for the expert to accept."}
           </p>
         )}
         {closed && (
@@ -185,6 +197,17 @@ async function StudentView({ user, sp }) {
             <p className="mt-4 rounded-lg bg-brand-soft p-3 text-sm text-brand">The expert accepted. Their reply is emailed to you once Buncho has checked it, and it shows here too.</p>
           ))}
 
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+          <ReportButton kind="problem" bookingId={b.id} label="Report a problem with this request" className="font-medium text-muted underline hover:text-brand" />
+          <ReportButton
+            kind="person"
+            bookingId={b.id}
+            target={{ id: b.expert.userId, name: b.expert.user.name, username: b.expert.user.username }}
+            label="Report this expert"
+            className="font-medium text-muted underline hover:text-brand"
+          />
+        </div>
+
         {/* No cancelling once an answer has been delivered */}
         {["PENDING", "CONFIRMED"].includes(b.status) && !c.lastSent && (
           <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-4">
@@ -200,14 +223,19 @@ async function StudentView({ user, sp }) {
 
   return (
     <div className="space-y-8">
-      {sp.booked && <p role="status" className="rounded-xl bg-brand-soft p-4 text-sm font-medium text-brand">Request sent. The expert will accept it soon.</p>}
+      {sp.booked && <p role="status" className="rounded-xl bg-brand-soft p-4 text-sm font-medium text-brand">Request received. Buncho checks it first, then the expert accepts it.</p>}
 
       {alerts.length > 0 && (
         <div className="space-y-3">
           {alerts.map((b) => (
             <div key={b.id} role="alert" className="rounded-xl bg-danger-soft p-4 text-sm text-danger">
-              <p className="font-semibold">{b.expert.user.name} {b.status === "DECLINED" ? "declined" : "cancelled"} your request</p>
+              <p className="font-semibold">
+                {b.cancelledBy === "ADMIN"
+                  ? "Buncho couldn't send your request"
+                  : `${b.expert.user.name} ${b.status === "DECLINED" ? "declined" : "cancelled"} your request`}
+              </p>
               <p className="mt-1">{b.service.title}.</p>
+              {b.cancelledBy === "ADMIN" && b.reviewNote && <p className="mt-1">{b.reviewNote}</p>}
               {refundLine(b) && <p className="mt-1">{refundLine(b)}</p>}
               <Link href="/experts" className="mt-2 inline-block font-medium underline">Find another expert</Link>
             </div>
@@ -254,9 +282,9 @@ async function ExpertView({ user, sp }) {
   });
   if (!expert) redirect("/onboarding/expert");
 
-  // Unpaid requests never reach the expert.
+  // Unpaid requests never reach the expert, and neither do requests Buncho hasn't approved.
   const bookings = await prisma.booking.findMany({
-    where: { expertId: expert.id, paymentStatus: { not: "UNPAID" } },
+    where: { expertId: expert.id, paymentStatus: { not: "UNPAID" }, reviewStatus: "APPROVED" },
     orderBy: { createdAt: "asc" },
     include: {
       service: true,
@@ -272,7 +300,8 @@ async function ExpertView({ user, sp }) {
 
   const studentLine = (b) => {
     const p = b.student.studentProfile;
-    return p ? `${b.student.name || "Student"}, ${p.college}, ${p.year}. Target: ${p.targetRole}` : b.student.name || "Student";
+    const who = `${b.student.name || "Student"}${b.student.username ? ` (@${b.student.username})` : ""}`;
+    return p ? `${who}, ${p.college}, ${p.year}. Target: ${p.targetRole}` : who;
   };
 
   const stats = [["Requests", requests.length], ["Accepted", accepted.length], ["Completed", completed.length], ["Total value", inr(earned)]];
@@ -360,6 +389,14 @@ async function ExpertView({ user, sp }) {
                     {!c.lastSent && <CancelForm id={b.id} />}
                   </div>
 
+                  <ReportButton
+                    kind="person"
+                    bookingId={b.id}
+                    target={{ id: b.studentId, name: b.student.name, username: b.student.username }}
+                    label="Report this student"
+                    className="text-xs font-medium text-muted underline hover:text-brand"
+                  />
+
                   {b.note && (
                     <div>
                       <p className="text-xs text-muted">The student wrote</p>
@@ -439,17 +476,16 @@ export default async function Dashboard({ searchParams }) {
     }
   }
 
-  const first = user.name ? user.name.split(" ")[0] : "";
   const isExpert = user.role === "EXPERT";
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-display text-3xl sm:text-4xl">{isExpert ? "Expert dashboard" : first ? `Hi, ${first}` : "My requests"}</h1>
-          <p className="mt-1 text-muted">{isExpert ? (first ? `Welcome, ${first}.` : "Welcome.") : "Track your requests and read answers from experts."}</p>
+          <h1 className="font-display text-3xl font-bold sm:text-4xl">{user.role === "EXPERT" ? "Expert dashboard" : "My requests"}</h1>
+          <p className="mt-1 text-muted">{user.name ? `Welcome, ${user.name.split(" ")[0]}.` : "Welcome."}</p>
         </div>
-        {!isExpert && <Link href="/experts" className="btn-primary">Find experts</Link>}
+        <ReportButton label="Report a problem" className="btn-outline !py-2" />
       </div>
       {isExpert ? <ExpertView user={user} sp={sp} /> : <StudentView user={user} sp={sp} />}
     </div>

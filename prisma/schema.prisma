@@ -51,6 +51,9 @@ model User {
   avatarUrl   String?
   role        Role?
   createdAt   DateTime @default(now())
+  username     String?  @unique
+  reportsMade  Report[] @relation("ReportsMade")
+  reportsAbout Report[] @relation("ReportsAbout")
 
   studentProfile StudentProfile?
   expertProfile  ExpertProfile?
@@ -119,7 +122,6 @@ model Service {
   title        String
   description  String
   priceInr     Int
-  durationMin  Int
   deliverables String[]
   active       Boolean     @default(true)
   createdAt    DateTime    @default(now())
@@ -157,18 +159,25 @@ model Booking {
   dodoPaymentId String?       @unique
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
-
+  
   cancelledBy     String?   // "EXPERT" or "STUDENT"
   statusChangedAt DateTime?
   resolvedAt      DateTime? // set when the admin has dealt with a refund case
   followUpNote  String?
   followUpAt    DateTime?
   followUpCount Int       @default(0)
+  paidAt           DateTime?
+  reviewStatus     String    @default("APPROVED") // PENDING_REVIEW | APPROVED | REJECTED
+  noteFlags        String[]  @default([])
+  reviewNote       String?
+  payoutReleasedAt DateTime?
+  payoutNote       String?
 
   student User          @relation("StudentBookings", fields: [studentId], references: [id])
   expert  ExpertProfile @relation(fields: [expertId], references: [id])
   service Service       @relation(fields: [serviceId], references: [id])
   replies BookingReply[]
+  reports Report[]
 
   @@index([expertId, createdAt])
   @@index([studentId, createdAt])
@@ -195,4 +204,24 @@ model BookingReply {
 
   @@index([status, createdAt])
   @@index([bookingId])
+}
+
+
+model Report {
+  id         String    @id @default(cuid())
+  reporterId String
+  reporter   User      @relation("ReportsMade", fields: [reporterId], references: [id], onDelete: Cascade)
+  kind       String    // PROBLEM | PERSON
+  category   String
+  message    String
+  targetId   String?
+  target     User?     @relation("ReportsAbout", fields: [targetId], references: [id], onDelete: SetNull)
+  bookingId  String?
+  booking    Booking?  @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  status     String    @default("OPEN") // OPEN | RESOLVED
+  adminNote  String?
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@index([status, createdAt])
 }

@@ -15,7 +15,7 @@ export default async function ExpertOnboarding() {
           Share your background. Buncho checks your education and employment before your profile goes live, so students can trust it.
         </p>
       </div>
-      <ExpertProfileForm name={user.name} submitLabel="Submit for review" />
+      <ExpertProfileForm name={user.name} username={user.username} submitLabel="Submit for review" />
     </div>
   );
 }

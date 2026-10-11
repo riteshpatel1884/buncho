@@ -7,7 +7,7 @@ import NavShell from "./NavShell";
 import MobileMenu from "./MobileMenu";
 import ThemeToggle from "./ThemeToggle";
 import UserMenu from "./UserMenu";
-import { REVIEW_WHERE, REPLY_OPEN } from "@/lib/review";
+import { REVIEW_WHERE, REPLY_OPEN, REFUND_OPEN, REQUEST_OPEN, PAYOUT_DUE, REPORT_OPEN } from "@/lib/review";
 
 export default async function Navbar() {
   const admin = await isAdmin();
@@ -22,13 +22,19 @@ export default async function Navbar() {
   const showFind = me?.role !== "EXPERT";
   const showBecome = !me?.role;
   const profileHref = myProfile ? `/experts/${myProfile.slug}` : null;
-  const [toReview, repliesOpen] = admin
-    ? await Promise.all([
-        prisma.expertProfile.count({ where: REVIEW_WHERE }).catch(() => 0),
-        prisma.bookingReply.count({ where: REPLY_OPEN }).catch(() => 0),
-      ])
-    : [0, 0];
-  const waiting = toReview + repliesOpen;
+
+ const [toReview, repliesOpen, refundsOpen, requestsOpen, payoutsDue, reportsOpen] = admin
+  ? await Promise.all([
+      prisma.expertProfile.count({ where: REVIEW_WHERE }).catch(() => 0),
+      prisma.bookingReply.count({ where: REPLY_OPEN }).catch(() => 0),
+      prisma.booking.count({ where: REFUND_OPEN }).catch(() => 0),
+      prisma.booking.count({ where: REQUEST_OPEN }).catch(() => 0),
+      prisma.booking.count({ where: PAYOUT_DUE }).catch(() => 0),
+      prisma.report.count({ where: REPORT_OPEN }).catch(() => 0),
+    ])
+  : [0, 0, 0, 0, 0, 0];
+const waiting = toReview + repliesOpen + refundsOpen + requestsOpen + payoutsDue + reportsOpen;
+
   const adminBadge = waiting > 0 && (
     <span className="ml-1.5 rounded-full bg-brand px-1.5 py-0.5 text-[11px] font-bold text-on-brand">{waiting}</span>
   );

@@ -5,9 +5,8 @@ import { requireUser } from "@/lib/user";
 import { SERVICE_TYPES, DURATIONS, timeToMinutes } from "@/lib/constants";
 import { refundBooking } from "@/lib/bookingPayment";
 import { findContactInfo } from "@/lib/contactCheck";
-import { emailConfirmed, emailDeclined, emailCancelled, emailFollowUp } from "@/lib/email";
+import { emailConfirmed, emailDeclined, emailCancelled, emailFollowUp,emailAdmin } from "@/lib/email";
 import { replyCycle, MAX_FOLLOW_UPS } from "@/lib/replyCycle";
-
 
 const get = (fd, k) => String(fd.get(k) || "").trim();
 const refresh = () => {
@@ -33,12 +32,15 @@ async function myBooking(formData) {
   return isExpert || isStudent ? { booking, isExpert, isStudent } : {};
 }
 
-// The expert accepts a paid (or free) request, then answers it by written reply.
+
+
+// The expert accepts a request that Buncho has already approved, then answers it by written reply.
 export async function confirmBooking(formData) {
   const { booking, isExpert } = await myBooking(formData);
-  if (!booking || !isExpert || booking.status !== "PENDING" || booking.paymentStatus === "UNPAID") return;
+  if (!booking || !isExpert || booking.status !== "PENDING") return;
+  if (booking.paymentStatus === "UNPAID" || booking.reviewStatus !== "APPROVED") return;
   const done = await prisma.booking.updateMany({
-    where: { id: booking.id, status: "PENDING" },
+    where: { id: booking.id, status: "PENDING", reviewStatus: "APPROVED" },
     data: { status: "CONFIRMED", statusChangedAt: new Date() },
   });
   if (done.count === 0) return;
@@ -52,7 +54,7 @@ export async function confirmBooking(formData) {
 
 export async function declineBooking(formData) {
   const { booking, isExpert } = await myBooking(formData);
-  if (!booking || !isExpert || booking.status !== "PENDING") return;
+  if (!booking || !isExpert || booking.status !== "PENDING" || booking.reviewStatus !== "APPROVED") return;
   const done = await prisma.booking.updateMany({
     where: { id: booking.id, status: "PENDING" },
     data: { status: "DECLINED", cancelledBy: "EXPERT", statusChangedAt: new Date() },
@@ -66,6 +68,67 @@ export async function declineBooking(formData) {
     refunded: booking.paymentStatus === "PAID",
   });
   refresh();
+}
+
+// The student says the reply answered their question. This is what completes the request.
+export async function resolveBooking(formData) {
+  const { booking, isStudent } = await myBooking(formData);
+  if (!booking || !isStudent || booking.status !== "CONFIRMED") return;
+
+  const replies = await prisma.bookingReply.findMany({ where: { bookingId: booking.id } });
+  if (!replyCycle(booking, replies).lastSent) return; // nothing has been delivered yet
+
+  const done = await prisma.booking.updateMany({
+    where: { id: booking.id, status: "CONFIRMED" },
+    data: { status: "COMPLETED", statusChangedAt: new Date() },
+  });
+  if (done.count === 0) return;
+
+  // Quick notice so the expert's payout can be released.
+  if (booking.paymentStatus === "PAID") {
+    await emailAdmin({
+      subject: "Session completed: release the payout",
+      lines: [
+        `${booking.service.title} by ${booking.expert.user.name} for ${booking.student.name || "the student"} is complete.`,
+        `Amount: ₹${booking.priceInr}.`,
+        "The student confirmed the reply solved their question.",
+      ],
+      path: "/admin?status=COMPLETED",
+    });
+  }
+  refresh();
+}
+
+// ---------- Services ----------
+export async function saveService(_prev, formData) {
+  const user = await requireUser("/dashboard/services");
+  const expert = await prisma.expertProfile.findUnique({ where: { userId: user.id }, select: { id: true } });
+  if (!expert) return { error: "Only experts can add services." };
+
+  const id = get(formData, "id");
+  const type = get(formData, "type");
+  const title = get(formData, "title");
+  const description = get(formData, "description");
+  const priceInr = Number.parseInt(get(formData, "priceInr"), 10);
+  const deliverables = get(formData, "deliverables").split("\n").map((s) => s.trim()).filter(Boolean).slice(0, 8);
+
+  if (!Object.hasOwn(SERVICE_TYPES, type)) return { error: "Choose a service type." };
+  if (title.length < 3 || title.length > 80) return { error: "Title must be 3 to 80 characters." };
+  if (description.length < 10 || description.length > 500) return { error: "Description must be 10 to 500 characters." };
+  if (!(priceInr >= 0 && priceInr <= 20000)) return { error: "Price must be between ₹0 and ₹20,000." };
+  if (deliverables.some((d) => d.length > 100)) return { error: "Each deliverable must be 100 characters or fewer." };
+
+  const data = { type, title, description, priceInr, deliverables };
+  if (id) {
+    const own = await prisma.service.findFirst({ where: { id, expertId: expert.id }, select: { id: true } });
+    if (!own) return { error: "Service not found." };
+    await prisma.service.update({ where: { id }, data: { ...data, active: formData.get("active") === "on" } });
+  } else {
+    await prisma.service.create({ data: { ...data, expertId: expert.id } });
+  }
+  revalidatePath("/dashboard/services");
+  refresh();
+  return { ok: true };
 }
 
 
@@ -120,21 +183,6 @@ export async function sendReply(_prev, formData) {
   return { ok: true };
 }
 
-// The student says the reply answered their question. This is what completes the request.
-export async function resolveBooking(formData) {
-  const { booking, isStudent } = await myBooking(formData);
-  if (!booking || !isStudent || booking.status !== "CONFIRMED") return;
-
-  const replies = await prisma.bookingReply.findMany({ where: { bookingId: booking.id } });
-  if (!replyCycle(booking, replies).lastSent) return; // nothing has been delivered yet
-
-  const done = await prisma.booking.updateMany({
-    where: { id: booking.id, status: "CONFIRMED" },
-    data: { status: "COMPLETED", statusChangedAt: new Date() },
-  });
-  if (done.count > 0) refresh();
-}
-
 // The student says the reply was not enough. The expert answers again at no extra cost.
 export async function requestFollowUp(_prev, formData) {
   const { booking, isStudent } = await myBooking(formData);
@@ -166,39 +214,6 @@ export async function requestFollowUp(_prev, formData) {
   return { ok: true };
 }
 
-// ---------- Services ----------
-export async function saveService(_prev, formData) {
-  const user = await requireUser("/dashboard/services");
-  const expert = await prisma.expertProfile.findUnique({ where: { userId: user.id }, select: { id: true } });
-  if (!expert) return { error: "Only experts can add services." };
-
-  const id = get(formData, "id");
-  const type = get(formData, "type");
-  const title = get(formData, "title");
-  const description = get(formData, "description");
-  const priceInr = Number.parseInt(get(formData, "priceInr"), 10);
-  const durationMin = Number.parseInt(get(formData, "durationMin"), 10);
-  const deliverables = get(formData, "deliverables").split("\n").map((s) => s.trim()).filter(Boolean).slice(0, 8);
-
-  if (!Object.hasOwn(SERVICE_TYPES, type)) return { error: "Choose a service type." };
-  if (title.length < 3 || title.length > 80) return { error: "Title must be 3 to 80 characters." };
-  if (description.length < 10 || description.length > 500) return { error: "Description must be 10 to 500 characters." };
-  if (!(priceInr >= 0 && priceInr <= 20000)) return { error: "Price must be between ₹0 and ₹20,000." };
-  if (!DURATIONS.includes(durationMin)) return { error: "Choose a duration." };
-  if (deliverables.some((d) => d.length > 100)) return { error: "Each deliverable must be 100 characters or fewer." };
-
-  const data = { type, title, description, priceInr, durationMin, deliverables };
-  if (id) {
-    const own = await prisma.service.findFirst({ where: { id, expertId: expert.id }, select: { id: true } });
-    if (!own) return { error: "Service not found." };
-    await prisma.service.update({ where: { id }, data: { ...data, active: formData.get("active") === "on" } });
-  } else {
-    await prisma.service.create({ data: { ...data, expertId: expert.id } });
-  }
-  revalidatePath("/dashboard/services");
-  refresh();
-  return { ok: true };
-}
 
 export async function toggleService(formData) {
   const user = await requireUser("/dashboard/services");

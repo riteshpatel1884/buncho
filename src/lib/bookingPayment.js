@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { dodo } from "@/lib/dodo";
 import { emailNewRequest } from "@/lib/email";
+import { emailAdmin } from "@/lib/email";
+import { findContactInfo } from "@/lib/contactCheck";
 
 // An unpaid request stays visible to the student for 20 minutes while the payment can still go through.
 export const HOLD_MINUTES = 20;
@@ -59,6 +61,7 @@ export async function refundBooking(booking) {
 
 // Apply a successful Dodo payment to its booking.
 // Repeated webhook deliveries won't process the payment twice.
+// The expert is NOT told yet: the request waits in the admin Inbox first.
 export async function applyBookingPayment(payment, opts = {}) {
   if (String(payment.status).toLowerCase() !== "succeeded") return { ok: false, reason: "not-succeeded" };
   if (String(payment.currency).toUpperCase() !== "INR") return { ok: false, reason: "wrong-currency" };
@@ -70,7 +73,6 @@ export async function applyBookingPayment(payment, opts = {}) {
   const booking = await prisma.booking.findUnique({
     where: { id: String(bookingId) },
     include: {
-      expert: { select: { user: { select: { email: true } } } },
       student: { select: { name: true } },
       service: { select: { title: true } },
     },
@@ -81,14 +83,20 @@ export async function applyBookingPayment(payment, opts = {}) {
 
   // IMPORTANT: this does not yet check that the amount paid matches booking.priceInr.
   // The Dodo product is "pay what you want", so a buyer can change the amount at checkout.
-  // Log the real payment payload in test mode, then compare the paid amount before marking PAID.
+  // Log the real payment payload, then compare the paid amount before marking PAID.
 
   const dead = booking.status !== "PENDING";
+  const flags = findContactInfo(booking.note);
 
   // Only one concurrent caller can win this update.
   const won = await prisma.booking.updateMany({
     where: { id: booking.id, paymentStatus: "UNPAID" },
-    data: { paymentStatus: "PAID", dodoPaymentId: payment.payment_id },
+    data: {
+      paymentStatus: "PAID",
+      dodoPaymentId: payment.payment_id,
+      paidAt: new Date(),
+      noteFlags: flags,
+    },
   });
   if (won.count === 0) return { ok: true, duplicate: true };
 
@@ -98,11 +106,13 @@ export async function applyBookingPayment(payment, opts = {}) {
     return { ok: true, refunded: true };
   }
 
-  await emailNewRequest({
-    to: booking.expert.user.email,
-    studentName: booking.student.name,
-    title: booking.service.title,
-    note: booking.note,
+  await emailAdmin({
+    subject: "New request to approve",
+    lines: [
+      `${booking.student.name || "A student"} paid ₹${booking.priceInr} for ${booking.service.title}.`,
+      ...(flags.length ? [`Possible contact info in the message: ${flags.join(", ")}.`] : []),
+      "Read it before the expert sees it.",
+    ],
   });
   return { ok: true };
 }

@@ -1,2 +1,13 @@
-1. also add a session completed section tab in admin so that when a session is completed by both party then i will release the fund to expert acc it will help me to get a quick notification abt a session completion. and release the payment asaP.
+1. also add a "session completed section" tab in admin so that when a session is completed by both party then i will release the fund to expert acc it will help me to get a quick notification abt a session completion and release the payment asap.
 
+2. In the admin WhatsApp world, also add a subsection for means add a subsection for a transaction. When a user pay a transaction, then that particular transaction will be shown in a separate tab, so that admin can revise that transaction who paid, which expert got data services, the transaction ID, or anything else. So that in case of a fund settlement to the expert, or in case of any dispute, I can verify it from the admin dashboard from this separate section only.
+
+3. I think we should hide the social link of the expert as the user has a verified social link, and maybe it is possible that user and expert may settle the services outside Buncher. So just in place of the link of the social media of the expert, just show that LinkedIn verified, or means all the social media are verified by Buncher. So it will build a trust to users as well as user will not directly contact the expert.
+
+4. remove Usually free on from experts profile as there is no use of it.
+
+5. remove CS, class of 2027 from profile and add graduated in 2027 only with branch name. 
+
+6. Also add a request service verification mark, like if a user had already. Like suppose we are considering a hypothetical situation.And if the data user had already put their personal information like email ID or his LinkedIn profile or GitHub, then that message will be, that service message will be directly sent to the expert. And in between we are not verifying that if the user put their information so that they communicate outside Bunzo. So I think this is the biggest loophole. Also just like we are verifying the expert's response before sending to the user directly. Verify this service request by the user before sending it to the expert. If it is verified by admin, then data service will be sent to the expert, just like we are doing from expert to user. So here also we are doing from user to expert. So in this way we can fix this loophole.
+
+7. remove the Duration input from sevice field

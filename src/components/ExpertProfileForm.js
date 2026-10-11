@@ -5,7 +5,7 @@ import Spinner from "./Spinner";
 import { saveExpertProfile } from "@/app/onboarding/actions";
 import { FIELD_LABELS } from "@/lib/review";
 
-export default function ExpertProfileForm({ profile, name, submitLabel = "Save profile" }) {
+export default function ExpertProfileForm({ profile, name, username, submitLabel = "Save profile" }) {
   const [state, action, pending] = useActionState(saveExpertProfile, null);
 
   function onSubmit(e) {
@@ -18,6 +18,23 @@ export default function ExpertProfileForm({ profile, name, submitLabel = "Save p
     <form onSubmit={onSubmit} className="card space-y-4 p-5 sm:p-8">
       <Field label="Your name">
         <input name="name" required maxLength={80} defaultValue={name ?? ""} className="input" />
+      </Field>
+      <Field label="Username" hint="Unique. 3 to 20 letters, numbers or underscores. People use it to report someone, so it must not be a phone number.">
+        <div className="flex items-center rounded-lg border border-line bg-surface focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/15">
+          <span className="pl-3.5 text-sm text-muted">@</span>
+          <input
+            name="username"
+            required
+            minLength={3}
+            maxLength={20}
+            pattern="[A-Za-z][A-Za-z0-9_]{2,19}"
+            defaultValue={username ?? ""}
+            autoCapitalize="none"
+            autoComplete="off"
+            spellCheck={false}
+            className="w-full bg-transparent px-2 py-2.5 text-sm text-ink focus:outline-none"
+          />
+        </div>
       </Field>
       <Field label="Headline (optional)" hint="One line students see first, for example: AI Engineer who has reviewed 100+ resumes">
         <input name="headline" maxLength={90} defaultValue={profile?.headline ?? ""} className="input" />

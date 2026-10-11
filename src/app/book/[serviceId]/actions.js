@@ -2,11 +2,12 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/user";
-import { emailNewRequest } from "@/lib/email";
+import { emailAdmin } from "@/lib/email";
+import { findContactInfo } from "@/lib/contactCheck";
 import { createBookingCheckout } from "@/lib/bookingPayment";
 
 // Creates a request. The student's written question is the main part of it.
-// Paid services go to Dodo checkout first; the expert is only told after the payment succeeds.
+// Paid services go to Dodo checkout first. Either way, an admin reads the request before the expert sees it.
 export async function createBooking(_prev, formData) {
   const serviceId = String(formData.get("serviceId") || "");
   const note = String(formData.get("note") || "").trim().slice(0, 1000);
@@ -17,12 +18,13 @@ export async function createBooking(_prev, formData) {
 
   const service = await prisma.service.findFirst({
     where: { id: serviceId, active: true, expert: { status: "ACTIVE" } },
-    include: { expert: { include: { user: { select: { name: true, email: true } } } } },
+    include: { expert: { select: { userId: true } } },
   });
   if (!service) return { error: "This service is no longer available." };
   if (service.expert.userId === user.id) return { error: "You can't book your own service." };
 
   const paid = service.priceInr > 0;
+  const flags = findContactInfo(note);
 
   let booking;
   try {
@@ -38,6 +40,8 @@ export async function createBooking(_prev, formData) {
           expertId: service.expertId,
           serviceId: service.id,
           note,
+          noteFlags: flags,
+          reviewStatus: "PENDING_REVIEW",
           priceInr: service.priceInr, // price at the moment of booking
           paymentStatus: paid ? "UNPAID" : "FREE",
         },
@@ -50,8 +54,14 @@ export async function createBooking(_prev, formData) {
   }
 
   if (!paid) {
-    // Free service: tell the expert now. A failed email is only logged, it never blocks the booking.
-    await emailNewRequest({ to: service.expert.user.email, studentName: user.name, title: service.title, note });
+    // Free service: it goes straight to the admin Inbox. A failed email is only logged.
+    await emailAdmin({
+      subject: "New request to approve",
+      lines: [
+        `${user.name || "A student"} sent a free request for ${service.title}.`,
+        ...(flags.length ? [`Possible contact info in the message: ${flags.join(", ")}.`] : []),
+      ],
+    });
     redirect("/dashboard?booked=1");
   }
 

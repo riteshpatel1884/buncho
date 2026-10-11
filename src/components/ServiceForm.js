@@ -3,7 +3,7 @@ import { useActionState, useEffect, useRef, startTransition } from "react";
 import Field from "./Field";
 import Spinner from "./Spinner";
 import { saveService } from "@/app/dashboard/actions";
-import { SERVICE_TYPES, DURATIONS } from "@/lib/constants";
+import { SERVICE_TYPES } from "@/lib/constants";
 
 // Adds a service (no `service` prop) or edits one.
 export default function ServiceForm({ service }) {
@@ -36,13 +36,8 @@ export default function ServiceForm({ service }) {
       <Field label="Description">
         <textarea name="description" required rows={3} maxLength={500} defaultValue={service?.description} className="input" />
       </Field>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="max-w-xs">
         <Field label="Price (₹)"><input name="priceInr" type="number" required min={0} max={20000} defaultValue={service?.priceInr ?? 299} className="input" /></Field>
-        <Field label="Duration">
-          <select name="durationMin" defaultValue={service?.durationMin ?? 30} className="input">
-            {DURATIONS.map((d) => <option key={d} value={d}>{d} minutes</option>)}
-          </select>
-        </Field>
       </div>
       <Field label="What the student gets" hint="One per line, up to 8. For example: ATS check, project feedback">
         <textarea name="deliverables" rows={4} defaultValue={service?.deliverables?.join("\n")} className="input" />

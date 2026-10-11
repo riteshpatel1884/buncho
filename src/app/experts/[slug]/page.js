@@ -5,6 +5,7 @@ import { getDbUser, isAdmin } from "@/lib/user";
 import Avatar from "@/components/Avatar";
 import VerificationBadges, { BlueTick, isBlueTick, NotVerified } from "@/components/Badges";
 import StatusBadge from "@/components/StatusBadge";
+import ReportButton from "@/components/ReportButton";
 import { FIELD_LABELS } from "@/lib/review";
 import { SERVICE_TYPES, WEEKDAYS, fmtMinutes, inr } from "@/lib/constants";
 
@@ -30,7 +31,7 @@ export default async function ExpertPage({ params }) {
   const expert = await prisma.expertProfile.findUnique({
     where: { slug },
     include: {
-      user: { select: { id: true, name: true, avatarUrl: true } },
+      user: { select: { id: true, name: true, avatarUrl: true, username: true } },
       services: { where: { active: true }, orderBy: { priceInr: "asc" } },
       availability: { orderBy: [{ weekday: "asc" }, { startMin: "asc" }] },
     },
@@ -92,6 +93,7 @@ export default async function ExpertPage({ params }) {
               <span className="min-w-0 break-words">{expert.user.name}</span>
               {isBlueTick(expert) && <BlueTick className="h-7 w-7 shrink-0" />}
             </h1>
+            {expert.user.username && <p className="text-sm text-muted">@{expert.user.username}</p>}
             {expert.headline && <p className="max-w-2xl text-lg text-muted">{expert.headline}</p>}
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <VerificationBadges expert={expert} showEmpty />
@@ -207,6 +209,17 @@ export default async function ExpertPage({ params }) {
                 </span>
               )}
             </div>
+            {!isOwner && (
+              <div className="mt-4 border-t border-line pt-3">
+                <ReportButton
+                  signedIn={!!me}
+                  kind="person"
+                  target={{ id: expert.user.id, name: expert.user.name, username: expert.user.username }}
+                  label="Report this expert"
+                  className="text-xs font-medium text-muted underline hover:text-brand"
+                />
+              </div>
+            )}
           </div>
         </aside>
       </div>

@@ -2,9 +2,10 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/user";
-import { emailExpertReply, emailReplyRejected } from "@/lib/email";
 import { refundBooking } from "@/lib/bookingPayment";
-import { REFUND_OPEN } from "@/lib/review";
+import { findContactInfo } from "@/lib/contactCheck";
+import { REFUND_OPEN, REQUEST_OPEN, PAYOUT_DUE } from "@/lib/review";
+import { emailExpertReply, emailReplyRejected, emailNewRequest, emailRequestRejected, emailReportResolved } from "@/lib/email";
 
 const refresh = () => {
   revalidatePath("/admin");
@@ -147,5 +148,93 @@ export async function keepPayment(formData) {
   if (!(await isAdmin())) return;
   const id = String(formData.get("id") || "");
   await prisma.booking.updateMany({ where: { id, ...REFUND_OPEN }, data: { resolvedAt: new Date() } });
+  refresh();
+}
+
+
+// ---------- Student requests ----------
+// The (optionally edited) request is shown to the expert and they are emailed.
+export async function approveRequest(formData) {
+  if (!(await isAdmin())) return;
+  const id = String(formData.get("id") || "");
+  const note = String(formData.get("note") || "").trim().slice(0, 1000);
+  if (!id || note.length < 10) return;
+
+  const done = await prisma.booking.updateMany({
+    where: { id, ...REQUEST_OPEN },
+    data: { reviewStatus: "APPROVED", note, noteFlags: findContactInfo(note) },
+  });
+  if (done.count === 0) return;
+
+  const b = await prisma.booking.findUnique({
+    where: { id },
+    include: {
+      student: { select: { name: true } },
+      service: { select: { title: true } },
+      expert: { select: { user: { select: { email: true } } } },
+    },
+  });
+  await emailNewRequest({ to: b.expert.user.email, studentName: b.student.name, title: b.service.title, note: b.note });
+  refresh();
+}
+
+// The request is never shown to the expert. A paid request is refunded in full.
+export async function rejectRequest(formData) {
+  if (!(await isAdmin())) return;
+  const id = String(formData.get("id") || "");
+  const note =
+    String(formData.get("note") || "").trim().slice(0, 300) ||
+    "Please remove phone numbers, emails, links and social handles, then send it again.";
+
+  const b = await prisma.booking.findFirst({
+    where: { id, ...REQUEST_OPEN },
+    include: { student: { select: { email: true } }, service: { select: { title: true } } },
+  });
+  if (!b) return;
+
+  const done = await prisma.booking.updateMany({
+    where: { id, ...REQUEST_OPEN },
+    data: { status: "CANCELLED", reviewStatus: "REJECTED", reviewNote: note, cancelledBy: "ADMIN", statusChangedAt: new Date() },
+  });
+  if (done.count === 0) return;
+
+  await refundBooking(b); // does nothing unless the booking was paid
+  await emailRequestRejected({ to: b.student.email, title: b.service.title, note, refunded: b.paymentStatus === "PAID" });
+  refresh();
+}
+
+// ---------- Payouts ----------
+// Record that you paid the expert for a completed session.
+export async function releasePayout(formData) {
+  if (!(await isAdmin())) return;
+  const id = String(formData.get("id") || "");
+  const note = String(formData.get("note") || "").trim().slice(0, 200) || null;
+  await prisma.booking.updateMany({
+    where: { id, ...PAYOUT_DUE },
+    data: { payoutReleasedAt: new Date(), payoutNote: note },
+  });
+  refresh();
+}
+
+// ---------- Reports ----------
+// Marks a report as handled and lets the reporter know.
+export async function resolveReport(formData) {
+  if (!(await isAdmin())) return;
+  const id = String(formData.get("id") || "");
+  const note = String(formData.get("note") || "").trim().slice(0, 500) || null;
+
+  const r = await prisma.report.findFirst({
+    where: { id, ...REPORT_OPEN },
+    include: { reporter: { select: { email: true } } },
+  });
+  if (!r) return;
+
+  const done = await prisma.report.updateMany({
+    where: { id, ...REPORT_OPEN },
+    data: { status: "RESOLVED", adminNote: note, resolvedAt: new Date() },
+  });
+  if (done.count === 0) return;
+
+  await emailReportResolved({ to: r.reporter.email, note });
   refresh();
 }

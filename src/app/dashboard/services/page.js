@@ -37,7 +37,7 @@ export default async function ServicesPage() {
                 <div className="min-w-0 flex-1">
                   <span className="chip">{SERVICE_TYPES[s.type]}</span>
                   <p className="mt-1 truncate font-semibold">{s.title}</p>
-                  <p className="text-sm text-muted">{inr(s.priceInr)}, {s.durationMin} min</p>
+                  <p className="text-sm text-muted">{inr(s.priceInr)}</p>
                 </div>
                 <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${s.active ? "bg-brand-soft text-brand" : "bg-surface-2 text-muted"}`}>{s.active ? "Visible" : "Hidden"}</span>
                 <form action={toggleService}>

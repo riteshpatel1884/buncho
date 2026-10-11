@@ -13,7 +13,7 @@ export default async function StudentOnboarding() {
         <h1 className="font-display text-3xl font-bold sm:text-4xl">Tell us about you</h1>
         <p className="mt-2 text-muted">Experts see this when you book, so they can help with what you actually need.</p>
       </div>
-      <StudentProfileForm name={user.name} submitLabel="Continue" />
+      <StudentProfileForm name={user.name} username={user.username} submitLabel="Continue" />
     </div>
   );
 }

@@ -5,8 +5,21 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/user";
 import { slugify, isHttpUrl, parseSkills } from "@/lib/utils";
 import { STUDY_YEARS } from "@/lib/constants";
+import { cleanUsername, usernameError } from "@/lib/username";
 
 const get = (fd, k) => String(fd.get(k) || "").trim();
+const usernameTaken = (e) => e?.code === "P2002" && String(e.meta?.target ?? "").includes("username");
+const TAKEN = "That username is taken. Try another.";
+
+// Checks the username format and that nobody else has it.
+async function checkUsername(formData, userId) {
+  const username = cleanUsername(get(formData, "username"));
+  const bad = usernameError(username);
+  if (bad) return { error: bad };
+  const other = await prisma.user.findFirst({ where: { username, NOT: { id: userId } }, select: { id: true } });
+  if (other) return { error: TAKEN };
+  return { username };
+}
 
 export async function saveStudentProfile(_prev, formData) {
   const user = await requireUser("/onboarding");
@@ -22,6 +35,8 @@ export async function saveStudentProfile(_prev, formData) {
   const skills = parseSkills(get(formData, "skills"));
 
   if (name.length < 2) return { error: "Enter your name." };
+  const u = await checkUsername(formData, user.id);
+  if (u.error) return { error: u.error };
   if (college.length < 2 || branch.length < 1) return { error: "Enter your college and branch." };
   if (!STUDY_YEARS.includes(year)) return { error: "Choose your year." };
   if (targetRole.length < 2) return { error: "Enter your target role." };
@@ -29,10 +44,15 @@ export async function saveStudentProfile(_prev, formData) {
 
   const data = { college, branch, year, skills, targetRole, careerGoal, problems: problems || null };
   const first = !user.role;
-  await prisma.$transaction([
-    prisma.user.update({ where: { id: user.id }, data: { name, role: "STUDENT" } }),
-    prisma.studentProfile.upsert({ where: { userId: user.id }, update: data, create: { ...data, userId: user.id } }),
-  ]);
+  try {
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: user.id }, data: { name, role: "STUDENT", username: u.username } }),
+      prisma.studentProfile.upsert({ where: { userId: user.id }, update: data, create: { ...data, userId: user.id } }),
+    ]);
+  } catch (e) {
+    if (usernameTaken(e)) return { error: TAKEN };
+    throw e;
+  }
   revalidatePath("/dashboard");
   if (first) redirect("/experts?welcome=1");
   return { ok: true };
@@ -56,6 +76,8 @@ export async function saveExpertProfile(_prev, formData) {
   const skills = parseSkills(get(formData, "skills"));
 
   if (name.length < 2) return { error: "Enter your name." };
+  const u = await checkUsername(formData, user.id);
+  if (u.error) return { error: u.error };
   if (college.length < 2 || branch.length < 1) return { error: "Enter your college and branch." };
   if (!(graduationYear >= 1990 && graduationYear <= 2035)) return { error: "Enter a valid graduation year." };
   if (company.length < 1 || jobTitle.length < 2) return { error: "Enter your current role and company." };
@@ -98,10 +120,15 @@ export async function saveExpertProfile(_prev, formData) {
         }
       : {};
 
-    await prisma.$transaction([
-      prisma.user.update({ where: { id: user.id }, data: { name, role: "EXPERT" } }),
-      prisma.expertProfile.update({ where: { userId: user.id }, data: { ...data, ...reset } }),
-    ]);
+    try {
+      await prisma.$transaction([
+        prisma.user.update({ where: { id: user.id }, data: { name, role: "EXPERT", username: u.username } }),
+        prisma.expertProfile.update({ where: { userId: user.id }, data: { ...data, ...reset } }),
+      ]);
+    } catch (e) {
+      if (usernameTaken(e)) return { error: TAKEN };
+      throw e;
+    }
     revalidatePath("/dashboard");
     revalidatePath("/experts");
     revalidatePath("/admin");
@@ -110,9 +137,14 @@ export async function saveExpertProfile(_prev, formData) {
 
   let slug = slugify(name) || "expert";
   if (await prisma.expertProfile.findUnique({ where: { slug } })) slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
-  await prisma.$transaction([
-    prisma.user.update({ where: { id: user.id }, data: { name, role: "EXPERT" } }),
-    prisma.expertProfile.create({ data: { ...data, slug, userId: user.id } }),
-  ]);
+  try {
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: user.id }, data: { name, role: "EXPERT", username: u.username } }),
+      prisma.expertProfile.create({ data: { ...data, slug, userId: user.id } }),
+    ]);
+  } catch (e) {
+    if (usernameTaken(e)) return { error: TAKEN };
+    throw e;
+  }
   redirect("/dashboard?welcome=expert");
 }
