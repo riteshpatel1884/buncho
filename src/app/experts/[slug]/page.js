@@ -7,7 +7,7 @@ import VerificationBadges, { BlueTick, isBlueTick, NotVerified } from "@/compone
 import StatusBadge from "@/components/StatusBadge";
 import ReportButton from "@/components/ReportButton";
 import { FIELD_LABELS } from "@/lib/review";
-import { SERVICE_TYPES, WEEKDAYS, fmtMinutes, inr } from "@/lib/constants";
+import { SERVICE_TYPES, inr } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +26,14 @@ function Fact({ label, children }) {
   );
 }
 
+function Check({ ok }) {
+  return ok ? (
+    <span className="inline-flex items-center gap-1 rounded-full bg-mint-soft px-2.5 py-0.5 text-xs font-semibold text-mint">✓ Verified by Buncho</span>
+  ) : (
+    <span className="rounded-full bg-warn-soft px-2.5 py-0.5 text-xs font-semibold text-warn">Not verified yet</span>
+  );
+}
+
 export default async function ExpertPage({ params }) {
   const { slug } = await params;
   const expert = await prisma.expertProfile.findUnique({
@@ -33,7 +41,6 @@ export default async function ExpertPage({ params }) {
     include: {
       user: { select: { id: true, name: true, avatarUrl: true, username: true } },
       services: { where: { active: true }, orderBy: { priceInr: "asc" } },
-      availability: { orderBy: [{ weekday: "asc" }, { startMin: "asc" }] },
     },
   });
   if (!expert) notFound();
@@ -46,11 +53,17 @@ export default async function ExpertPage({ params }) {
   const unv = (f) => expert.unverifiedFields?.includes(f);
   const from = expert.services.length ? Math.min(...expert.services.map((s) => s.priceInr)) : null;
   const years = `${expert.experienceYears} ${expert.experienceYears === 1 ? "year" : "years"}`;
+  const gradText = expert.graduationYear > new Date().getFullYear() ? "graduating in" : "graduated in";
+
+  // Buncho checks the expert's profiles itself, so the links are never shown to students.
+  const checked = expert.educationVerified || expert.employmentVerified;
+  const linkedinOk = checked && !unv("linkedin");
+  const githubOk = checked && !unv("github");
 
   return (
     <article className="space-y-8">
       {me?.role !== "EXPERT" && (
-              <Link href="/experts" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-brand">
+        <Link href="/experts" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-brand">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
           All experts
         </Link>
@@ -123,7 +136,7 @@ export default async function ExpertPage({ params }) {
           <section className="card p-6 sm:p-8">
             <h2 className="font-display text-2xl">About</h2>
             <p className="mt-3 max-w-2xl whitespace-pre-line leading-relaxed">{expert.bio}</p>
-            <p className="mt-4 text-sm text-muted">{expert.branch}, class of {expert.graduationYear}</p>
+            <p className="mt-4 text-sm text-muted">{expert.branch}, {gradText} {expert.graduationYear}</p>
             {expert.skills.length > 0 && (
               <div className="mt-5 flex flex-wrap gap-2">{expert.skills.map((s) => <span key={s} className="chip">{s}</span>)}</div>
             )}
@@ -143,10 +156,7 @@ export default async function ExpertPage({ params }) {
                         <h3 className="mt-2.5 font-display text-xl">{s.title}</h3>
                         <p className="mt-1 max-w-xl text-sm text-muted">{s.description}</p>
                       </div>
-                      <div className="text-right">
-                        <p className="font-display text-3xl">{inr(s.priceInr)}</p>
-                        <p className="text-xs text-muted">{s.durationMin} min session</p>
-                      </div>
+                      <p className="font-display text-3xl">{inr(s.priceInr)}</p>
                     </div>
                     {s.deliverables.length > 0 && (
                       <ul className="mt-4 grid grid-cols-1 gap-x-6 gap-y-1.5 border-t border-line pt-4 text-sm sm:grid-cols-2">
@@ -179,36 +189,21 @@ export default async function ExpertPage({ params }) {
           )}
 
           <div className="card p-5">
-            <h3 className="font-display text-lg">Usually free on</h3>
-            {expert.availability.length === 0 ? (
-              <p className="mt-2 text-sm text-muted">No times set yet.</p>
-            ) : (
-              <ul className="mt-3 divide-y divide-line text-sm">
-                {expert.availability.map((a) => (
-                  <li key={a.id} className="flex justify-between gap-3 py-2">
-                    <span className="text-muted">{WEEKDAYS[a.weekday]}</span>
-                    <span className="font-medium">{fmtMinutes(a.startMin)} to {fmtMinutes(a.endMin)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <p className="mt-3 text-xs text-muted">Times are in India time (IST).</p>
-          </div>
-
-          <div className="card p-5">
-            <h3 className="font-display text-lg">Find them online</h3>
-            <div className="mt-3 flex flex-wrap gap-2 text-sm">
-              <span>
-                <a href={expert.linkedinUrl} target="_blank" rel="noopener noreferrer" className="btn-outline !py-1.5">LinkedIn</a>
-                <NotVerified show={unv("linkedin")} />
-              </span>
+            <h3 className="font-display text-lg">Checked by Buncho</h3>
+            <ul className="mt-3 space-y-2.5 text-sm">
+              <li className="flex items-center justify-between gap-3">
+                <span className="text-muted">LinkedIn</span>
+                <Check ok={linkedinOk} />
+              </li>
               {expert.githubUrl && (
-                <span>
-                  <a href={expert.githubUrl} target="_blank" rel="noopener noreferrer" className="btn-outline !py-1.5">GitHub</a>
-                  <NotVerified show={unv("github")} />
-                </span>
+                <li className="flex items-center justify-between gap-3">
+                  <span className="text-muted">GitHub</span>
+                  <Check ok={githubOk} />
+                </li>
               )}
-            </div>
+            </ul>
+            <p className="mt-3 text-xs text-muted">Buncho checks each expert's profiles for you. Everything, including payment and replies, happens on Buncho.</p>
+
             {!isOwner && (
               <div className="mt-4 border-t border-line pt-3">
                 <ReportButton

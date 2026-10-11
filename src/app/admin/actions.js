@@ -216,25 +216,30 @@ export async function releasePayout(formData) {
   refresh();
 }
 
-// ---------- Reports ----------
 // Marks a report as handled and lets the reporter know.
 export async function resolveReport(formData) {
   if (!(await isAdmin())) return;
   const id = String(formData.get("id") || "");
   const note = String(formData.get("note") || "").trim().slice(0, 500) || null;
+  if (!id) return;
 
   const r = await prisma.report.findFirst({
-    where: { id, ...REPORT_OPEN },
+    where: { id, status: "OPEN" },
     include: { reporter: { select: { email: true } } },
   });
   if (!r) return;
 
   const done = await prisma.report.updateMany({
-    where: { id, ...REPORT_OPEN },
+    where: { id, status: "OPEN" },
     data: { status: "RESOLVED", adminNote: note, resolvedAt: new Date() },
   });
   if (done.count === 0) return;
 
-  await emailReportResolved({ to: r.reporter.email, note });
+  // The report is already closed. A problem with the email must never break the page.
+  try {
+    await emailReportResolved({ to: r.reporter.email, note });
+  } catch (e) {
+    console.error("[report] resolved email failed:", e?.message);
+  }
   refresh();
 }
