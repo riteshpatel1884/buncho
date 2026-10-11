@@ -22,6 +22,35 @@ export function BlueTick({ className = "h-5 w-5" }) {
   );
 }
 
+// A 12-point scalloped seal, so the official tick has a different shape from the round blue tick.
+const SEAL = (() => {
+  const n = 12;
+  const pts = [];
+  for (let i = 0; i < n * 2; i++) {
+    const r = i % 2 === 0 ? 11.5 : 9.6;
+    const a = (Math.PI * i) / n - Math.PI / 2;
+    pts.push(`${(12 + r * Math.cos(a)).toFixed(2)},${(12 + r * Math.sin(a)).toFixed(2)}`);
+  }
+  return pts.join(" ");
+})();
+
+// Only for posts by the Buncho team. Gold seal with a white check: not blue, not gray.
+export function OfficialTick({ className = "h-5 w-5" }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" role="img" aria-label="Official Buncho Team">
+      <title>Official Buncho Team</title>
+      <defs>
+        <linearGradient id="buncho-official-grad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#ffc93c" />
+          <stop offset="1" stopColor="#ff7a1a" />
+        </linearGradient>
+      </defs>
+      <polygon points={SEAL} fill="url(#buncho-official-grad)" stroke="url(#buncho-official-grad)" strokeWidth="1" strokeLinejoin="round" />
+      <path d="M7.6 12.4l3 3 5.8-6.4" fill="none" stroke="#ffffff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 // Small label shown next to details the expert changed after Buncho checked them.
 export function NotVerified({ show }) {
   if (!show) return null;

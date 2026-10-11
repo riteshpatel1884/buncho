@@ -46,6 +46,7 @@ const waiting = toReview + repliesOpen + refundsOpen + requestsOpen + payoutsDue
         <div className="flex items-center gap-6 sm:gap-10">
           <Link href="/" aria-label="Buncho home"><Logo /></Link>
           <div className="hidden items-center gap-7 text-sm font-medium md:flex">
+            <Link href="/feed" className="text-muted transition-colors hover:text-ink">Feed</Link>
             {showFind && <Link href="/experts" className="text-muted transition-colors hover:text-ink">Find experts</Link>}
             {showBecome && <Link href="/onboarding/expert" className="text-muted transition-colors hover:text-ink">Become an expert</Link>}
           </div>
@@ -66,6 +67,7 @@ const waiting = toReview + repliesOpen + refundsOpen + requestsOpen + payoutsDue
 
           <MobileMenu>
             <div className="flex flex-col">
+              <Link href="/feed" className={item}>Feed</Link>
               {showFind && <Link href="/experts" className={item}>Find experts</Link>}
               {showBecome && <Link href="/onboarding/expert" className={item}>Become an expert</Link>}
               <Show when="signed-in">

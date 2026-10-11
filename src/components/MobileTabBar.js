@@ -11,6 +11,7 @@ export default async function MobileTabBar() {
     const p = await prisma.expertProfile.findUnique({ where: { userId: me.id }, select: { slug: true } }).catch(() => null);
     items = [
       { href: "/", label: "Home", icon: "home" },
+      { href: "/feed", label: "Feed", icon: "feed" },
       { href: "/dashboard", label: "Dashboard", icon: "list" },
       ...(p ? [{ href: `/experts/${p.slug}`, label: "Profile", icon: "user" }] : []),
       { href: "/dashboard/services", label: "Services", icon: "grid" },
@@ -18,6 +19,7 @@ export default async function MobileTabBar() {
   } else if (me?.role === "STUDENT") {
     items = [
       { href: "/", label: "Home", icon: "home" },
+      { href: "/feed", label: "Feed", icon: "feed" },
       { href: "/experts", label: "Experts", icon: "search" },
       { href: "/dashboard", label: "Requests", icon: "list" },
       { href: "/dashboard/profile", label: "Profile", icon: "user" },
@@ -25,12 +27,14 @@ export default async function MobileTabBar() {
   } else if (me) {
     items = [
       { href: "/", label: "Home", icon: "home" },
+      { href: "/feed", label: "Feed", icon: "feed" },
       { href: "/experts", label: "Experts", icon: "search" },
       { href: "/onboarding", label: "Get started", icon: "spark" },
     ];
   } else {
     items = [
       { href: "/", label: "Home", icon: "home" },
+      { href: "/feed", label: "Feed", icon: "feed" },
       { href: "/experts", label: "Experts", icon: "search" },
       { href: "/sign-in", label: "Sign in", icon: "login" },
     ];

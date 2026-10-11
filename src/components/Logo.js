@@ -7,3 +7,10 @@ export default function Logo({ className = "" }) {
     </span>
   );
 }
+
+// Just the rounded "b" mark, at any size. Used as the avatar for official Buncho posts.
+export function LogoMark({ size = 32, className = "" }) {
+  return (
+    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-lg leading-none text-on-brand">b</span>
+  );
+}

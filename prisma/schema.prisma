@@ -58,6 +58,14 @@ model User {
   studentProfile StudentProfile?
   expertProfile  ExpertProfile?
   bookings       Booking[]       @relation("StudentBookings")
+
+  // Feed
+  posts        Post[]
+  postLikes    PostLike[]
+  postSaves    PostSave[]
+  postComments PostComment[]
+  following    Follow[]       @relation("Following")
+  followers    Follow[]       @relation("Followers")
 }
 
 model StudentProfile {
@@ -128,6 +136,7 @@ model Service {
 
   expert   ExpertProfile @relation(fields: [expertId], references: [id], onDelete: Cascade)
   bookings Booking[]
+  posts    Post[]
 
   @@index([expertId, active])
 }
@@ -224,4 +233,69 @@ model Report {
   resolvedAt DateTime?
 
   @@index([status, createdAt])
+}
+
+// ---------- Feed ----------
+model Post {
+  id        String   @id @default(cuid())
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body      String
+  topic     String   // CAREER | PLACEMENTS | RESEARCH | TECHNOLOGY
+  serviceId String?
+  service   Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  hidden    Boolean  @default(false) // set true to take a post down without deleting it
+  createdAt DateTime @default(now())
+
+  likes    PostLike[]
+  saves    PostSave[]
+  comments PostComment[]
+
+  @@index([createdAt])
+  @@index([topic, createdAt])
+  @@index([authorId, createdAt])
+}
+
+model PostLike {
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+}
+
+model PostSave {
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@index([userId, createdAt])
+}
+
+model PostComment {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  body      String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+}
+
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    User     @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followingId])
 }

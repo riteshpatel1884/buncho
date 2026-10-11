@@ -6,6 +6,7 @@ import Avatar from "@/components/Avatar";
 import VerificationBadges, { BlueTick, isBlueTick, NotVerified } from "@/components/Badges";
 import StatusBadge from "@/components/StatusBadge";
 import ReportButton from "@/components/ReportButton";
+import FollowBar from "@/components/FollowBar";
 import { FIELD_LABELS } from "@/lib/review";
 import { SERVICE_TYPES, inr } from "@/lib/constants";
 
@@ -48,6 +49,12 @@ export default async function ExpertPage({ params }) {
   const [me, admin] = await Promise.all([getDbUser(), isAdmin()]);
   const isOwner = me?.id === expert.user.id;
   if (expert.status !== "ACTIVE" && !isOwner && !admin) notFound();
+
+  // Followers: the count, and whether the person looking already follows this expert.
+  const [followers, iFollow] = await Promise.all([
+    prisma.follow.count({ where: { followingId: expert.user.id } }),
+    me ? prisma.follow.findUnique({ where: { followerId_followingId: { followerId: me.id, followingId: expert.user.id } } }) : null,
+  ]);
 
   const canBook = expert.status === "ACTIVE" && !isOwner && me?.role !== "EXPERT";
   const unv = (f) => expert.unverifiedFields?.includes(f);
@@ -108,6 +115,14 @@ export default async function ExpertPage({ params }) {
             </h1>
             {expert.user.username && <p className="text-sm text-muted">@{expert.user.username}</p>}
             {expert.headline && <p className="max-w-2xl text-lg text-muted">{expert.headline}</p>}
+            <FollowBar
+              authorId={expert.user.id}
+              initialFollowing={!!iFollow}
+              initialCount={followers}
+              signedIn={!!me}
+              mine={isOwner}
+              returnTo={`/experts/${expert.slug}`}
+            />
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <VerificationBadges expert={expert} showEmpty />
             </div>

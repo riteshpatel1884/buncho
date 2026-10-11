@@ -54,6 +54,7 @@ export default async function Footer() {
 
         <div className="space-y-2.5 text-sm">
           <p className="font-semibold">Buncho</p>
+          <Link href="/feed" className={link}>Feed</Link>
           <Link href="/terms" className={link}>Terms and Conditions</Link>
           <Link href="/privacy" className={link}>Privacy Policy</Link>
           <Link href="/refund-policy" className={link}>Refund and Cancellation</Link>

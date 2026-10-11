@@ -41,12 +41,23 @@ export async function requireRole(role, returnTo) {
   return user;
 }
 
+const adminClerkIds = () =>
+  (process.env.ADMIN_CLERK_IDS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
 export async function isAdmin() {
   const { userId } = await auth();
   if (!userId) return false;
-  return (process.env.ADMIN_CLERK_IDS || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .includes(userId);
+  return adminClerkIds().includes(userId);
+}
+
+// Database ids of the admin accounts (the people listed in ADMIN_CLERK_IDS who have signed in at least once).
+// Posts written by these users are "admin posts" in the feed.
+export async function getAdminUserIds() {
+  const ids = adminClerkIds();
+  if (!ids.length) return [];
+  const rows = await prisma.user.findMany({ where: { clerkUserId: { in: ids } }, select: { id: true } });
+  return rows.map((r) => r.id);
 }
