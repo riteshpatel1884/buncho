@@ -5,7 +5,7 @@ import { requireUser, isAdmin, getAdminUserIds } from "@/lib/user";
 import { findContactInfo } from "@/lib/contactCheck";
 import { TOPICS, timeAgo } from "@/lib/feed/feed";
 import PostComposer from "@/components/feed/PostComposer";
-import DeleteButton from "@/components/admin/DeleteButton";
+import DeleteButton from "@/components/admin/feed/DeleteButton";
 import { adminDeletePost, adminDeleteComment } from "./actions";
 
 export const dynamic = "force-dynamic";
