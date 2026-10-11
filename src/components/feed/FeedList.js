@@ -13,6 +13,15 @@ export default function FeedList({ initial, filters, signedIn, empty }) {
   const sentinel = useRef(null);
   const busy = useRef(false);
 
+  // After router.refresh() (e.g. a new post was created) the server sends a fresh first page.
+  // Add any posts we don't have yet at the top, and keep what has already been scrolled in.
+  useEffect(() => {
+    setPosts((prev) => {
+      const fresh = initial.posts.filter((n) => !prev.some((x) => x.id === n.id));
+      return fresh.length ? [...fresh, ...prev] : prev;
+    });
+  }, [initial]);
+
   useEffect(() => {
     if (!cursor || !sentinel.current) return;
     const io = new IntersectionObserver(
@@ -47,7 +56,7 @@ export default function FeedList({ initial, filters, signedIn, empty }) {
 
   return (
     <div className="space-y-4">
-      {posts.map((p) => <PostCard key={p.id} post={p} signedIn={signedIn} />)}
+      {posts.map((p) => <PostCard key={p.id} post={p} signedIn={signedIn} onDeleted={(id) => setPosts((list) => list.filter((x) => x.id !== id))} />)}
       {cursor ? (
         <div ref={sentinel} className="flex justify-center py-6 text-brand">{loading && <Spinner className="h-6 w-6" />}</div>
       ) : (

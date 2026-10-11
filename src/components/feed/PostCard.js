@@ -105,7 +105,7 @@ function ConfirmDialog({ title, text, confirmLabel, busy, onConfirm, onCancel })
   );
 }
 
-export default function PostCard({ post, signedIn, defaultOpen = false }) {
+export default function PostCard({ post, signedIn, defaultOpen = false, onDeleted }) {
   const router = useRouter();
   const [p, setP] = useState(post);
   const [modal, setModal] = useState(false);
@@ -115,7 +115,8 @@ export default function PostCard({ post, signedIn, defaultOpen = false }) {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(null); // { type: "post" } or { type: "comment", id }
-  const [busy, setBusy] = useState(false);
+  const busy = false; // the pop-up closes at once, so it never waits
+  const [deleted, setDeleted] = useState(false);
   const [replyTo, setReplyTo] = useState(null); // { id, name } of the comment being answered
   const inputRef = useRef(null);
   const [fx, setFx] = useState({ like: 0, save: 0, share: 0 }); // bumped to replay an effect
@@ -184,39 +185,49 @@ export default function PostCard({ post, signedIn, defaultOpen = false }) {
   }
 
   // Runs only after the person confirms in the pop-up.
+  // Hides the post or reply at once, then tells the server. If the server refuses, it comes back.
   async function confirmDelete() {
     if (!pendingDelete) return;
-    setBusy(true);
+    const target = pendingDelete;
     setError("");
-    if (pendingDelete.type === "post") {
-      const res = await deletePost(p.id);
-      if (res?.error) setError(res.error);
-      else {
-        showToast("Post deleted", "info");
-        setModal(false);
-        if (defaultOpen) router.push("/feed"); // on the post's own page there is nothing left to show
-        else router.refresh();
-      }
-    } else {
-      const id = pendingDelete.id;
-      const res = await deleteComment(id);
-      if (res?.error) setError(res.error);
-      else {
-        showToast("Reply deleted", "info");
-        // Replies under a deleted comment are removed with it on the server.
-        const gone = new Set([id]);
-        setComments((c) => {
-          const list = c ?? [];
-          let grew = true;
-          while (grew) { grew = false; for (const x of list) if (x.parentId && gone.has(x.parentId) && !gone.has(x.id)) { gone.add(x.id); grew = true; } }
-          return list.filter((x) => !gone.has(x.id));
-        });
-        setP((x) => ({ ...x, comments: Math.max(0, x.comments - 1) }));
-        setReplyTo((r) => (r && r.id === id ? null : r));
-      }
-    }
-    setBusy(false);
     setPendingDelete(null);
+
+    if (target.type === "post") {
+      setDeleted(true);
+      setModal(false);
+      onDeleted?.(p.id);
+      const res = await deletePost(p.id);
+      if (res?.error) {
+        setDeleted(false);
+        setError(res.error);
+        return;
+      }
+      showToast("Post deleted", "info");
+      if (defaultOpen) router.push("/feed"); // on the post's own page there is nothing left to show
+      return;
+    }
+
+    // Replies under a deleted comment are removed with it on the server.
+    const before = comments;
+    const gone = new Set([target.id]);
+    const list = comments ?? [];
+    for (let grew = true; grew; ) {
+      grew = false;
+      for (const x of list) if (x.parentId && gone.has(x.parentId) && !gone.has(x.id)) { gone.add(x.id); grew = true; }
+    }
+    const removed = list.filter((x) => gone.has(x.id)).length || 1;
+    setComments(list.filter((x) => !gone.has(x.id)));
+    setP((x) => ({ ...x, comments: Math.max(0, x.comments - removed) }));
+    setReplyTo((r) => (r && gone.has(r.id) ? null : r));
+
+    const res = await deleteComment(target.id);
+    if (res?.error) {
+      setComments(before);
+      setP((x) => ({ ...x, comments: x.comments + removed }));
+      setError(res.error);
+    } else {
+      showToast("Reply deleted", "info");
+    }
   }
 
   const act = "inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-surface-2";
@@ -267,6 +278,7 @@ export default function PostCard({ post, signedIn, defaultOpen = false }) {
           <p className="flex flex-wrap items-center text-xs">
             <b>{c.name || "Someone"}</b>
             {c.official ? <OfficialTick className="ml-1 h-3.5 w-3.5" /> : c.expert && <span className="ml-1.5 text-brand">Expert</span>}
+            {c.blueTick && <BlueTick className="ml-1 h-3.5 w-3.5 shrink-0" />}
             {isReply && c.replyToName && (
               <span className="ml-1.5 inline-flex items-center gap-1 text-muted">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4v6a4 4 0 0 0 4 4h12M16 9l5 5-5 5" /></svg>
@@ -417,6 +429,8 @@ export default function PostCard({ post, signedIn, defaultOpen = false }) {
       </>
     );
   };
+
+  if (deleted) return null;
 
   return (
     <>

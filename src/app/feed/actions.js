@@ -108,7 +108,7 @@ export async function loadComments(postId) {
       where: { postId: String(postId) },
       orderBy: { createdAt: "asc" },
       take: 100,
-      include: { user: { select: { name: true, avatarUrl: true, role: true } } },
+      include: { user: { select: { name: true, avatarUrl: true, role: true, expertProfile: { select: { blueTickUntil: true } } } } },
     }),
     getAdminUserIds(),
   ]);
@@ -121,6 +121,7 @@ export async function loadComments(postId) {
     name: c.user.name,
     avatarUrl: c.user.avatarUrl,
     expert: c.user.role === "EXPERT",
+    blueTick: !adminIds.includes(c.userId) && !!c.user.expertProfile?.blueTickUntil && c.user.expertProfile.blueTickUntil > new Date(),
     official: adminIds.includes(c.userId),
   }));
 }
@@ -155,6 +156,7 @@ export async function addComment(postId, text, parentId = null) {
   if ((await prisma.postComment.count({ where: { userId: me.id, createdAt: { gte: hourAgo } } })) >= 20) {
     return { error: "You're commenting very fast. Please wait a bit." };
   }
+  const [admin, profile] = await Promise.all([isAdmin(), prisma.expertProfile.findUnique({ where: { userId: me.id }, select: { blueTickUntil: true } })]);
   const c = await prisma.postComment.create({ data: { postId: post.id, userId: me.id, body, parentId: parent?.id ?? null } });
-  return { ok: true, comment: { id: c.id, body, parentId: parent?.id ?? null, replyToName: parent?.user.name ?? null, createdAt: c.createdAt.toISOString(), name: me.name, avatarUrl: me.avatarUrl, expert: me.role === "EXPERT", official: await isAdmin() } };
+  return { ok: true, comment: { id: c.id, body, parentId: parent?.id ?? null, replyToName: parent?.user.name ?? null, createdAt: c.createdAt.toISOString(), name: me.name, avatarUrl: me.avatarUrl, expert: me.role === "EXPERT", blueTick: !admin && !!profile?.blueTickUntil && profile.blueTickUntil > new Date(), official: admin } };
 }
