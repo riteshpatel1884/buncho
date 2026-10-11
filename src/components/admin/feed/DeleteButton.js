@@ -1,6 +1,6 @@
 "use client";
 import { useFormStatus } from "react-dom";
-import Spinner from "../Spinner";
+import Spinner from "../../Spinner";
 
 // Use inside a <form>. Asks for confirmation before the form is submitted.
 export default function DeleteButton({ message = "Delete this? This can't be undone.", label = "Delete" }) {
