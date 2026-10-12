@@ -17,7 +17,7 @@ export default function ClerkAuth({ mode }) {
 // import { SignIn, SignUp } from "@clerk/nextjs";
 // import { useTheme, CLERK_VARS } from "@/lib/useTheme";
 
-// // Reads ?redirect_url= and keeps it only if it points back to this site.
+// // Read ?redirect_url= and keeps it only if it points back to this site.
 // function readTarget() {
 //   try {
 //     const raw = new URLSearchParams(window.location.search).get("redirect_url");
