@@ -60,13 +60,24 @@ const DOTS = { backgroundImage: "radial-gradient(circle at 1px 1px, color-mix(in
 
 // The small seal next to a name: gold for the Buncho team, blue for a paid blue tick.
 function Seal({ admin, tick, className = "h-5 w-5" }) {
-  if (admin) return <OfficialTick className={`${className} shrink-0`} />;
-  return tick ? <BlueTick className={`${className} shrink-0`} /> : null;
+  if (!admin && !tick) return null;
+
+  // Keep the badge in a non-shrinking wrapper so it remains visible beside the
+  // name in both the desktop sidebar and the mobile profile card.
+  return (
+    <span className={`inline-flex shrink-0 items-center justify-center ${className}`} aria-label={admin ? "Official Buncho Team" : "Verified expert"}>
+      {admin
+        ? <OfficialTick className="block h-full w-full shrink-0" />
+        : <BlueTick className="block h-full w-full shrink-0" />}
+    </span>
+  );
 }
 
 // One profile design for every screen size: banner, avatar, View profile, name with tick, @username, role and counts.
-function ProfileHeader({ me, admin, tick, roleLine, profileHref, postCount, followerCount, followingCount, className = "" }) {
-  const label = me.role === "EXPERT" ? "View profile" : me.role ? "Edit profile" : "Finish setup";
+function ProfileHeader({ me, admin, tick, profileComplete, roleLine, profileHref, postCount, followerCount, followingCount, className = "" }) {
+  const label = admin
+    ? profileComplete ? "Edit profile" : "Finish setup"
+    : me.role === "EXPERT" ? "View profile" : me.role ? "Edit profile" : "Finish setup";
   return (
     <section className={`card overflow-hidden ${className}`}>
       <div className="h-24 bg-navy sm:h-32 lg:h-24" style={DOTS} aria-hidden="true" />
@@ -77,8 +88,8 @@ function ProfileHeader({ me, admin, tick, roleLine, profileHref, postCount, foll
           </Link>
           <Link href={profileHref} className="btn-outline !rounded-full !px-4 !py-1.5">{label}</Link>
         </div>
-        <h2 className="mt-2 flex items-center gap-1.5 font-display text-xl leading-tight">
-          <span className="min-w-0 truncate">{me.name || "Your profile"}</span>
+        <h2 className="mt-2 flex min-w-0 flex-nowrap items-center gap-1.5 font-display text-xl leading-tight">
+          <span className="min-w-0 flex-1 truncate">{me.name || "Your profile"}</span>
           <Seal admin={admin} tick={tick} className="h-5 w-5" />
         </h2>
         {me.username && <p className="text-sm text-muted">@{me.username}</p>}
@@ -212,7 +223,9 @@ export default async function FeedPage({ searchParams }) {
       ? prisma.expertProfile.findUnique({ where: { userId: me.id }, select: { slug: true, jobTitle: true, company: true, blueTickUntil: true } }).catch(() => null)
       : me?.role === "STUDENT"
         ? prisma.studentProfile.findUnique({ where: { userId: me.id }, select: { college: true, targetRole: true } }).catch(() => null)
-        : null,
+        : admin && me
+          ? prisma.adminProfile.findUnique({ where: { userId: me.id }, select: { headline: true, about: true, contactInfo: true } }).catch(() => null)
+          : null,
     me ? prisma.post.count({ where: { authorId: me.id, hidden: false } }).catch(() => 0) : 0,
     me ? prisma.follow.count({ where: { followingId: me.id } }).catch(() => 0) : 0,
     prisma.expertProfile
@@ -293,7 +306,13 @@ export default async function FeedPage({ searchParams }) {
   // Experts keep the tick on their expert profile, everyone else on the account.
   const tickUntil = me?.role === "EXPERT" ? profile?.blueTickUntil : me?.blueTickUntil;
   const tick = !admin && isBlueTick({ blueTickUntil: tickUntil });
-  const profileHref = profile?.slug ? `/experts/${profile.slug}` : me?.role ? "/dashboard/profile" : "/onboarding";
+  const profileHref = admin
+    ? "/onboarding/admin/profile"
+    : profile?.slug
+      ? `/experts/${profile.slug}`
+      : me?.role
+        ? "/dashboard/profile"
+        : "/onboarding";
 
   const topicChip = (active) =>
     `shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${active ? "border-brand bg-brand text-on-brand" : "border-line bg-surface text-muted hover:border-brand hover:text-ink"}`;
@@ -307,7 +326,7 @@ export default async function FeedPage({ searchParams }) {
       <aside className="hidden lg:block">
         <div className="sticky top-24 space-y-4">
           {me ? (
-            <ProfileHeader me={me} admin={admin} tick={tick} roleLine={roleLine} profileHref={profileHref} postCount={postCount} followerCount={followerCount} followingCount={followingCount} />
+            <ProfileHeader me={me} admin={admin} tick={tick} profileComplete={!!profile} roleLine={roleLine} profileHref={profileHref} postCount={postCount} followerCount={followerCount} followingCount={followingCount} />
           ) : (
             <JoinCard signInHref={`/sign-in?redirect_url=${encodeURIComponent(href())}`} />
           )}
@@ -332,7 +351,7 @@ export default async function FeedPage({ searchParams }) {
       {/* Center: compose, filter, read */}
       <div className="min-w-0 space-y-4">
         {me ? (
-          <ProfileHeader className="lg:hidden" me={me} admin={admin} tick={tick} roleLine={roleLine} profileHref={profileHref} postCount={postCount} followerCount={followerCount} followingCount={followingCount} />
+          <ProfileHeader className="lg:hidden" me={me} admin={admin} tick={tick} profileComplete={!!profile} roleLine={roleLine} profileHref={profileHref} postCount={postCount} followerCount={followerCount} followingCount={followingCount} />
         ) : (
           <JoinCard className="lg:hidden" signInHref={`/sign-in?redirect_url=${encodeURIComponent(href())}`} />
         )}
