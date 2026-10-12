@@ -52,7 +52,7 @@ function CancelForm({ id }) {
   );
 }
 
-// What happened to the student's money when a request was declined or cancelled.
+// What happened to the student's money when a request was declined or cancelled..
 function refundLine(b) {
   if (b.paymentStatus === "REFUNDED") return `Your payment of ${inr(b.priceInr)} has been refunded to your original payment method.`;
   if (b.paymentStatus === "REFUND_FAILED") return "We couldn't start your refund automatically. The Buncho team is fixing this and will email you.";
