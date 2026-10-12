@@ -62,7 +62,8 @@ export async function requireUser(returnTo = "/dashboard") {
 
 export async function requireRole(role, returnTo) {
   const user = await requireUser(returnTo);
-  if (!user.role) redirect("/onboarding");
+  // Admin doesn't have to register as a student or expert.
+  if (!user.role) redirect((await isAdmin()) ? "/admin" : "/onboarding");
   if (user.role !== role) redirect("/dashboard");
   return user;
 }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/user";
+import { requireUser, isAdmin } from "@/lib/user";
 import { dodo } from "@/lib/dodo";
 import { applyBookingPayment, HOLD_MINUTES } from "@/lib/bookingPayment";
 import { replyCycle, MAX_FOLLOW_UPS } from "@/lib/replyCycle";
@@ -431,7 +431,8 @@ async function ExpertView({ user, sp }) {
 export default async function Dashboard({ searchParams }) {
   const sp = await searchParams;
   const user = await requireUser("/dashboard");
-  if (!user.role) redirect("/onboarding");
+  // Admin doesn't have to register as a student or expert.
+  if (!user.role) redirect((await isAdmin()) ? "/admin" : "/onboarding");
 
   // Coming back from Dodo checkout: confirm the payment now, in case the webhook is late or can't reach this server.
   const paymentId = typeof sp.payment_id === "string" ? sp.payment_id : null;

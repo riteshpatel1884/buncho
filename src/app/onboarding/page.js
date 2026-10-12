@@ -32,9 +32,10 @@
 //     </div>
 //   );
 // }
+
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireUser } from "@/lib/user";
+import { requireUser, isAdmin } from "@/lib/user";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Welcome | buncho" };
@@ -42,6 +43,7 @@ export const metadata = { title: "Welcome | buncho" };
 export default async function OnboardingPage() {
   const user = await requireUser("/onboarding");
   if (user.role) redirect("/dashboard");
+  if (await isAdmin()) redirect("/admin"); // admin doesn't have to register
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
