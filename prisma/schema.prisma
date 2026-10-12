@@ -91,16 +91,23 @@ enum ProjectPaymentStatus {
 }
 
 model User {
-  id          String   @id @default(cuid())
-  clerkUserId String   @unique
-  email       String   @unique
-  name        String?
-  avatarUrl   String?
-  role        Role?
-  createdAt   DateTime @default(now())
+  id           String   @id @default(cuid())
+  clerkUserId  String   @unique
+  email        String   @unique
+  name         String?
+  avatarUrl    String?
+  role         Role?
+  createdAt    DateTime @default(now())
   username     String?  @unique
   reportsMade  Report[] @relation("ReportsMade")
   reportsAbout Report[] @relation("ReportsAbout")
+
+  // Blue tick (paid). Experts keep theirs on ExpertProfile, everyone else keeps it here.
+  blueTickUntil      DateTime?
+  dodoSubscriptionId String?   @unique
+  dodoCustomerId     String?
+  dodoStatus         String?   // ACTIVE | ON_HOLD | CANCELLING | CANCELLED | EXPIRED | ONE_TIME
+  blueTickPayments   BlueTickPayment[]
 
   studentProfile StudentProfile?
   expertProfile  ExpertProfile?
@@ -221,12 +228,12 @@ model Booking {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  cancelledBy     String?   // "EXPERT" or "STUDENT"
-  statusChangedAt DateTime?
-  resolvedAt      DateTime? // set when the admin has dealt with a refund case
-  followUpNote  String?
-  followUpAt    DateTime?
-  followUpCount Int       @default(0)
+  cancelledBy      String?   // "EXPERT" or "STUDENT"
+  statusChangedAt  DateTime?
+  resolvedAt       DateTime? // set when the admin has dealt with a refund case
+  followUpNote     String?
+  followUpAt       DateTime?
+  followUpCount    Int       @default(0)
   paidAt           DateTime?
   reviewStatus     String    @default("APPROVED") // PENDING_REVIEW | APPROVED | REJECTED
   noteFlags        String[]  @default([])
@@ -234,9 +241,9 @@ model Booking {
   payoutReleasedAt DateTime?
   payoutNote       String?
 
-  student User          @relation("StudentBookings", fields: [studentId], references: [id])
-  expert  ExpertProfile @relation(fields: [expertId], references: [id])
-  service Service       @relation(fields: [serviceId], references: [id])
+  student User           @relation("StudentBookings", fields: [studentId], references: [id])
+  expert  ExpertProfile  @relation(fields: [expertId], references: [id])
+  service Service        @relation(fields: [serviceId], references: [id])
   replies BookingReply[]
   reports Report[]
 
@@ -245,10 +252,16 @@ model Booking {
   @@index([paymentStatus, createdAt])
 }
 
+// One row per one-time blue tick payment, so the same payment is never counted twice.
+// Belongs to an expert (expertId) or to a normal user (userId).
 model BlueTickPayment {
   paymentId String   @id
-  expertId  String
+  expertId  String?
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model BookingReply {
@@ -329,14 +342,14 @@ model PostSave {
 }
 
 model PostComment {
-  id        String   @id @default(cuid())
+  id        String        @id @default(cuid())
   postId    String
   userId    String
   body      String
-  parentId  String?  // set when this is a reply to another comment
-  createdAt DateTime @default(now())
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentId  String?       // set when this is a reply to another comment
+  createdAt DateTime      @default(now())
+  post      Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   parent    PostComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies   PostComment[] @relation("CommentReplies")
 
@@ -381,33 +394,33 @@ model Project {
 }
 
 model ProjectProposal {
-  id               String               @id @default(cuid())
-  projectId        String
-  project          Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  expertId         String
-  expert           ExpertProfile        @relation(fields: [expertId], references: [id], onDelete: Cascade)
-  status           ProposalStatus       @default(ACTIVE)
+  id        String         @id @default(cuid())
+  projectId String
+  project   Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  expertId  String
+  expert    ExpertProfile  @relation(fields: [expertId], references: [id], onDelete: Cascade)
+  status    ProposalStatus @default(ACTIVE)
 
   // The agreed terms, copied from the accepted offer
-  agreedPriceInr   Int?
-  agreedScope      String?
-  agreedDays       Int?
-  agreedAt         DateTime?
+  agreedPriceInr Int?
+  agreedScope    String?
+  agreedDays     Int?
+  agreedAt       DateTime?
 
   // Payment
-  paymentStatus    ProjectPaymentStatus @default(UNPAID)
-  dodoPaymentId    String?              @unique
-  paidAt           DateTime?
-  feePct           Int?
-  feeInr           Int?
-  payoutInr        Int?
+  paymentStatus ProjectPaymentStatus @default(UNPAID)
+  dodoPaymentId String?              @unique
+  paidAt        DateTime?
+  feePct        Int?
+  feeInr        Int?
+  payoutInr     Int?
 
   completedAt      DateTime?
   payoutReleasedAt DateTime?
   payoutNote       String?
-  cancelledBy      String?              // EXPERT | STUDENT | ADMIN
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
+  cancelledBy      String?   // EXPERT | STUDENT | ADMIN
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   messages ProjectMessage[]
 
@@ -416,7 +429,8 @@ model ProjectProposal {
   @@index([paymentStatus, status])
 }
 
-// Every message, offer and delivery waits for an admin before the other person sees it.
+// Messages, offers and deliveries reach the other person straight away.
+// Admin review only applies when a message is held back (reviewStatus PENDING_REVIEW).
 model ProjectMessage {
   id           String              @id @default(cuid())
   proposalId   String

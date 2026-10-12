@@ -52,8 +52,8 @@ function Modal({ onClose, children }) {
   }, [onClose]);
 
   return createPortal(
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50 sm:items-center sm:p-4" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div role="dialog" aria-modal="true" aria-label="Post" className="page-in flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-2xl border border-line bg-surface shadow-2xl sm:max-w-2xl sm:rounded-2xl">
+    <div className="modal-backdrop fixed inset-0 z-[70] flex items-end justify-center bg-black/50 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div role="dialog" aria-modal="true" aria-label="Post" className="modal-panel flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-2xl border border-line bg-surface shadow-2xl sm:max-w-2xl sm:rounded-2xl">
         <div className="flex items-center justify-between border-b border-line px-5 py-3">
           <p className="font-display text-lg">Post</p>
           <button type="button" onClick={onClose} aria-label="Close" className="cursor-pointer rounded-lg p-1 text-muted hover:text-ink">
@@ -80,8 +80,8 @@ function ConfirmDialog({ title, text, confirmLabel, busy, onConfirm, onCancel })
   }, [onCancel]);
 
   return createPortal(
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4" onMouseDown={(e) => e.target === e.currentTarget && !busy && onCancel()}>
-      <div role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-text" className="page-in w-full max-w-sm rounded-2xl border border-line bg-surface p-5 shadow-2xl">
+    <div className="modal-backdrop fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4" onMouseDown={(e) => e.target === e.currentTarget && !busy && onCancel()}>
+      <div role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-text" className="modal-panel w-full max-w-sm rounded-2xl border border-line bg-surface p-5 shadow-2xl">
         <div className="flex items-start gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-danger-soft text-danger">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -103,6 +103,12 @@ function ConfirmDialog({ title, text, confirmLabel, busy, onConfirm, onCancel })
     </div>,
     document.body
   );
+}
+
+// The line under an author's name: "Role at Company" for experts, "Student" for normal users.
+function roleLine(author) {
+  if (author.jobTitle && author.company) return `${author.jobTitle} at ${author.company}`;
+  return author.role === "STUDENT" ? "Student" : "Expert";
 }
 
 export default function PostCard({ post, signedIn, defaultOpen = false, onDeleted }) {
@@ -230,7 +236,7 @@ export default function PostCard({ post, signedIn, defaultOpen = false, onDelete
     }
   }
 
-  const act = "inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-surface-2";
+  const act = "inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-[background-color,color,transform] hover:bg-surface-2 active:scale-95";
   // Like and save buttons. A plain function (not a component) so it is not remounted on every render.
   const renderBtn = ({ onClick, on, icon, label, count, fxKey }) =>
     signedIn ? (
@@ -274,7 +280,7 @@ export default function PostCard({ post, signedIn, defaultOpen = false, onDelete
     <li key={c.id} className={`flex gap-2.5 ${isReply ? "rise" : ""}`} style={isReply ? { "--i": 0 } : undefined}>
       {c.official ? <LogoMark size={isReply ? 26 : 30} /> : <Avatar name={c.name} src={c.avatarUrl} size={isReply ? 26 : 30} />}
       <div className="min-w-0 flex-1">
-        <div className="rounded-xl bg-surface-2 px-3 py-2">
+        <div className="rounded-2xl rounded-tl-md bg-surface-2 px-3.5 py-2">
           <p className="flex flex-wrap items-center text-xs">
             <b>{c.name || "Someone"}</b>
             {c.official ? <OfficialTick className="ml-1 h-3.5 w-3.5" /> : c.expert && <span className="ml-1.5 text-brand">Expert</span>}
@@ -325,25 +331,25 @@ export default function PostCard({ post, signedIn, defaultOpen = false, onDelete
               </>
             ) : (
               <>
-                <p className="truncate text-sm text-muted">{p.author.jobTitle} at {p.author.company} · {timeAgo(p.createdAt)}</p>
-                <p className="truncate text-xs text-muted">{p.author.college} · {p.author.followers} {p.author.followers === 1 ? "follower" : "followers"}</p>
+                <p className="truncate text-sm text-muted">{roleLine(p.author)} · {timeAgo(p.createdAt)}</p>
+                <p className="truncate text-xs text-muted">{p.author.college ? `${p.author.college} · ` : ""}{p.author.followers} {p.author.followers === 1 ? "follower" : "followers"}</p>
               </>
             )}
           </div>
           {!p.mine && !p.author.isAdmin && (
             signedIn ? (
-              <button type="button" onClick={follow} className={`shrink-0 cursor-pointer ${p.following ? "btn-outline" : "btn-primary"} !px-3.5 !py-1.5`}>
+              <button type="button" onClick={follow} className={`shrink-0 cursor-pointer ${p.following ? "btn-outline" : "btn-primary"} !rounded-full !px-4 !py-1.5`}>
                 {p.following ? "Following" : "Follow"}
               </button>
             ) : (
-              <Link href={signIn} className="btn-primary shrink-0 !px-3.5 !py-1.5">Follow</Link>
+              <Link href={signIn} className="btn-primary shrink-0 !rounded-full !px-4 !py-1.5">Follow</Link>
             )
           )}
         </header>
 
         <div className="mt-4">
-          {p.topic && <span className="chip">{TOPICS[p.topic] ?? p.topic}</span>}
-          <p className="mt-2.5 whitespace-pre-line break-words leading-relaxed">{long && !full ? preview : p.body}</p>
+          {p.topic && <span className="text-xs font-semibold text-brand">#{TOPICS[p.topic] ?? p.topic}</span>}
+          <p className="mt-1.5 whitespace-pre-line break-words text-[15px] leading-7">{long && !full ? preview : p.body}</p>
           {long && !full && (
             <button type="button" onClick={() => setModal(true)} className="mt-1 cursor-pointer text-sm font-medium text-brand hover:underline">
               Read more
@@ -352,7 +358,7 @@ export default function PostCard({ post, signedIn, defaultOpen = false, onDelete
         </div>
 
         {p.service && (
-          <Link href={`/book/${p.service.id}`} className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-line bg-surface-2 p-3 text-sm transition-colors hover:border-brand">
+          <Link href={`/book/${p.service.id}`} className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-brand/20 bg-brand-soft/60 p-3 text-sm transition-colors hover:border-brand">
             <span className="min-w-0">
               <span className="block text-xs text-muted">Want personal feedback?</span>
               <span className="block truncate font-semibold">{p.service.title}</span>
@@ -361,7 +367,7 @@ export default function PostCard({ post, signedIn, defaultOpen = false, onDelete
           </Link>
         )}
 
-        <footer className="mt-4 flex flex-wrap items-center gap-1 border-t border-line pt-3">
+        <footer className="mt-4 flex flex-wrap items-center gap-0.5 border-t border-line pt-2.5">
           {renderBtn({ onClick: like, on: p.liked, icon: "heart", label: "Like", count: p.likes, fxKey: fx.like })}
           {inModal ? (
             <span className={`${act} cursor-default text-brand`}><Icon name="chat" /><span>{p.comments}</span><span className="sr-only">Comments</span></span>
@@ -388,7 +394,7 @@ export default function PostCard({ post, signedIn, defaultOpen = false, onDelete
         {error && <p role="alert" className="mt-3 rounded-lg bg-danger-soft p-2.5 text-sm text-danger">{error}</p>}
 
         {showComments && (
-          <div className="mt-4 space-y-3 border-t border-line pt-4">
+          <div className="expand-in mt-4 space-y-3 border-t border-line pt-4">
             {comments === null ? (
               <p className="text-sm text-muted">Loading…</p>
             ) : comments.length === 0 ? (
@@ -417,7 +423,7 @@ export default function PostCard({ post, signedIn, defaultOpen = false, onDelete
                   </p>
                 )}
                 <div className="flex gap-2">
-                  <input ref={inputRef} value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={MAX_COMMENT} placeholder={replyTo ? `Reply to ${replyTo.name}` : "Add a comment"} className="input" />
+                  <input ref={inputRef} value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={MAX_COMMENT} placeholder={replyTo ? `Reply to ${replyTo.name}` : "Add a comment"} className="input !rounded-full !px-4" />
                   <button disabled={draft.trim().length < 2} className="btn-primary shrink-0">{replyTo ? "Reply" : "Post"}</button>
                 </div>
               </form>
@@ -434,7 +440,7 @@ export default function PostCard({ post, signedIn, defaultOpen = false, onDelete
 
   return (
     <>
-      <article className="card p-5">{content(false)}</article>
+      <article className="post-card card p-4 sm:p-5">{content(false)}</article>
       {modal && <Modal onClose={() => setModal(false)}>{content(true)}</Modal>}
       {pendingDelete && (
         <ConfirmDialog

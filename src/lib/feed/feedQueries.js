@@ -3,7 +3,8 @@ import { getAdminUserIds } from "@/lib/user";
 import { PAGE_SIZE, TOPICS } from "@/lib/feed/feed";
 
 // One page of posts, shaped for the client.
-// Shown: posts by live experts, plus posts by the admin (everyone "follows" the admin automatically).
+// Shown: posts by live experts, posts by normal users (students), and posts by the admin
+// (everyone "follows" the admin automatically).
 export async function getPosts({ viewerId = null, cursor = null, topic = "", college = "", tab = "for-you", postId = null, authorId = null } = {}) {
   const adminIds = await getAdminUserIds();
   const adminSet = new Set(adminIds);
@@ -12,12 +13,19 @@ export async function getPosts({ viewerId = null, cursor = null, topic = "", col
   const and = [];
 
   if (authorId) {
-    // An author's own list: show everything they posted, whatever their profile status.
+    // An author's own list ("My posts"): show everything they posted, whatever their profile status.
     where.authorId = authorId;
   } else {
     const profile = { status: "ACTIVE", ...(college ? { college: { contains: college, mode: "insensitive" } } : {}) };
+    const studentCollege = college ? { studentProfile: { college: { contains: college, mode: "insensitive" } } } : {};
     // The admin has no college, so admin posts are left out while a college filter is on.
-    and.push({ OR: [{ author: { expertProfile: profile } }, ...(college ? [] : [{ authorId: { in: adminIds } }])] });
+    and.push({
+      OR: [
+        { author: { expertProfile: profile } },
+        { author: { role: "STUDENT", ...studentCollege } },
+        ...(college ? [] : [{ authorId: { in: adminIds } }]),
+      ],
+    });
     if (viewerId && tab === "following") {
       // Everyone follows the admin without clicking anything.
       and.push({ OR: [{ author: { followers: { some: { followerId: viewerId } } } }, { authorId: { in: adminIds } }] });
@@ -36,8 +44,9 @@ export async function getPosts({ viewerId = null, cursor = null, topic = "", col
     include: {
       author: {
         select: {
-          id: true, name: true, avatarUrl: true, username: true,
+          id: true, name: true, avatarUrl: true, username: true, role: true, blueTickUntil: true,
           expertProfile: { select: { slug: true, jobTitle: true, company: true, college: true, educationVerified: true, employmentVerified: true, blueTickUntil: true } },
+          studentProfile: { select: { college: true } },
         },
       },
       service: { select: { id: true, title: true, priceInr: true, active: true } },
@@ -77,6 +86,8 @@ export async function getPosts({ viewerId = null, cursor = null, topic = "", col
   const posts = page.map((p) => {
     const e = p.author.expertProfile;
     const admin = adminSet.has(p.authorId);
+    // The tick is on the expert profile for experts, and on the account for everyone else.
+    const tickUntil = e ? e.blueTickUntil : p.author.blueTickUntil;
     return {
       id: p.id,
       body: p.body,
@@ -87,14 +98,15 @@ export async function getPosts({ viewerId = null, cursor = null, topic = "", col
         name: p.author.name,
         avatarUrl: p.author.avatarUrl,
         username: p.author.username,
+        role: p.author.role,
         isAdmin: admin,
         slug: admin ? null : e?.slug ?? null,
         jobTitle: admin ? null : e?.jobTitle ?? null,
         company: admin ? null : e?.company ?? null,
-        college: admin ? null : e?.college ?? null,
+        college: admin ? null : e?.college ?? p.author.studentProfile?.college ?? null,
         followers: counts.get(p.authorId) ?? 0,
         verified: admin ? false : !!(e?.educationVerified || e?.employmentVerified),
-        blueTick: admin ? false : !!e?.blueTickUntil && e.blueTickUntil > new Date(),
+        blueTick: admin ? false : !!tickUntil && tickUntil > new Date(),
       },
       service: p.service && p.service.active ? { id: p.service.id, title: p.service.title, priceInr: p.service.priceInr } : null,
       likes: p._count.likes,

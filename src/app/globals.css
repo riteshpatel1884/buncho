@@ -227,3 +227,29 @@ nav[data-compact="true"] .font-logo > span:first-child { width: 1.75rem; height:
   .burst-dot, .burst-ring, .confetti-bit, .toast-bar { display: none; }
   .check-path { stroke-dashoffset: 0; }
 }
+
+/* ---------- Feed polish: skeletons, entrances, hover ---------- */
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+.skeleton { position: relative; overflow: hidden; background: var(--surface-2); border-radius: 0.5rem; }
+.skeleton::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--surface) 75%, transparent), transparent);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes post-in { from { opacity: 0; transform: translateY(14px) scale(0.99); } to { opacity: 1; transform: none; } }
+.post-in { animation: post-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; animation-delay: calc(var(--i, 0) * 55ms); }
+
+@keyframes expand-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.expand-in { animation: expand-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+.post-card { transition: border-color 0.2s ease, box-shadow 0.25s ease; }
+@media (hover: hover) {
+  .post-card:hover {
+    border-color: color-mix(in srgb, var(--brand) 30%, var(--line));
+    box-shadow: 0 10px 30px color-mix(in srgb, var(--ink) 7%, transparent);
+  }
+}
+
+.fade-edge { mask-image: linear-gradient(to right, transparent, #000 16px, #000 calc(100% - 16px), transparent); }
+@media (prefers-reduced-motion: reduce) { .skeleton::after { display: none; } }

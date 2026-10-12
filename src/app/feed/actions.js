@@ -11,6 +11,7 @@ const SIGN_IN = { error: "Sign in to do that." };
 const NO_CONTACT = "Please remove phone numbers, emails, links and social handles. Everything stays on Buncho.";
 
 // Next page of the feed. Anyone can read it, signed in or not.
+// authorId is only honoured when it is the signed-in person's own id (the "My posts" tab).
 export async function loadPosts({ cursor, topic, college, tab, authorId }) {
   const me = await getDbUser();
   return getPosts({ viewerId: me?.id ?? null, cursor, topic, college, tab, authorId: me && authorId === me.id ? me.id : null });
@@ -20,24 +21,29 @@ export async function createPost(_prev, formData) {
   const me = await getDbUser();
   if (!me) return SIGN_IN;
 
-  // The admin can post without an expert profile, a service link or the daily limit.
+  // The admin can post without a profile, a service link or the daily limit.
+  // Experts need an approved profile. Normal users (students) can post once their account is set up.
   const admin = await isAdmin();
   let expert = null;
   if (!admin) {
-    if (me.role !== "EXPERT") return { error: "Only experts can post." };
-    expert = await prisma.expertProfile.findUnique({ where: { userId: me.id }, select: { id: true, status: true } });
-    if (!expert || expert.status !== "ACTIVE") return { error: "You can post once your profile is approved." };
+    if (me.role === "EXPERT") {
+      expert = await prisma.expertProfile.findUnique({ where: { userId: me.id }, select: { id: true, status: true } });
+      if (!expert || expert.status !== "ACTIVE") return { error: "You can post once your profile is approved." };
+    } else if (me.role !== "STUDENT") {
+      return { error: "Finish setting up your account to post." };
+    }
   }
 
   const body = get(formData, "body");
   const topic = get(formData, "topic");
   const serviceId = get(formData, "serviceId");
-  // Experts must choose a topic. The admin may post with a topic or without one.
+  // Everyone except the admin must choose a topic. The admin may post with a topic or without one.
   if (topic ? !Object.hasOwn(TOPICS, topic) : !admin) return { error: "Choose a topic." };
   if (body.length < 20) return { error: "Write at least 20 characters." };
   if (body.length > MAX_POST) return { error: `Keep it under ${MAX_POST} characters.` };
   if (!admin && findContactInfo(body).length) return { error: NO_CONTACT };
 
+  // Only experts can link one of their services.
   let linked = null;
   if (serviceId && expert) {
     linked = await prisma.service.findFirst({ where: { id: serviceId, expertId: expert.id, active: true }, select: { id: true } });
@@ -53,7 +59,32 @@ export async function createPost(_prev, formData) {
 
   await prisma.post.create({ data: { authorId: me.id, body, topic: topic || null, serviceId: linked?.id ?? null } });
   revalidatePath("/feed");
+  revalidatePath("/");
   return { ok: true };
+}
+
+// The author edits their own post (text and topic). Same rules as writing a new post.
+export async function updatePost(postId, text, topic) {
+  const me = await getDbUser();
+  if (!me) return SIGN_IN;
+
+  const post = await prisma.post.findUnique({ where: { id: String(postId) }, select: { id: true, authorId: true } });
+  if (!post) return { error: "Post not found." };
+  if (post.authorId !== me.id) return { error: "You can only edit your own posts." };
+
+  const admin = await isAdmin();
+  const body = String(text || "").trim();
+  const nextTopic = String(topic || "").trim();
+
+  if (nextTopic ? !Object.hasOwn(TOPICS, nextTopic) : !admin) return { error: "Choose a topic." };
+  if (body.length < 20) return { error: "Write at least 20 characters." };
+  if (body.length > MAX_POST) return { error: `Keep it under ${MAX_POST} characters.` };
+  if (!admin && findContactInfo(body).length) return { error: NO_CONTACT };
+
+  await prisma.post.update({ where: { id: post.id }, data: { body, topic: nextTopic || null } });
+  revalidatePath("/feed");
+  revalidatePath(`/feed/${post.id}`);
+  return { ok: true, body, topic: nextTopic || null };
 }
 
 export async function deletePost(postId) {
@@ -95,12 +126,15 @@ export async function toggleFollow(authorId) {
   if ((await getAdminUserIds()).includes(String(authorId))) return { ok: true, on: true };
   const key = { followerId_followingId: { followerId: me.id, followingId: String(authorId) } };
   const author = await prisma.user.findUnique({ where: { id: String(authorId) }, select: { id: true } });
-  if (!author) return { error: "Expert not found." };
+  if (!author) return { error: "Account not found." };
   const existing = await prisma.follow.findUnique({ where: key });
   if (existing) await prisma.follow.delete({ where: key });
   else await prisma.follow.create({ data: { followerId: me.id, followingId: author.id } });
   return { ok: true, on: !existing };
 }
+
+// The blue tick sits on the expert profile for experts, and on the account for everyone else.
+const tickActive = (until) => !!until && until > new Date();
 
 export async function loadComments(postId) {
   const [rows, adminIds] = await Promise.all([
@@ -108,7 +142,7 @@ export async function loadComments(postId) {
       where: { postId: String(postId) },
       orderBy: { createdAt: "asc" },
       take: 100,
-      include: { user: { select: { name: true, avatarUrl: true, role: true, expertProfile: { select: { blueTickUntil: true } } } } },
+      include: { user: { select: { name: true, avatarUrl: true, role: true, blueTickUntil: true, expertProfile: { select: { blueTickUntil: true } } } } },
     }),
     getAdminUserIds(),
   ]);
@@ -121,7 +155,7 @@ export async function loadComments(postId) {
     name: c.user.name,
     avatarUrl: c.user.avatarUrl,
     expert: c.user.role === "EXPERT",
-    blueTick: !adminIds.includes(c.userId) && !!c.user.expertProfile?.blueTickUntil && c.user.expertProfile.blueTickUntil > new Date(),
+    blueTick: !adminIds.includes(c.userId) && tickActive(c.user.expertProfile?.blueTickUntil ?? c.user.blueTickUntil),
     official: adminIds.includes(c.userId),
   }));
 }
@@ -158,5 +192,5 @@ export async function addComment(postId, text, parentId = null) {
   }
   const [admin, profile] = await Promise.all([isAdmin(), prisma.expertProfile.findUnique({ where: { userId: me.id }, select: { blueTickUntil: true } })]);
   const c = await prisma.postComment.create({ data: { postId: post.id, userId: me.id, body, parentId: parent?.id ?? null } });
-  return { ok: true, comment: { id: c.id, body, parentId: parent?.id ?? null, replyToName: parent?.user.name ?? null, createdAt: c.createdAt.toISOString(), name: me.name, avatarUrl: me.avatarUrl, expert: me.role === "EXPERT", blueTick: !admin && !!profile?.blueTickUntil && profile.blueTickUntil > new Date(), official: admin } };
+  return { ok: true, comment: { id: c.id, body, parentId: parent?.id ?? null, replyToName: parent?.user.name ?? null, createdAt: c.createdAt.toISOString(), name: me.name, avatarUrl: me.avatarUrl, expert: me.role === "EXPERT", blueTick: !admin && tickActive(profile?.blueTickUntil ?? me.blueTickUntil), official: admin } };
 }
