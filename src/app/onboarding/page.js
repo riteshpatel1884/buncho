@@ -32,27 +32,12 @@
 //     </div>
 //   );
 // }
-
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/user";
-import SubmitButton from "@/components/SubmitButton";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Welcome | buncho" };
-
-async function chooseRole(formData) {
-  "use server";
-  const user = await requireUser("/onboarding");
-  const role = formData.get("role");
-  if (role !== "STUDENT" && role !== "EXPERT") return;
-
-  // Only set the role once, so an existing user can't be switched by accident.
-  if (!user.role) {
-    await prisma.user.update({ where: { id: user.id }, data: { role } });
-  }
-  redirect(role === "EXPERT" ? "/onboarding/expert" : "/dashboard/profile");
-}
 
 export default async function OnboardingPage() {
   const user = await requireUser("/onboarding");
@@ -66,19 +51,17 @@ export default async function OnboardingPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <form action={chooseRole} className="card space-y-3 p-5">
-          <input type="hidden" name="role" value="STUDENT" />
+        <div className="card space-y-3 p-5">
           <h2 className="font-display text-xl">I'm a student</h2>
           <p className="text-sm text-muted">Find verified experts and get help with your resume, interviews and projects.</p>
-          <SubmitButton className="btn-primary" pendingText="Saving">Continue as student</SubmitButton>
-        </form>
+          <Link href="/onboarding/student" className="btn-primary inline-block">Continue as student</Link>
+        </div>
 
-        <form action={chooseRole} className="card space-y-3 p-5">
-          <input type="hidden" name="role" value="EXPERT" />
+        <div className="card space-y-3 p-5">
           <h2 className="font-display text-xl">I'm an expert</h2>
           <p className="text-sm text-muted">Share your experience, offer services and get booked by students.</p>
-          <SubmitButton className="btn-outline" pendingText="Saving">Continue as expert</SubmitButton>
-        </form>
+          <Link href="/onboarding/expert" className="btn-outline inline-block">Continue as expert</Link>
+        </div>
       </div>
     </div>
   );
