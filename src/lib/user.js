@@ -11,20 +11,46 @@ export async function getDbUser() {
 export async function getOrCreateUser() {
   const { userId } = await auth();
   if (!userId) return null;
+
   const existing = await prisma.user.findUnique({ where: { clerkUserId: userId } });
   if (existing) return existing;
 
   const cu = await currentUser();
-  return prisma.user.upsert({
-    where: { clerkUserId: userId },
-    update: {},
-    create: {
-      clerkUserId: userId,
-      email: cu?.emailAddresses?.[0]?.emailAddress ?? `${userId}@no-email.local`,
-      name: cu?.fullName ?? null,
-      avatarUrl: cu?.imageUrl ?? null,
-    },
-  });
+  const primary = cu?.primaryEmailAddress ?? cu?.emailAddresses?.[0];
+  const email = primary?.emailAddress ?? `${userId}@no-email.local`;
+  const verified = primary?.verification?.status === "verified";
+
+  // Same email already in the DB under an older Clerk ID: re-link it.
+  const byEmail = await prisma.user.findUnique({ where: { email } });
+  if (byEmail) {
+    if (!verified) throw new Error("Email is not verified, cannot link existing account.");
+    return prisma.user.update({
+      where: { id: byEmail.id },
+      data: {
+        clerkUserId: userId,
+        name: byEmail.name ?? cu?.fullName ?? null,
+        avatarUrl: cu?.imageUrl ?? byEmail.avatarUrl,
+      },
+    });
+  }
+
+  try {
+    return await prisma.user.create({
+      data: {
+        clerkUserId: userId,
+        email,
+        name: cu?.fullName ?? null,
+        avatarUrl: cu?.imageUrl ?? null,
+      },
+    });
+  } catch (e) {
+    // Two requests raced to create the same user: just read the winner.
+    if (e?.code === "P2002") {
+      const row = await prisma.user.findUnique({ where: { clerkUserId: userId } });
+      if (row) return row;
+    }
+    throw e;
+  }
 }
 
 // Pages call these instead of route-level path matching.
