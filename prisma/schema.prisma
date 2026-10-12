@@ -37,10 +37,10 @@ enum BookingStatus {
 
 enum PaymentStatus {
   FREE          // price is 0, nothing to pay
-  UNPAID        // waiting for the student to pay on Dodo
+  UNPAID        // waiting for the student to pay on Cashfree
   PAID
   REFUNDED
-  REFUND_FAILED // needs a manual refund from the Dodo dashboard
+  REFUND_FAILED // needs a manual refund from the Cashfree dashboard
 }
 
 // ---------- Projects (new) ----------
@@ -104,12 +104,9 @@ model User {
   isAdmin      Boolean       @default(false)
   adminProfile AdminProfile?
 
-  // Blue tick (paid). Experts keep theirs on ExpertProfile, everyone else keeps it here.
-  blueTickUntil      DateTime?
-  dodoSubscriptionId String?   @unique
-  dodoCustomerId     String?
-  dodoStatus         String?   // ACTIVE | ON_HOLD | CANCELLING | CANCELLED | EXPIRED | ONE_TIME
-  blueTickPayments   BlueTickPayment[]
+  // Blue tick (paid, 30 days per payment). Experts keep theirs on ExpertProfile, everyone else keeps it here.
+  blueTickUntil    DateTime?
+  blueTickPayments BlueTickPayment[]
 
   studentProfile StudentProfile?
   expertProfile  ExpertProfile?
@@ -165,11 +162,8 @@ model ExpertProfile {
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 
-  // Blue tick (paid)
-  blueTickUntil      DateTime?
-  dodoSubscriptionId String?   @unique
-  dodoCustomerId     String?
-  dodoStatus         String?   // ACTIVE | ON_HOLD | CANCELLING | CANCELLED | EXPIRED | ONE_TIME
+  // Blue tick (paid, 30 days per payment)
+  blueTickUntil DateTime?
 
   // Set when a verified expert changes details, so an admin re-checks them
   needsReview      Boolean  @default(false)
@@ -217,18 +211,18 @@ model Availability {
 }
 
 model Booking {
-  id            String        @id @default(cuid())
-  studentId     String
-  expertId      String
-  serviceId     String
-  status        BookingStatus @default(PENDING)
-  note          String?       // the student's question
-  meetingUrl    String?       // no longer used, meeting links are not allowed
-  priceInr      Int
-  paymentStatus PaymentStatus @default(FREE) // FREE default keeps old bookings valid
-  dodoPaymentId String?       @unique
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id              String        @id @default(cuid())
+  studentId       String
+  expertId        String
+  serviceId       String
+  status          BookingStatus @default(PENDING)
+  note            String?       // the student's question
+  meetingUrl      String?       // no longer used, meeting links are not allowed
+  priceInr        Int
+  paymentStatus   PaymentStatus @default(FREE) // FREE default keeps old bookings valid
+  cashfreeOrderId String?       @unique        // set when the payment succeeds, used for refunds
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   cancelledBy      String?   // "EXPERT" or "STUDENT"
   statusChangedAt  DateTime?
@@ -254,7 +248,8 @@ model Booking {
   @@index([paymentStatus, createdAt])
 }
 
-// One row per one-time blue tick payment, so the same payment is never counted twice.
+// One row per blue tick payment, so the same payment is never counted twice.
+// paymentId holds the Cashfree order id.
 // Belongs to an expert (expertId) or to a normal user (userId).
 model BlueTickPayment {
   paymentId String   @id
@@ -410,12 +405,12 @@ model ProjectProposal {
   agreedAt       DateTime?
 
   // Payment
-  paymentStatus ProjectPaymentStatus @default(UNPAID)
-  dodoPaymentId String?              @unique
-  paidAt        DateTime?
-  feePct        Int?
-  feeInr        Int?
-  payoutInr     Int?
+  paymentStatus   ProjectPaymentStatus @default(UNPAID)
+  cashfreeOrderId String?              @unique
+  paidAt          DateTime?
+  feePct          Int?
+  feeInr          Int?
+  payoutInr       Int?
 
   completedAt      DateTime?
   payoutReleasedAt DateTime?

@@ -88,7 +88,7 @@ export async function reopenProposal(formData) {
     ? { status: "IN_PROGRESS", completedAt: null, cancelledBy: null }
     : {
         status: "ACTIVE", cancelledBy: null, completedAt: null, paymentStatus: "UNPAID",
-        agreedPriceInr: null, agreedScope: null, agreedDays: null, agreedAt: null, dodoPaymentId: null, paidAt: null,
+        agreedPriceInr: null, agreedScope: null, agreedDays: null, agreedAt: null, cashfreeOrderId: null, paidAt: null,
       };
 
   const changed = await prisma.$transaction(async (tx) => {
@@ -137,9 +137,9 @@ export async function refundProject(formData) {
     where: { id, paymentStatus: { in: ["PAID", "REFUND_FAILED"] }, status: { in: ["IN_PROGRESS", "DELIVERED"] } },
     include: { project: { include: { student: { select: { email: true } } } }, expert: { select: { user: { select: { email: true } } } } },
   });
-  if (!p || !p.dodoPaymentId) return;
+  if (!p || !p.cashfreeOrderId) return;
 
-  await refundProposal({ id: p.id, paymentStatus: "PAID", dodoPaymentId: p.dodoPaymentId });
+  await refundProposal({ id: p.id, paymentStatus: "PAID", cashfreeOrderId: p.cashfreeOrderId });
   const after = await prisma.projectProposal.findUnique({ where: { id }, select: { paymentStatus: true } });
   if (after?.paymentStatus === "REFUNDED") {
     await prisma.$transaction([

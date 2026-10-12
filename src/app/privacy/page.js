@@ -15,7 +15,7 @@ const sections = [
     "We don't sell your personal data.",
   ]},
   { id: "share", title: "Who we share it with", body: [
-    ["The other person in a request. An expert sees the student's name, college, year, target role and the question they wrote. A student sees the expert's public profile and the replies sent to them.", "Buncho staff, who read requests, replies and profile details to review quality, safety and disputes. A copy of replies sent to students is also kept for our records.", "Service providers who help us run Buncho: sign-in and account services, payment processing (Dodo Payments), email delivery, and hosting and database services. They may only use your data to provide their service to us.", "Authorities, when required by law or to protect rights and safety."],
+    ["The other person in a request. An expert sees the student's name, college, year, target role and the question they wrote. A student sees the expert's public profile and the replies sent to them.", "Buncho staff, who read requests, replies and profile details to review quality, safety and disputes. A copy of replies sent to students is also kept for our records.", "Service providers who help us run Buncho: sign-in and account services, payment processing (Cashfree Payments), email delivery, and hosting and database services. They may only use your data to provide their service to us.", "Authorities, when required by law or to protect rights and safety."],
     "Expert profiles are public. Anything you put on your public profile can be seen by anyone, including search engines.",
   ]},
   { id: "cookies", title: "Cookies and local storage", body: [
@@ -23,7 +23,7 @@ const sections = [
     "You can clear or block cookies in your browser settings, but parts of Buncho may stop working.",
   ]},
   { id: "payments", title: "Payments", body: [
-    "Payments are handled by Dodo Payments under its own terms and privacy policy. We receive confirmation that a payment succeeded or was refunded, along with its amount and ID.",
+    "Payments are handled by Cashfree Payments under its own terms and privacy policy. We receive confirmation that a payment succeeded or was refunded, along with its amount and ID.",
   ]},
   { id: "retention", title: "How long we keep data", body: [
     "We keep your data while your account is active and for as long as needed to run the service, resolve disputes, prevent fraud and meet legal, tax and accounting duties. When data is no longer needed we delete it or make it anonymous.",

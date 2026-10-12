@@ -2,11 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/user";
-import { dodo } from "@/lib/dodo";
-import { applySubscription, applyPayment } from "@/lib/blueTick";
+import { getPaidOrder, parseOrderId } from "@/lib/cashfree";
+import { applyPayment, canBuyBlueTick, BLUE_TICK_PRICE_INR, BLUE_TICK_DAYS } from "@/lib/blueTick";
 import SubmitButton from "@/components/SubmitButton";
 import { BlueTick, isBlueTick } from "@/components/Badges";
-import { startBlueTick, cancelBlueTick } from "./actions";
+import { startBlueTick } from "./actions";
 import { IST } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
@@ -24,25 +24,24 @@ export default async function VerificationPage({ searchParams }) {
     isExpert
       ? prisma.expertProfile.findUnique({ where: { userId: user.id } })
       : prisma.user.findUnique({ where: { id: user.id } });
-  const ownKey = isExpert ? "expertId" : "userId";
 
   let holder = await load();
   if (!holder) redirect("/onboarding/expert");
-  const ownOpts = { [ownKey]: holder.id };
 
-  // 1) Return from checkout: verify the payment with Dodo and save it.
-  const paymentId = typeof sp.payment_id === "string" ? sp.payment_id : null;
-  if (paymentId) {
+  // Return from checkout: ask Cashfree if the order is paid and save it. Safe to run twice.
+  const orderId = typeof sp.order_id === "string" ? sp.order_id : null;
+  if (orderId) {
     try {
-      const payment = await dodo.payments.retrieve(paymentId);
-      const mine =
-        payment.metadata?.[ownKey] === holder.id ||
-        payment.customer?.email?.toLowerCase() === user.email.toLowerCase();
-      if (mine) {
-        const res = await applyPayment(payment, ownOpts);
-        console.log("[blue tick] payment sync", paymentId, res);
+      const parsed = parseOrderId(orderId);
+      const prefix = isExpert ? "be" : "bu";
+      if (parsed && parsed.prefix === prefix && parsed.id === holder.id) {
+        const paid = await getPaidOrder(orderId);
+        if (paid) {
+          const res = await applyPayment(paid, { holder: { type: isExpert ? "expert" : "user", id: holder.id } });
+          console.log("[blue tick] payment sync", orderId, res);
+        }
       } else {
-        console.error("[blue tick] payment does not belong to this account", paymentId);
+        console.error("[blue tick] order does not belong to this account", orderId);
       }
     } catch (e) {
       console.error("[blue tick] payment sync failed:", e?.message);
@@ -50,29 +49,11 @@ export default async function VerificationPage({ searchParams }) {
     holder = await load();
   }
 
-  // 2) Existing subscription: keep the status fresh.
-  const subId = (typeof sp.subscription_id === "string" && sp.subscription_id) || holder.dodoSubscriptionId;
-  if (subId) {
-    try {
-      const sub = await dodo.subscriptions.retrieve(subId);
-      const mine =
-        sub.metadata?.[ownKey] === holder.id ||
-        sub.subscription_id === holder.dodoSubscriptionId ||
-        sub.customer?.email?.toLowerCase() === user.email.toLowerCase();
-      if (mine) {
-        await applySubscription(sub, ownOpts);
-        holder = await load();
-      }
-    } catch (e) {
-      console.error("[blue tick] sync failed:", e?.message);
-    }
-  }
-
   const active = isBlueTick(holder);
+  const canBuy = canBuyBlueTick(holder.blueTickUntil);
   const until = holder.blueTickUntil
     ? new Intl.DateTimeFormat("en-IN", { timeZone: IST, day: "numeric", month: "short", year: "numeric" }).format(holder.blueTickUntil)
     : null;
-  const renewing = active && holder.dodoStatus === "ACTIVE";
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -83,7 +64,7 @@ export default async function VerificationPage({ searchParams }) {
           {isExpert
             ? "Show a blue tick next to your name on your profile, in search, and on your posts and comments."
             : "Show a blue tick next to your name on your posts and comments."}{" "}
-          ₹99 per month, cancel any time.
+          ₹{BLUE_TICK_PRICE_INR} for {BLUE_TICK_DAYS} days. Buy again whenever you want to keep it.
         </p>
       </div>
 
@@ -95,26 +76,24 @@ export default async function VerificationPage({ searchParams }) {
       {sp.error === "approval" && (
         <p role="alert" className="rounded-xl bg-warn-soft p-4 text-sm text-warn">The blue tick is available once your profile is approved and live.</p>
       )}
-      {holder.dodoStatus === "ON_HOLD" && (
-        <p role="alert" className="rounded-xl bg-danger-soft p-4 text-sm text-danger">Your last renewal payment failed. Update your payment method from the Dodo receipt email, or buy again below once it lapses.</p>
+      {sp.error === "checkout" && (
+        <p role="alert" className="rounded-xl bg-danger-soft p-4 text-sm text-danger">We couldn't open the payment page. Please try again.</p>
       )}
 
       <div className="card space-y-4 p-5 sm:p-8">
         {active ? (
           <>
             <p className="font-semibold">Your blue tick is active.</p>
-            <p className="text-sm text-muted">
-              {renewing ? `Renews on ${until}.` : `Stays until ${until}, then it will not renew.`}
-            </p>
-            {renewing && (
-              <form action={cancelBlueTick}>
-                <SubmitButton className="btn-outline" pendingText="Cancelling">Cancel renewal</SubmitButton>
+            <p className="text-sm text-muted">Stays until {until}. It does not renew by itself.</p>
+            {canBuy && (
+              <form action={startBlueTick}>
+                <SubmitButton className="btn-outline" pendingText="Opening checkout">Add {BLUE_TICK_DAYS} more days</SubmitButton>
               </form>
             )}
           </>
         ) : (
           <>
-            <p className="font-display text-3xl font-bold">₹99 <span className="text-base font-normal text-muted">per month</span></p>
+            <p className="font-display text-3xl font-bold">₹{BLUE_TICK_PRICE_INR} <span className="text-base font-normal text-muted">for {BLUE_TICK_DAYS} days</span></p>
             <form action={startBlueTick}>
               <SubmitButton className="btn-primary" pendingText="Opening checkout">Get the blue tick</SubmitButton>
             </form>

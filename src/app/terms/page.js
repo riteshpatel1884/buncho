@@ -27,13 +27,13 @@ const sections = [
     "You are responsible for the quality of your replies, for any taxes that apply to your earnings, and for having the right to share anything you send. You must not copy other people's work or share confidential information from your employer.",
   ]},
   { id: "payments", title: "Prices and payments", body: [
-    "Prices are in Indian rupees (INR) and set by experts. Payments are processed securely by our payment partner, Dodo Payments. Buncho does not see or store your card, UPI or bank details.",
+    "Prices are in Indian rupees (INR) and set by experts. Payments are processed securely by our payment partner, Cashfree Payments. Buncho does not see or store your card, UPI or bank details.",
     "A paid request is held for you for 20 minutes while your payment goes through. If payment is not completed, the request is not sent to the expert.",
     "Refunds and cancellations are covered in the Refund and Cancellation Policy, which is part of these Terms.",
   ]},
-  { id: "blue-tick", title: "Blue tick subscription for experts", body: [
-    "Experts can pay for a blue tick, shown next to their name on their profile and in search. The price shown at checkout (currently ₹99 per month) renews each month until you cancel.",
-    "You can cancel renewal from your dashboard at any time. The tick stays until the end of the period you already paid for. The blue tick is a paid feature and does not mean Buncho endorses the expert beyond the checks described above.",
+  { id: "blue-tick", title: "Blue tick", body: [
+    "Experts and students can pay for a blue tick, shown next to their name. The price shown at checkout (currently ₹99) keeps the tick active for 30 days. It does not renew automatically, and you can buy it again whenever you like.",
+    "The blue tick is a paid feature and does not mean Buncho endorses the expert beyond the checks described above.",
   ]},
   { id: "keep-on-buncho", title: "Keep everything on Buncho", body: [
     "Please don't share phone numbers, email addresses, links or social handles in requests or replies, and don't try to move the conversation or payment off Buncho. Buncho reads replies before they are sent and may reject replies that break this rule. Repeated attempts can lead to suspension. See the Community Guidelines.",

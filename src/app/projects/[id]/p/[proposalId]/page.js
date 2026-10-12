@@ -1,234 +1,245 @@
-import Link from "next/link";
-import { notFound } from "next/navigation";
+"use server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireUser, isAdmin } from "@/lib/user";
-import { inr, fmtDateTime } from "@/lib/constants";
-import { budgetLabel, days, feeSplit, THREAD_OPEN } from "@/lib/projects";
-import { dodo } from "@/lib/dodo";
-import { applyProjectPayment } from "@/lib/projectPayment";
-import { acceptOffer, cancelProposal, startProjectPayment, confirmCompletion } from "@/app/projects/actions";
-import SubmitButton from "@/components/SubmitButton";
-import DeleteButton from "@/components/admin/feed/DeleteButton";
-import ReportButton from "@/components/ReportButton";
-import { ProposalStatusBadge } from "@/components/projects/ProjectStatusBadge";
-import { ThreadComposer } from "@/components/projects/ThreadForms";
-import ChatPopup from "@/components/projects/ChatPopup";
+import { isAdmin } from "@/lib/user";
+import { refundBooking } from "@/lib/bookingPayment";
+import { findContactInfo } from "@/lib/contactCheck";
+import { REFUND_OPEN, REQUEST_OPEN, PAYOUT_DUE } from "@/lib/review";
+import { emailExpertReply, emailReplyRejected, emailNewRequest, emailRequestRejected, emailReportResolved } from "@/lib/email";
 
-export const dynamic = "force-dynamic";
-export const metadata = { title: "Conversation | buncho" };
+const refresh = () => {
+  revalidatePath("/admin");
+  revalidatePath("/experts");
+  revalidatePath("/dashboard");
+};
 
-const Warning = () => (
-  <div role="note" className="flex gap-2.5 rounded-xl bg-warn-soft p-3.5 text-xs font-medium leading-relaxed text-warn">
-    <span aria-hidden="true">⚠️</span>
-    <p>
-      Buncho monitors every conversation. Do not share phone numbers, emails, links, social handles or payment details.
-      If personal information is found, your account will be suspended.
-    </p>
-  </div>
-);
+// ---------- Experts ----------
+export async function setExpertStatus(formData) {
+  if (!(await isAdmin())) return;
+  const status = String(formData.get("status"));
+  if (!["PENDING", "ACTIVE", "SUSPENDED"].includes(status)) return;
+  // Approving counts as a review, so it also clears any "changed details" marks.
+  const data = status === "ACTIVE" ? { status, needsReview: false, unverifiedFields: [] } : { status };
+  await prisma.expertProfile.update({ where: { id: String(formData.get("id")) }, data });
+  refresh();
+}
 
-export default async function ThreadPage({ params, searchParams }) {
-  const { id, proposalId } = await params;
-  const sp = await searchParams;
-  const user = await requireUser(`/projects/${id}/p/${proposalId}`);
-  const admin = await isAdmin();
+// Admin has checked the changed details. Clears the "Not verified" marks and the review flag.
+export async function markReviewed(formData) {
+  if (!(await isAdmin())) return;
+  await prisma.expertProfile.update({
+    where: { id: String(formData.get("id")) },
+    data: { needsReview: false, unverifiedFields: [] },
+  });
+  refresh();
+}
 
-  // Back from checkout: confirm the payment with Dodo and save it. This works even when the
-  // webhook can't reach the server (for example on localhost). It is safe to run twice.
-  const paymentId = typeof sp.payment_id === "string" ? sp.payment_id : null;
-  if (paymentId) {
-    try {
-      const payment = await dodo.payments.retrieve(paymentId);
-      if (payment.metadata?.proposalId === proposalId) {
-        const res = await applyProjectPayment(payment);
-        console.log("[project payment] return sync", paymentId, res);
-      } else {
-        console.error("[project payment] payment does not belong to this proposal", paymentId);
-      }
-    } catch (e) {
-      console.error("[project payment] return sync failed:", e?.message);
-    }
-  }
+// field is "educationVerified" or "employmentVerified". Verification means Buncho actually checked the claim.
+export async function toggleVerification(formData) {
+  if (!(await isAdmin())) return;
+  const field = String(formData.get("field"));
+  if (!["educationVerified", "employmentVerified"].includes(field)) return;
+  const id = String(formData.get("id"));
+  const expert = await prisma.expertProfile.findUnique({ where: { id }, select: { [field]: true } });
+  if (!expert) return;
+  await prisma.expertProfile.update({ where: { id }, data: { [field]: !expert[field] } });
+  refresh();
+}
 
-  const proposal = await prisma.projectProposal.findFirst({
-    where: { id: proposalId, projectId: id },
+// Sends the (optionally edited) reply to the student, as the expert.
+// The request stays open: the student decides whether it solved their question.
+export async function approveReply(formData) {
+  if (!(await isAdmin())) return;
+  const id = String(formData.get("id") || "");
+  const body = String(formData.get("body") || "").trim().slice(0, 4000);
+  if (!id || !body) return;
+
+  // Claim it first so a double click can't send the email twice.
+  const claimed = await prisma.bookingReply.updateMany({
+    where: { id, status: { in: ["PENDING", "SEND_FAILED"] } },
+    data: { status: "SENDING" },
+  });
+  if (claimed.count === 0) return;
+
+  const reply = await prisma.bookingReply.findUnique({
+    where: { id },
     include: {
-      project: { include: { student: { select: { name: true, username: true } } } },
-      expert: { select: { userId: true, user: { select: { name: true, username: true } } } },
-      messages: { orderBy: { createdAt: "asc" } },
+      booking: {
+        include: {
+          student: { select: { name: true, email: true } },
+          service: { select: { title: true } },
+          expert: { select: { slug: true, user: { select: { name: true } } } },
+        },
+      },
     },
   });
-  if (!proposal) notFound();
 
-  const { project, expert } = proposal;
-  const isExpert = expert.userId === user.id;
-  const isStudent = project.studentId === user.id;
-  if (!isExpert && !isStudent && !admin) notFound();
+  // The request was cancelled while the reply was waiting: nothing to send.
+  if (reply.booking.status !== "CONFIRMED") {
+    await prisma.bookingReply.update({
+      where: { id },
+      data: { status: "REJECTED", adminNote: "This request was closed before the reply was sent.", reviewedAt: new Date() },
+    });
+    refresh();
+    return;
+  }
 
-  // Messages reach the other person as soon as they are sent. The student sees the thread
-  // once the expert has sent the first message.
-  const expertHasWritten = proposal.messages.some((m) => m.authorId === expert.userId);
-  if (isStudent && !expertHasWritten) notFound();
-  const messages = proposal.messages;
-  const latestOffer = [...messages].reverse().find((m) => m.kind === "OFFER") ?? null;
+  const ok = await emailExpertReply({
+    to: reply.booking.student.email,
+    expert: { name: reply.booking.expert.user.name, slug: reply.booking.expert.slug },
+    title: reply.booking.service.title,
+    body,
+  });
 
-  const party = isStudent || isExpert;
-  const status = proposal.status;
-  const canAccept = party && status === "ACTIVE" && project.status === "OPEN" && latestOffer && latestOffer.authorId !== user.id;
-  const canPay = isStudent && status === "AGREED" && proposal.paymentStatus === "UNPAID";
-  const canCancel = party && ["ACTIVE", "AGREED"].includes(status) && proposal.paymentStatus === "UNPAID";
-  const canComplete = isStudent && status === "DELIVERED";
-  const canOffer = status === "ACTIVE" && project.status === "OPEN";
-  const canDeliver = isExpert && ["IN_PROGRESS", "DELIVERED"].includes(status);
-  const canMessage = party && THREAD_OPEN.includes(status);
+  await prisma.bookingReply.update({
+    where: { id },
+    data: ok
+      ? { status: "SENT", body, sentAt: new Date(), reviewedAt: new Date() }
+      : { status: "SEND_FAILED", body },
+  });
+  refresh();
+}
 
-  const studentPerson = { name: project.student.name, username: project.student.username };
-  const expertPerson = { name: expert.user.name, username: expert.user.username };
-  const otherPerson = isStudent ? expertPerson : studentPerson;
-  const authorOf = (m) => (m.authorId === expert.userId ? expertPerson : studentPerson);
-  const handle = (p) => (p.username ? `@${p.username}` : "");
-  const lastMessage = messages[messages.length - 1] ?? null;
+export async function rejectReply(formData) {
+  if (!(await isAdmin())) return;
+  const id = String(formData.get("id") || "");
+  const note = String(formData.get("note") || "").trim().slice(0, 300) || "Please remove contact details and send it again.";
 
-  const payout = proposal.agreedPriceInr ? (proposal.payoutInr ?? feeSplit(proposal.agreedPriceInr).payoutInr) : null;
+  const reply = await prisma.bookingReply.findFirst({
+    where: { id, status: { in: ["PENDING", "SEND_FAILED"] } },
+    include: {
+      booking: {
+        include: {
+          service: { select: { title: true } },
+          expert: { select: { user: { select: { email: true } } } },
+        },
+      },
+    },
+  });
+  if (!reply) return;
 
-  return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <Link href={`/projects/${project.id}`} className="text-sm font-medium text-muted hover:text-ink">Back to project</Link>
+  await prisma.bookingReply.update({
+    where: { id },
+    data: { status: "REJECTED", adminNote: note, reviewedAt: new Date() },
+  });
+  await emailReplyRejected({ to: reply.booking.expert.user.email, title: reply.booking.service.title, note });
+  refresh();
+}
 
-      {sp.paid && status !== "IN_PROGRESS" && <p role="status" className="rounded-xl bg-brand-soft p-4 text-sm font-medium text-brand">Payment received. It can take a minute to show here. Refresh if it hasn't.</p>}
-      {sp.error === "checkout" && <p role="alert" className="rounded-xl bg-danger-soft p-4 text-sm text-danger">We couldn't open the payment page. Please try again.</p>}
+// ---------- Refunds ----------
+// Refund a cancelled or declined booking (also retries a failed refund).
+export async function refundNow(formData) {
+  if (!(await isAdmin())) return;
+  const id = String(formData.get("id") || "");
+  const booking = await prisma.booking.findFirst({ where: { id, ...REFUND_OPEN }, select: { id: true, cashfreeOrderId: true } });
+  if (!booking || !booking.cashfreeOrderId) return;
 
-      <header className="card space-y-3 p-5 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="font-display text-2xl">{project.title}</h1>
-            <p className="text-sm text-muted">
-              Student: {project.student.name || "A student"} {handle(studentPerson)} · Expert: {expert.user.name} {handle(expertPerson)} · Budget {budgetLabel(project)}
-            </p>
-          </div>
-          <ProposalStatusBadge status={status} />
-        </div>
+  await refundBooking({ id: booking.id, paymentStatus: "PAID", cashfreeOrderId: booking.cashfreeOrderId });
 
-        {proposal.agreedPriceInr && (
-          <div className="rounded-xl bg-surface-2 p-4">
-            <p className="text-xs text-muted">Agreed terms</p>
-            <p className="font-display text-3xl">{inr(proposal.agreedPriceInr)} <span className="text-base font-normal text-muted">in {days(proposal.agreedDays)}</span></p>
-            <p className="mt-2 whitespace-pre-line break-words text-sm">{proposal.agreedScope}</p>
-            {isExpert && <p className="mt-2 text-xs text-muted">You receive {inr(payout)} after Buncho's fee. Changing the price needs a new offer that both of you accept.</p>}
-          </div>
-        )}
+  const after = await prisma.booking.findUnique({ where: { id }, select: { paymentStatus: true } });
+  if (after?.paymentStatus === "REFUNDED") {
+    await prisma.booking.update({ where: { id }, data: { resolvedAt: new Date() } });
+  }
+  refresh();
+}
 
-        {canPay && (
-          <form action={startProjectPayment} className="space-y-2 border-t border-line pt-4">
-            <input type="hidden" name="proposalId" value={proposal.id} />
-            <SubmitButton className="btn-primary" pendingText="Opening payment">Pay {inr(proposal.agreedPriceInr)}</SubmitButton>
-            <p className="text-xs text-muted">You pay securely on the next page. Buncho releases the money to the expert only after you confirm the work is done.</p>
-          </form>
-        )}
-        {status === "AGREED" && isExpert && <p className="border-t border-line pt-4 text-sm text-muted">Waiting for the student to pay. You'll get an email when you can start.</p>}
-        {status === "IN_PROGRESS" && isStudent && <p className="border-t border-line pt-4 text-sm text-muted">Paid. {expert.user.name} is working on it. You'll be told when they deliver.</p>}
-        {canComplete && (
-          <form action={confirmCompletion} className="space-y-2 border-t border-line pt-4">
-            <input type="hidden" name="proposalId" value={proposal.id} />
-            <SubmitButton className="btn-primary" pendingText="Confirming">Confirm the work is done</SubmitButton>
-            <p className="text-xs text-muted">Not what you asked for? Write to the expert in the chat before you confirm.</p>
-          </form>
-        )}
-        {proposal.paymentStatus !== "UNPAID" && (
-          <p className="border-t border-line pt-4 text-xs text-muted">
-            Payment: {proposal.paymentStatus === "PAID" ? "received" : proposal.paymentStatus === "REFUNDED" ? "refunded" : "refund pending, Buncho will complete it"}.
-            {" "}Problem with this project? <ReportButton kind="problem" label="Report it" className="font-medium text-brand underline" />
-          </p>
-        )}
-      </header>
+// Decide not to refund. The case leaves the Inbox and the student sees that the payment was kept.
+export async function keepPayment(formData) {
+  if (!(await isAdmin())) return;
+  const id = String(formData.get("id") || "");
+  await prisma.booking.updateMany({ where: { id, ...REFUND_OPEN }, data: { resolvedAt: new Date() } });
+  refresh();
+}
 
-      {/* Chat card: opens the conversation in a pop-up */}
-      <section className="card flex flex-wrap items-center justify-between gap-4 p-5">
-        <div className="min-w-0 flex-1">
-          <h2 className="font-display text-xl">
-            Chat with {otherPerson.name || "the other person"} <span className="text-base font-normal text-muted">{handle(otherPerson)}</span>
-          </h2>
-          <p className="mt-1 truncate text-sm text-muted">
-            {lastMessage ? `${lastMessage.authorId === user.id ? "You" : authorOf(lastMessage).name || "Someone"}: ${lastMessage.body}` : "No messages yet."}
-          </p>
-        </div>
 
-        <ChatPopup
-          label="Open chat"
-          count={messages.length}
-          header={
-            <div className="space-y-1 text-sm">
-              <p className="font-display text-lg">{project.title}</p>
-              <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span><b>{studentPerson.name || "Student"}</b> <span className="text-muted">{handle(studentPerson)}</span> <span className="chip ml-1">Student</span></span>
-                <span><b>{expertPerson.name || "Expert"}</b> <span className="text-muted">{handle(expertPerson)}</span> <span className="chip ml-1">Expert</span></span>
-              </p>
-            </div>
-          }
-          footer={
-            <>
-              {canMessage && (
-                <ThreadComposer
-                  proposalId={proposal.id}
-                  canOffer={canOffer}
-                  canDeliver={canDeliver}
-                  defaultPrice={latestOffer?.priceInr}
-                  defaultDays={latestOffer?.deliveryDays}
-                />
-              )}
-              <Warning />
-            </>
-          }
-        >
-          {/* flex-col-reverse keeps the view pinned to the newest message, like WhatsApp */}
-          <ul className="flex min-h-0 flex-1 flex-col-reverse gap-2 overflow-y-auto bg-surface-2 p-4">
-            {messages.length === 0 && <li className="m-auto text-sm text-muted">No messages yet.</li>}
-            {[...messages].reverse().map((m) => {
-              const mine = m.authorId === user.id;
-              const a = authorOf(m);
-              return (
-                <li key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm shadow-sm sm:max-w-[75%] ${
-                      mine ? "rounded-br-sm bg-brand text-on-brand" : "rounded-bl-sm border border-line bg-surface"
-                    }`}
-                  >
-                    <p className={`text-xs font-semibold ${mine ? "opacity-90" : "text-brand"}`}>
-                      {mine ? "You" : a.name || "Someone"}
-                      {a.username && <span className="ml-1 font-normal opacity-75">@{a.username}</span>}
-                    </p>
+// ---------- Student requests ----------
+// The (optionally edited) request is shown to the expert and they are emailed.
+export async function approveRequest(formData) {
+  if (!(await isAdmin())) return;
+  const id = String(formData.get("id") || "");
+  const note = String(formData.get("note") || "").trim().slice(0, 1000);
+  if (!id || note.length < 10) return;
 
-                    {m.kind === "DELIVERY" && <p className="mt-1 text-xs font-semibold uppercase tracking-wide opacity-80">Delivery</p>}
-                    {m.kind === "OFFER" && (
-                      <p className="mt-1 font-display text-xl">
-                        {inr(m.priceInr)} <span className="text-xs font-normal opacity-80">in {days(m.deliveryDays)}</span>
-                      </p>
-                    )}
+  const done = await prisma.booking.updateMany({
+    where: { id, ...REQUEST_OPEN },
+    data: { reviewStatus: "APPROVED", note, noteFlags: findContactInfo(note) },
+  });
+  if (done.count === 0) return;
 
-                    <p className="mt-1 whitespace-pre-line break-words leading-relaxed">{m.body}</p>
-                    <p className="mt-1 text-right text-[11px] opacity-70">{fmtDateTime(m.createdAt)}</p>
+  const b = await prisma.booking.findUnique({
+    where: { id },
+    include: {
+      student: { select: { name: true } },
+      service: { select: { title: true } },
+      expert: { select: { user: { select: { email: true } } } },
+    },
+  });
+  await emailNewRequest({ to: b.expert.user.email, studentName: b.student.name, title: b.service.title, note: b.note });
+  refresh();
+}
 
-                    {canAccept && m.id === latestOffer.id && (
-                      <form action={acceptOffer} className="mt-2 border-t border-line pt-2">
-                        <input type="hidden" name="proposalId" value={proposal.id} />
-                        <input type="hidden" name="messageId" value={m.id} />
-                        <SubmitButton className="btn-primary !py-1.5" pendingText="Accepting">Accept {inr(m.priceInr)}</SubmitButton>
-                      </form>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </ChatPopup>
-      </section>
+// The request is never shown to the expert. A paid request is refunded in full.
+export async function rejectRequest(formData) {
+  if (!(await isAdmin())) return;
+  const id = String(formData.get("id") || "");
+  const note =
+    String(formData.get("note") || "").trim().slice(0, 300) ||
+    "Please remove phone numbers, emails, links and social handles, then send it again.";
 
-      {canCancel && (
-        <form action={cancelProposal} className="flex justify-end">
-          <input type="hidden" name="proposalId" value={proposal.id} />
-          <DeleteButton label={status === "AGREED" ? "Cancel agreement" : isExpert ? "Withdraw" : "Decline"} message={status === "AGREED" ? "Cancel this agreement? Nothing has been charged." : "End this conversation?"} />
-        </form>
-      )}
-    </div>
-  );
+  const b = await prisma.booking.findFirst({
+    where: { id, ...REQUEST_OPEN },
+    include: { student: { select: { email: true } }, service: { select: { title: true } } },
+  });
+  if (!b) return;
+
+  const done = await prisma.booking.updateMany({
+    where: { id, ...REQUEST_OPEN },
+    data: { status: "CANCELLED", reviewStatus: "REJECTED", reviewNote: note, cancelledBy: "ADMIN", statusChangedAt: new Date() },
+  });
+  if (done.count === 0) return;
+
+  await refundBooking(b); // does nothing unless the booking was paid
+  await emailRequestRejected({ to: b.student.email, title: b.service.title, note, refunded: b.paymentStatus === "PAID" });
+  refresh();
+}
+
+// ---------- Payouts ----------
+// Record that you paid the expert for a completed session.
+export async function releasePayout(formData) {
+  if (!(await isAdmin())) return;
+  const id = String(formData.get("id") || "");
+  const note = String(formData.get("note") || "").trim().slice(0, 200) || null;
+  await prisma.booking.updateMany({
+    where: { id, ...PAYOUT_DUE },
+    data: { payoutReleasedAt: new Date(), payoutNote: note },
+  });
+  refresh();
+}
+
+// Marks a report as handled and lets the reporter know.
+export async function resolveReport(formData) {
+  if (!(await isAdmin())) return;
+  const id = String(formData.get("id") || "");
+  const note = String(formData.get("note") || "").trim().slice(0, 500) || null;
+  if (!id) return;
+
+  const r = await prisma.report.findFirst({
+    where: { id, status: "OPEN" },
+    include: { reporter: { select: { email: true } } },
+  });
+  if (!r) return;
+
+  const done = await prisma.report.updateMany({
+    where: { id, status: "OPEN" },
+    data: { status: "RESOLVED", adminNote: note, resolvedAt: new Date() },
+  });
+  if (done.count === 0) return;
+
+  // The report is already closed. A problem with the email must never break the page.
+  try {
+    await emailReportResolved({ to: r.reporter.email, note });
+  } catch (e) {
+    console.error("[report] resolved email failed:", e?.message);
+  }
+  refresh();
 }

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser, isAdmin } from "@/lib/user";
-import { dodo } from "@/lib/dodo";
+import { getPaidOrder } from "@/lib/cashfree";
 import { applyBookingPayment, HOLD_MINUTES } from "@/lib/bookingPayment";
 import { replyCycle, MAX_FOLLOW_UPS } from "@/lib/replyCycle";
 import Avatar from "@/components/Avatar";
@@ -434,13 +434,15 @@ export default async function Dashboard({ searchParams }) {
   // Admin doesn't have to register as a student or expert.
   if (!user.role) redirect((await isAdmin()) ? "/admin" : "/onboarding");
 
-  // Coming back from Dodo checkout: confirm the payment now, in case the webhook is late or can't reach this server.
-  const paymentId = typeof sp.payment_id === "string" ? sp.payment_id : null;
-  if (paymentId && user.role === "STUDENT") {
+  // Coming back from Cashfree checkout: confirm the payment now, in case the webhook is late or can't reach this server.
+  const orderId = typeof sp.order_id === "string" ? sp.order_id : null;
+  if (orderId && user.role === "STUDENT") {
     try {
-      const payment = await dodo.payments.retrieve(paymentId);
-      const res = await applyBookingPayment(payment, { studentId: user.id });
-      console.log("[booking] payment sync", paymentId, res);
+      const paid = await getPaidOrder(orderId);
+      if (paid) {
+        const res = await applyBookingPayment(paid, { studentId: user.id });
+        console.log("[booking] payment sync", orderId, res);
+      }
     } catch (e) {
       console.error("[booking] payment sync failed:", e?.message);
     }

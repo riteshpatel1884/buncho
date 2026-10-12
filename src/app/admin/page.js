@@ -58,7 +58,7 @@ function whoEnded(b) {
 const reportInclude = {
   reporter: { select: { name: true, username: true, email: true, role: true } },
   target: { select: { name: true, username: true, email: true, role: true, expertProfile: { select: { slug: true } } } },
-  booking: { select: { id: true, status: true, paymentStatus: true, priceInr: true, dodoPaymentId: true, service: { select: { title: true } } } },
+  booking: { select: { id: true, status: true, paymentStatus: true, priceInr: true, cashfreeOrderId: true, service: { select: { title: true } } } },
 };
 
 const catLabel = (r) => (r.kind === "PERSON" ? PERSON_CATEGORIES : PROBLEM_CATEGORIES)[r.category] ?? r.category;
@@ -166,7 +166,7 @@ export default async function Admin({ searchParams }) {
           where: {
             paymentStatus: { in: pay ? [pay] : PAY_STATES },
             ...(q
-              ? { OR: [text("dodoPaymentId"), { id: q }, { student: text("email") }, { student: text("name") }, { expert: { user: text("name") } }, { service: text("title") }] }
+              ? { OR: [text("cashfreeOrderId"), { id: q }, { student: text("email") }, { student: text("name") }, { expert: { user: text("name") } }, { service: text("title") }] }
               : {}),
           },
           orderBy: { createdAt: "desc" },
@@ -340,7 +340,7 @@ export default async function Admin({ searchParams }) {
                       <p className="rounded-xl bg-warn-soft p-3 text-sm text-warn">The student cancelled after the expert accepted. Decide whether to refund.</p>
                     )}
                     {b.paymentStatus === "REFUND_FAILED" && (
-                      <p className="rounded-xl bg-danger-soft p-3 text-sm text-danger">The automatic refund failed. Try again, or refund it from the Dodo dashboard and press Keep payment to close this.</p>
+                      <p className="rounded-xl bg-danger-soft p-3 text-sm text-danger">The automatic refund failed. Try again, or refund it from the Cashfree dashboard and press Keep payment to close this.</p>
                     )}
                     <div className="flex flex-wrap gap-2">
                       <form action={refundNow}>
@@ -401,7 +401,7 @@ export default async function Admin({ searchParams }) {
                         <p className="text-sm">Expert: {b.expert.user.name} <span className="text-muted">({b.expert.user.email})</span></p>
                         <p className="text-sm">Student: {b.student.name || "Student"} <span className="text-muted">({b.student.email})</span></p>
                         <p className="mt-1 text-xs text-muted">
-                          Completed {b.statusChangedAt ? `${fmtDateTime(b.statusChangedAt)} IST` : ""}. Payment ID: <code className="break-all text-ink">{b.dodoPaymentId ?? "none"}</code>
+                          Completed {b.statusChangedAt ? `${fmtDateTime(b.statusChangedAt)} IST` : ""}. Order ID: <code className="break-all text-ink">{b.cashfreeOrderId ?? "none"}</code>
                         </p>
                       </div>
                       <p className="font-display text-3xl">{inr(b.priceInr)}</p>
@@ -481,7 +481,7 @@ export default async function Admin({ searchParams }) {
 
                     {r.booking && (
                       <p className="text-xs text-muted">
-                        Linked request: {r.booking.service.title}, {inr(r.booking.priceInr)}, request {r.booking.status.toLowerCase()}, payment {(PAY_LABEL[r.booking.paymentStatus] ?? r.booking.paymentStatus).toLowerCase()}. Payment ID: <code className="break-all text-ink">{r.booking.dodoPaymentId ?? "none"}</code>
+                        Linked request: {r.booking.service.title}, {inr(r.booking.priceInr)}, request {r.booking.status.toLowerCase()}, payment {(PAY_LABEL[r.booking.paymentStatus] ?? r.booking.paymentStatus).toLowerCase()}. Order ID: <code className="break-all text-ink">{r.booking.cashfreeOrderId ?? "none"}</code>
                       </p>
                     )}
 
@@ -543,7 +543,7 @@ export default async function Admin({ searchParams }) {
           <form className="flex flex-wrap items-end gap-2">
             <input type="hidden" name="status" value="TRANSACTIONS" />
             <label className="min-w-[240px] flex-1 text-xs text-muted">
-              Search by payment ID, booking ID, student, expert or service
+              Search by order ID, booking ID, student, expert or service
               <input name="q" defaultValue={q} maxLength={80} className="input mt-1" />
             </label>
             <label className="text-xs text-muted">
@@ -578,7 +578,7 @@ export default async function Admin({ searchParams }) {
                     </div>
                   </div>
                   <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1 text-xs text-muted sm:grid-cols-2">
-                    <div>Payment ID: <code className="break-all text-ink">{b.dodoPaymentId ?? "none"}</code></div>
+                    <div>Order ID: <code className="break-all text-ink">{b.cashfreeOrderId ?? "none"}</code></div>
                     <div>Booking ID: <code className="break-all text-ink">{b.id}</code></div>
                     <div>Paid: {fmtDateTime(b.paidAt ?? b.createdAt)} IST</div>
                     <div>Request: {b.status.toLowerCase()}{b.cancelledBy ? ` (${b.cancelledBy.toLowerCase()})` : ""}</div>
@@ -589,7 +589,7 @@ export default async function Admin({ searchParams }) {
               ))}
             </ul>
           )}
-          <p className="text-xs text-muted">Amounts are the service price. GST, gateway fees and the exact amount charged are in the Dodo dashboard. Blue tick payments are also there. Showing up to 100 newest.</p>
+          <p className="text-xs text-muted">Amounts are the service price. GST, gateway fees and the exact amount charged are in the Cashfree dashboard. Blue tick payments are also there. Showing up to 100 newest.</p>
         </div>
       )}
 
