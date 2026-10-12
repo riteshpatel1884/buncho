@@ -447,8 +447,20 @@ export default async function FeedPage({ searchParams }) {
       : 0,
 
     me
-      ? prisma.follow.count({ where: { followingId: me.id } }).catch(() => 0)
-      : 0,
+  ? adminIds.includes(me.id)
+    ? prisma.user
+        .count({
+          where: {
+            id: { notIn: adminIds },
+          },
+        })
+        .catch(() => 0)
+    : prisma.follow
+        .count({
+          where: { followingId: me.id },
+        })
+        .catch(() => 0)
+  : 0,
 
     prisma.expertProfile
       .findMany({
