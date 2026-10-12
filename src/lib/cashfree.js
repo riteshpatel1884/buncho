@@ -2,7 +2,6 @@ import crypto from "crypto";
 
 const PROD = String(process.env.CASHFREE_ENVIRONMENT || "sandbox").toLowerCase() === "production";
 const API = PROD ? "https://api.cashfree.com/pg" : "https://sandbox.cashfree.com/pg";
-const CHECKOUT = PROD ? "https://payments.cashfree.com/order/#" : "https://payments-test.cashfree.com/order/#";
 const VERSION = "2023-08-01";
 
 async function request(path, { method = "GET", body } = {}) {
@@ -49,7 +48,7 @@ export function parseOrderId(orderId) {
   return m ? { prefix: m[1], id: m[2] } : null;
 }
 
-// Creates an order and returns the Cashfree hosted checkout URL.
+// Creates an order and returns the URL of our /pay page, which opens Cashfree checkout via the JS SDK.
 // The amount always comes from the caller (the database), never from the browser.
 export async function createCheckout({ orderId, amountInr, user, returnUrl, note, expiryMinutes = 30 }) {
   if (!Number.isSafeInteger(amountInr) || amountInr < 1) throw new Error("Invalid amount");
@@ -74,7 +73,12 @@ export async function createCheckout({ orderId, amountInr, user, returnUrl, note
   });
 
   if (!order?.payment_session_id) throw new Error("Cashfree did not return a payment session");
-  return `${CHECKOUT}${order.payment_session_id}`;
+
+  // Cashfree sometimes returns the id with the word "payment" doubled at the end, which breaks checkout.
+  const sessionId = String(order.payment_session_id).replace(/paymentpayment$/, "payment");
+
+  // The browser opens checkout through Cashfree's JS SDK on our /pay page.
+  return `/pay?s=${encodeURIComponent(sessionId)}`;
 }
 
 // Asks Cashfree directly whether an order is paid. Never trust the browser or a webhook body alone.
