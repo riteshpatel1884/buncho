@@ -35,7 +35,7 @@ export default function ClerkAuth({ mode }) {
 
   // A brand new account has no role yet, so it must always land on the onboarding pages.
   // If the person came from "Become an expert" (/onboarding/expert) they go straight back there,
-  // otherwise they go to /onboarding where they choose student or expert.
+  // otherwise they go to /onboarding where they choose student or expert..
   const [signUpDest, setSignUpDest] = useState("/onboarding");
   const [signInDest, setSignInDest] = useState("/dashboard");
   useEffect(() => {
