@@ -39,7 +39,7 @@ export default function LegalPage({ title, intro, sections }) {
           ))}
 
           <p className="border-t border-line pt-6 text-sm text-muted">
-            Questions about this page? <Link href="/contact" className="font-medium text-brand hover:underline">Contact {COMPANY.brand}</Link>.
+            Questions about this page? <Link href="/contact" className="font-medium text-brand hover:underline">Contact - {COMPANY.brand}</Link>.
           </p>
         </div>
       </div>
