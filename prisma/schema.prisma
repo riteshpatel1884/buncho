@@ -43,6 +43,53 @@ enum PaymentStatus {
   REFUND_FAILED // needs a manual refund from the Dodo dashboard
 }
 
+// ---------- Projects (new) ----------
+enum BudgetMode {
+  FIXED
+  NEGOTIABLE
+  OPEN
+}
+
+enum ProjectStatus {
+  PENDING_REVIEW // waiting for an admin to read it
+  OPEN           // experts can propose
+  AGREED         // a price is agreed with one expert, waiting for payment
+  IN_PROGRESS    // paid, expert is working
+  COMPLETED
+  CLOSED
+  REJECTED
+}
+
+enum ProposalStatus {
+  ACTIVE      // negotiating
+  AGREED      // both accepted the same terms, waiting for payment
+  IN_PROGRESS // paid
+  DELIVERED
+  COMPLETED
+  DECLINED    // student declined
+  WITHDRAWN   // expert withdrew
+  CANCELLED   // cancelled after agreement, or by admin refund
+}
+
+enum ProjectMessageKind {
+  MESSAGE
+  OFFER
+  DELIVERY
+}
+
+enum ProjectReviewStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum ProjectPaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+  REFUND_FAILED
+}
+
 model User {
   id          String   @id @default(cuid())
   clerkUserId String   @unique
@@ -66,6 +113,10 @@ model User {
   postComments PostComment[]
   following    Follow[]       @relation("Following")
   followers    Follow[]       @relation("Followers")
+
+  // Projects
+  projects        Project[]        @relation("ProjectStudent")
+  projectMessages ProjectMessage[] @relation("ProjectMessageAuthor")
 }
 
 model StudentProfile {
@@ -115,10 +166,11 @@ model ExpertProfile {
   needsReview      Boolean  @default(false)
   unverifiedFields String[] @default([])
 
-  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  services     Service[]
-  availability Availability[]
-  bookings     Booking[]
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  services         Service[]
+  availability     Availability[]
+  bookings         Booking[]
+  projectProposals ProjectProposal[]
 
   @@index([status, createdAt])
 }
@@ -168,7 +220,7 @@ model Booking {
   dodoPaymentId String?       @unique
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
-  
+
   cancelledBy     String?   // "EXPERT" or "STUDENT"
   statusChangedAt DateTime?
   resolvedAt      DateTime? // set when the admin has dealt with a refund case
@@ -214,7 +266,6 @@ model BookingReply {
   @@index([status, createdAt])
   @@index([bookingId])
 }
-
 
 model Report {
   id         String    @id @default(cuid())
@@ -302,4 +353,86 @@ model Follow {
 
   @@id([followerId, followingId])
   @@index([followingId])
+}
+
+// ---------- Projects (new): Projects -> Proposals -> Negotiation -> Agreement -> Payment -> Completion ----------
+model Project {
+  id           String        @id @default(cuid())
+  studentId    String
+  student      User          @relation("ProjectStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  title        String
+  description  String
+  helpType     ServiceType
+  deliverables String[]
+  deadlineDays Int
+  budgetMode   BudgetMode    @default(NEGOTIABLE)
+  budgetMinInr Int?          // null when budgetMode is OPEN
+  budgetMaxInr Int?
+  status       ProjectStatus @default(PENDING_REVIEW)
+  reviewNote   String?
+  noteFlags    String[]      @default([])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  proposals ProjectProposal[]
+
+  @@index([status, createdAt])
+  @@index([studentId])
+}
+
+model ProjectProposal {
+  id               String               @id @default(cuid())
+  projectId        String
+  project          Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  expertId         String
+  expert           ExpertProfile        @relation(fields: [expertId], references: [id], onDelete: Cascade)
+  status           ProposalStatus       @default(ACTIVE)
+
+  // The agreed terms, copied from the accepted offer
+  agreedPriceInr   Int?
+  agreedScope      String?
+  agreedDays       Int?
+  agreedAt         DateTime?
+
+  // Payment
+  paymentStatus    ProjectPaymentStatus @default(UNPAID)
+  dodoPaymentId    String?              @unique
+  paidAt           DateTime?
+  feePct           Int?
+  feeInr           Int?
+  payoutInr        Int?
+
+  completedAt      DateTime?
+  payoutReleasedAt DateTime?
+  payoutNote       String?
+  cancelledBy      String?              // EXPERT | STUDENT | ADMIN
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  messages ProjectMessage[]
+
+  @@unique([projectId, expertId])
+  @@index([status])
+  @@index([paymentStatus, status])
+}
+
+// Every message, offer and delivery waits for an admin before the other person sees it.
+model ProjectMessage {
+  id           String              @id @default(cuid())
+  proposalId   String
+  proposal     ProjectProposal     @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  authorId     String
+  author       User                @relation("ProjectMessageAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  kind         ProjectMessageKind  @default(MESSAGE)
+  body         String
+  priceInr     Int?                // OFFER only
+  deliveryDays Int?                // OFFER only
+  reviewStatus ProjectReviewStatus @default(PENDING_REVIEW)
+  adminNote    String?
+  flags        String[]            @default([])
+  reviewedAt   DateTime?
+  createdAt    DateTime            @default(now())
+
+  @@index([proposalId, createdAt])
+  @@index([reviewStatus, createdAt])
 }

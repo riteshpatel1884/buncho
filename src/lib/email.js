@@ -11,6 +11,8 @@ const ADMIN_NOTIFY = process.env.ADMIN_NOTIFY_EMAIL || REPLY_BCC;
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+const money = (n) => `₹${new Intl.NumberFormat("en-IN").format(n)}`;
+
 // Returns true only if Resend accepted the email.
 async function send(to, subject, html, opts = {}) {
   if (!resend || !to || to.endsWith("@no-email.local")) return false;
@@ -194,4 +196,39 @@ export function emailReportResolved({ to, note }) {
       { label: "Open dashboard", path: "/dashboard" }
     )
   );
+}
+
+// ---------- Projects ----------
+export function emailProjectApproved({ to, title, path }) {
+  return send(to, `Your project is live: ${title}`, wrap("Your project is live", [`<b>${esc(title)}</b> was approved. Experts can now send you proposals.`, "Nothing is charged until you agree a price with an expert."], { label: "Open project", path }));
+}
+
+export function emailProjectRejected({ to, title, note }) {
+  return send(to, `Your project wasn't published: ${title}`, wrap("Buncho didn't publish your project", [`<b>${esc(title)}</b> wasn't published.`, `Reason: ${esc(note)}`, "You can post it again without phone numbers, emails, links or social handles."], { label: "Post a project", path: "/projects/new" }));
+}
+
+// kind: MESSAGE | OFFER | DELIVERY. Sent as soon as the message is posted.
+export function emailProjectMessage({ to, fromName, title, kind, priceInr, path }) {
+  const what = kind === "OFFER" ? `sent an offer of <b>${money(priceInr)}</b>` : kind === "DELIVERY" ? "delivered their work" : "sent you a message";
+  return send(to, `New activity on ${title}`, wrap("You have a new message", [`<b>${esc(fromName || "Someone")}</b> ${what} on <b>${esc(title)}</b>.`, "You can reply from the project page."], { label: "Open conversation", path }));
+}
+
+export function emailMessageRejected({ to, title, note, path }) {
+  return send(to, `Your message wasn't sent: ${title}`, wrap("Buncho didn't send your message", [`Your message on <b>${esc(title)}</b> wasn't sent.`, `Reason: ${esc(note)}`, "Edit it and send it again."], { label: "Open conversation", path }));
+}
+
+export function emailProjectAgreed({ to, title, priceInr, toStudent, path }) {
+  return send(to, `Price agreed: ${title}`, wrap("You agreed on a price", [`<b>${esc(title)}</b> is agreed at <b>${money(priceInr)}</b>.`, toStudent ? "Pay now to start the work. Nothing is charged before this." : "The student will pay next. You'll be told when you can start."], { label: toStudent ? "Pay now" : "Open conversation", path }));
+}
+
+export function emailProjectPaid({ to, title, path }) {
+  return send(to, `Payment received: ${title}`, wrap("Payment received", [`The student paid for <b>${esc(title)}</b>. You can start work now.`], { label: "Open project", path }));
+}
+
+export function emailProjectCancelled({ to, byName, title, refunded = false, path }) {
+  return send(to, `Cancelled: ${title}`, wrap("A project agreement was cancelled", [`<b>${esc(byName || "The other person")}</b> cancelled <b>${esc(title)}</b>.`, ...(refunded ? ["The payment is being refunded in full."] : [])], { label: "Open projects", path }));
+}
+
+export function emailProjectReopened({ to, title, note, path }) {
+  return send(to, `Project reopened: ${title}`, wrap("Buncho reopened your project", [`<b>${esc(title)}</b> was reopened by the Buncho team.`, ...(note ? [`Reason: ${esc(note)}`] : []), "You can continue the conversation from the project page."], { label: "Open conversation", path }));
 }

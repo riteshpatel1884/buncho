@@ -32,6 +32,7 @@ export default async function Footer() {
             <p className="font-semibold">Students</p>
             <Link href="/experts" className={link}>Find experts</Link>
             <Link href="/dashboard" className={link}>My bookings</Link>
+            <Link href="/projects" className={link}>My projects</Link>
           </div>
         )}
 
@@ -41,6 +42,7 @@ export default async function Footer() {
             {isExpert ? (
               <>
                 <Link href="/dashboard" className={link}>Dashboard</Link>
+                <Link href="/projects" className={link}>Projects</Link>
                 {profile && <Link href={`/experts/${profile.slug}`} className={link}>My profile</Link>}
               </>
             ) : (
