@@ -1,5 +1,7 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { cache } from "react";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { prisma } from "./prisma";
 
 export async function getDbUser() {
@@ -68,23 +70,40 @@ export async function requireRole(role, returnTo) {
   return user;
 }
 
+// Old way of naming admins (still works): Clerk user IDs in ADMIN_CLERK_IDS.
+// New way: a person registers as admin with the secret code in ADMIN_REGISTRATION_CODE, which sets User.isAdmin.
 const adminClerkIds = () =>
   (process.env.ADMIN_CLERK_IDS || "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
 
-export async function isAdmin() {
+// cache() makes this run once per request, even though many components call it.
+export const isAdmin = cache(async () => {
   const { userId } = await auth();
   if (!userId) return false;
-  return adminClerkIds().includes(userId);
+  if (adminClerkIds().includes(userId)) return true;
+  const row = await prisma.user.findUnique({ where: { clerkUserId: userId }, select: { isAdmin: true } });
+  return !!row?.isAdmin;
+});
+
+// True only when `entered` matches ADMIN_REGISTRATION_CODE. Constant-time, and never matches when the variable is unset.
+export function adminCodeMatches(entered) {
+  const secret = String(process.env.ADMIN_REGISTRATION_CODE || "").trim();
+  const given = String(entered ?? "").trim();
+  if (!secret || !given) return false;
+  const a = createHash("sha256").update(given).digest();
+  const b = createHash("sha256").update(secret).digest();
+  return timingSafeEqual(a, b);
 }
 
-// Database ids of the admin accounts (the people listed in ADMIN_CLERK_IDS who have signed in at least once).
+// Database ids of the admin accounts (registered with the code, or listed in ADMIN_CLERK_IDS).
 // Posts written by these users are "admin posts" in the feed.
 export async function getAdminUserIds() {
   const ids = adminClerkIds();
-  if (!ids.length) return [];
-  const rows = await prisma.user.findMany({ where: { clerkUserId: { in: ids } }, select: { id: true } });
+  const rows = await prisma.user.findMany({
+    where: { OR: [{ isAdmin: true }, ...(ids.length ? [{ clerkUserId: { in: ids } }] : [])] },
+    select: { id: true },
+  });
   return rows.map((r) => r.id);
 }

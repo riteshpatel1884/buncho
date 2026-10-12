@@ -101,6 +101,8 @@ model User {
   username     String?  @unique
   reportsMade  Report[] @relation("ReportsMade")
   reportsAbout Report[] @relation("ReportsAbout")
+  isAdmin      Boolean       @default(false)
+  adminProfile AdminProfile?
 
   // Blue tick (paid). Experts keep theirs on ExpertProfile, everyone else keeps it here.
   blueTickUntil      DateTime?
@@ -449,4 +451,15 @@ model ProjectMessage {
 
   @@index([proposalId, createdAt])
   @@index([reviewStatus, createdAt])
+}
+
+model AdminProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  headline    String?
+  about       String?
+  contactInfo String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

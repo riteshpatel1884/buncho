@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/user";
+import { requireUser, isAdmin, adminCodeMatches } from "@/lib/user";
 import { slugify, isHttpUrl, parseSkills } from "@/lib/utils";
 import { STUDY_YEARS } from "@/lib/constants";
 import { cleanUsername, usernameError } from "@/lib/username";
@@ -147,4 +147,76 @@ export async function saveExpertProfile(_prev, formData) {
     throw e;
   }
   redirect("/dashboard?welcome=expert");
+}
+
+// ---------------------------------------------------------------------------
+// Admin registration
+// ---------------------------------------------------------------------------
+
+// Slows down code guessing: 5 wrong tries per account every 15 minutes.
+// This lives in server memory, so on serverless hosting it is best-effort; add a shared store (Redis/DB) if you need a hard limit.
+const tries = new Map();
+const MAX_TRIES = 5;
+const WINDOW_MS = 15 * 60 * 1000;
+
+function tooManyTries(key) {
+  const now = Date.now();
+  const recent = (tries.get(key) || []).filter((t) => now - t < WINDOW_MS);
+  tries.set(key, recent);
+  return recent.length >= MAX_TRIES;
+}
+
+// Step 1: the person enters the admin code. A match makes the account an admin and opens the details form.
+export async function verifyAdminCode(_prev, formData) {
+  const user = await requireUser("/onboarding/admin");
+  if (user.role) return { error: "This account is already registered as a student or expert, so it can't become an admin." };
+  if (await isAdmin()) redirect("/onboarding/admin/profile");
+
+  if (tooManyTries(user.id)) return { error: "Too many wrong codes. Please wait 15 minutes and try again." };
+
+  if (!process.env.ADMIN_REGISTRATION_CODE) return { error: "Admin registration is not set up on this server." };
+
+  if (!adminCodeMatches(get(formData, "code"))) {
+    tries.set(user.id, [...(tries.get(user.id) || []), Date.now()]);
+    return { error: "That code is not correct, so this account can't be an admin." };
+  }
+
+  tries.delete(user.id);
+  await prisma.user.update({ where: { id: user.id }, data: { isAdmin: true } });
+  revalidatePath("/admin");
+  redirect("/onboarding/admin/profile");
+}
+
+// Step 2: every field is optional. Empty fields are simply left as they are.
+export async function saveAdminProfile(_prev, formData) {
+  const user = await requireUser("/onboarding/admin");
+  if (!(await isAdmin())) return { error: "Enter the admin code first." };
+
+  const name = get(formData, "name");
+  const headline = get(formData, "headline");
+  const about = get(formData, "about");
+  const contactInfo = get(formData, "contactInfo");
+
+  if (name && name.length < 2) return { error: "Name must be at least 2 characters." };
+
+  const userData = {};
+  if (name) userData.name = name;
+  if (get(formData, "username")) {
+    const u = await checkUsername(formData, user.id);
+    if (u.error) return { error: u.error };
+    userData.username = u.username;
+  }
+
+  const profile = { headline: headline || null, about: about || null, contactInfo: contactInfo || null };
+  try {
+    await prisma.$transaction([
+      ...(Object.keys(userData).length ? [prisma.user.update({ where: { id: user.id }, data: userData })] : []),
+      prisma.adminProfile.upsert({ where: { userId: user.id }, update: profile, create: { ...profile, userId: user.id } }),
+    ]);
+  } catch (e) {
+    if (usernameTaken(e)) return { error: TAKEN };
+    throw e;
+  }
+  revalidatePath("/admin");
+  redirect("/admin");
 }
