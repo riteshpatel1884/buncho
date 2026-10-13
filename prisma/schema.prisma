@@ -96,6 +96,8 @@ model User {
   email        String   @unique
   name         String?
   avatarUrl    String?
+  avatarColor  String?
+  avatarIcon   String?
   role         Role?
   createdAt    DateTime @default(now())
   username     String?  @unique

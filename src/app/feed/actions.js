@@ -5,6 +5,7 @@ import { getDbUser, isAdmin, getAdminUserIds } from "@/lib/user";
 import { getPosts } from "@/lib/feed/feedQueries";
 import { findContactInfo } from "@/lib/contactCheck";
 import { TOPICS, MAX_POST, MAX_COMMENT } from "@/lib/feed/feed";
+import { isAvatarColor, isAvatarIcon } from "@/lib/avatar";
 
 const get = (fd, k) => String(fd.get(k) || "").trim();
 const SIGN_IN = { error: "Sign in to do that." };
@@ -142,7 +143,7 @@ export async function loadComments(postId) {
       where: { postId: String(postId) },
       orderBy: { createdAt: "asc" },
       take: 100,
-      include: { user: { select: { name: true, avatarUrl: true, role: true, blueTickUntil: true, expertProfile: { select: { blueTickUntil: true } } } } },
+      include: { user: { select: { name: true, avatarUrl: true, avatarColor: true, avatarIcon: true, role: true, blueTickUntil: true, expertProfile: { select: { blueTickUntil: true } } } } },
     }),
     getAdminUserIds(),
   ]);
@@ -154,6 +155,8 @@ export async function loadComments(postId) {
     createdAt: c.createdAt.toISOString(),
     name: c.user.name,
     avatarUrl: c.user.avatarUrl,
+    avatarColor: c.user.avatarColor,
+    avatarIcon: c.user.avatarIcon,
     expert: c.user.role === "EXPERT",
     blueTick: !adminIds.includes(c.userId) && tickActive(c.user.expertProfile?.blueTickUntil ?? c.user.blueTickUntil),
     official: adminIds.includes(c.userId),
@@ -192,5 +195,17 @@ export async function addComment(postId, text, parentId = null) {
   }
   const [admin, profile] = await Promise.all([isAdmin(), prisma.expertProfile.findUnique({ where: { userId: me.id }, select: { blueTickUntil: true } })]);
   const c = await prisma.postComment.create({ data: { postId: post.id, userId: me.id, body, parentId: parent?.id ?? null } });
-  return { ok: true, comment: { id: c.id, body, parentId: parent?.id ?? null, replyToName: parent?.user.name ?? null, createdAt: c.createdAt.toISOString(), name: me.name, avatarUrl: me.avatarUrl, expert: me.role === "EXPERT", blueTick: !admin && tickActive(profile?.blueTickUntil ?? me.blueTickUntil), official: admin } };
+  return { ok: true, comment: { id: c.id, body, parentId: parent?.id ?? null, replyToName: parent?.user.name ?? null, createdAt: c.createdAt.toISOString(), name: me.name, avatarUrl: me.avatarUrl, avatarColor: me.avatarColor, avatarIcon: me.avatarIcon, expert: me.role === "EXPERT", blueTick: !admin && tickActive(profile?.blueTickUntil ?? me.blueTickUntil), official: admin } };
+}
+// Lets  person choose how their avatar looks: a color and either their letters, an icon or their photo.
+// The admin always shows the official Buncho mark, so it can't be changed.
+export async function updateAvatar(color, icon) {
+  const me = await getDbUser();
+  if (!me) return SIGN_IN;
+  if (await isAdmin()) return { error: "The official Buncho avatar can't be changed." };
+  if (!isAvatarColor(color) || !isAvatarIcon(icon)) return { error: "Pick one of the options." };
+
+  await prisma.user.update({ where: { id: me.id }, data: { avatarColor: String(color).toLowerCase(), avatarIcon: icon } });
+  revalidatePath("/", "layout");
+  return { ok: true };
 }

@@ -12,7 +12,7 @@ export default function ExpertCard({ expert }) {
   return (
     <li className="card card-hover relative flex flex-col gap-3.5 p-5">
       <div className="flex items-start gap-3.5">
-        <Avatar name={expert.user.name} src={expert.user.avatarUrl} size={52} />
+        <Avatar name={expert.user.name} src={expert.user.avatarUrl} color={expert.user.avatarColor} icon={expert.user.avatarIcon} size={52} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <Link href={`/experts/${expert.slug}`} className="min-w-0 truncate font-display text-lg leading-tight after:absolute after:inset-0">

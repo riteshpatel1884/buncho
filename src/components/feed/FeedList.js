@@ -69,7 +69,7 @@ function ExpertRow({ e, signedIn }) {
   return (
     <li className="flex items-center gap-3 py-2.5">
       <Link href={`/experts/${e.slug}`} className="flex min-w-0 flex-1 items-center gap-3">
-        <Avatar name={e.name} src={e.avatarUrl} size={44} />
+        <Avatar name={e.name} src={e.avatarUrl} color={e.avatarColor} icon={e.avatarIcon} size={44} />
         <span className="min-w-0">
           <span className="flex items-center gap-1.5 text-sm font-semibold">
             <span className="truncate">{e.name || "Expert"}</span>

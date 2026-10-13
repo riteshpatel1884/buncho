@@ -11,6 +11,13 @@ export default function Logo({ className = "" }) {
 // Just the rounded "b" mark, at any size. Used as the avatar for official Buncho posts.
 export function LogoMark({ size = 32, className = "" }) {
   return (
-    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-lg leading-none text-on-brand">b</span>
+    <span
+      style={{ width: size, height: size, fontSize: size * 0.56 }}
+      className={`flex shrink-0 items-center justify-center rounded-[28%] bg-brand font-logo font-bold leading-none text-on-brand ${className}`}
+      role="img"
+      aria-label="Buncho"
+    >
+      b
+    </span>
   );
 }

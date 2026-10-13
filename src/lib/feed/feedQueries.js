@@ -44,7 +44,7 @@ export async function getPosts({ viewerId = null, cursor = null, topic = "", col
     include: {
       author: {
         select: {
-          id: true, name: true, avatarUrl: true, username: true, role: true, blueTickUntil: true,
+          id: true, name: true, avatarUrl: true, avatarColor: true, avatarIcon: true, username: true, role: true, blueTickUntil: true,
           expertProfile: { select: { slug: true, jobTitle: true, company: true, college: true, educationVerified: true, employmentVerified: true, blueTickUntil: true } },
           studentProfile: { select: { college: true } },
         },
@@ -97,6 +97,8 @@ export async function getPosts({ viewerId = null, cursor = null, topic = "", col
         id: p.author.id,
         name: p.author.name,
         avatarUrl: p.author.avatarUrl,
+        avatarColor: p.author.avatarColor,
+        avatarIcon: p.author.avatarIcon,
         username: p.author.username,
         role: p.author.role,
         isAdmin: admin,

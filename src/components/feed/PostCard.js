@@ -278,7 +278,7 @@
 
 //   const renderComment = (c, isReply) => (
 //     <li key={c.id} className={`flex gap-2.5 ${isReply ? "rise" : ""}`} style={isReply ? { "--i": 0 } : undefined}>
-//       {c.official ? <LogoMark size={isReply ? 26 : 30} /> : <Avatar name={c.name} src={c.avatarUrl} size={isReply ? 26 : 30} />}
+//       <Avatar name={c.name} src={c.avatarUrl} color={c.avatarColor} icon={c.avatarIcon} admin={c.official} size={isReply ? 26 : 30} />
 //       <div className="min-w-0 flex-1">
 //         <div className="rounded-2xl rounded-tl-md bg-surface-2 px-3.5 py-2">
 //           <p className="flex flex-wrap items-center text-xs">
@@ -312,7 +312,7 @@
 //     return (
 //       <>
 //         <header className="flex items-start gap-3">
-//           {p.author.isAdmin ? <LogoMark size={44} /> : <Avatar name={p.author.name} src={p.author.avatarUrl} size={44} />}
+//           <Avatar name={p.author.name} src={p.author.avatarUrl} color={p.author.avatarColor} icon={p.author.avatarIcon} admin={p.author.isAdmin} size={44} />
 //           <div className="min-w-0 flex-1">
 //             <div className="flex flex-wrap items-center gap-x-1.5">
 //               {p.author.slug ? (
@@ -463,7 +463,6 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Avatar from "../Avatar";
-import { LogoMark } from "../Logo";
 import { BlueTick, OfficialTick } from "../Badges";
 import ReportButton from "../ReportButton";
 import { showToast } from "../Toast";
@@ -787,7 +786,7 @@ export default function PostCard({ post, signedIn, defaultOpen = false, onDelete
 
   const renderComment = (c, isReply) => (
     <li key={c.id} className={`flex gap-2.5 ${isReply ? "rise" : ""}`} style={isReply ? { "--i": 0 } : undefined}>
-      {c.official ? <LogoMark size={isReply ? 26 : 30} /> : <Avatar name={c.name} src={c.avatarUrl} size={isReply ? 26 : 30} />}
+      <Avatar name={c.name} src={c.avatarUrl} color={c.avatarColor} icon={c.avatarIcon} admin={c.official} size={isReply ? 26 : 30} />
       <div className="min-w-0 flex-1">
         <div className="rounded-2xl rounded-tl-md bg-surface-2 px-3.5 py-2">
           <p className="flex flex-wrap items-center text-xs">
@@ -821,7 +820,7 @@ export default function PostCard({ post, signedIn, defaultOpen = false, onDelete
     return (
       <>
         <header className="flex items-start gap-3">
-          {p.author.isAdmin ? <LogoMark size={44} /> : <Avatar name={p.author.name} src={p.author.avatarUrl} size={44} />}
+          <Avatar name={p.author.name} src={p.author.avatarUrl} color={p.author.avatarColor} icon={p.author.avatarIcon} admin={p.author.isAdmin} size={44} />
           <div className="min-w-0 flex-1">
             {/* Name and badge stay on one line. Only the name shrinks, so a badge is never pushed out on phones. */}
             <div className="flex min-w-0 items-center gap-1.5">

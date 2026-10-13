@@ -18,7 +18,7 @@ export default async function BookPage({ params }) {
   const service = await prisma.service.findFirst({
     where: { id: serviceId, active: true, expert: { status: "ACTIVE" } },
     include: {
-      expert: { include: { user: { select: { id: true, name: true, avatarUrl: true } } } },
+      expert: { include: { user: { select: { id: true, name: true, avatarUrl: true, avatarColor: true, avatarIcon: true } } } },
     },
   });
   if (!service) notFound();
@@ -59,7 +59,7 @@ export default async function BookPage({ params }) {
             )}
           </div>
           <div className="card flex items-center gap-3 p-5">
-            <Avatar name={expert.user.name} src={expert.user.avatarUrl} size={48} />
+            <Avatar name={expert.user.name} src={expert.user.avatarUrl} color={expert.user.avatarColor} icon={expert.user.avatarIcon} size={48} />
             <div className="min-w-0">
               <p className="flex items-center gap-1.5 font-semibold">
                 <span className="truncate">{expert.user.name}</span>

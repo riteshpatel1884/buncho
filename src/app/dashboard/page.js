@@ -98,7 +98,7 @@ async function StudentView({ user, sp }) {
       orderBy: { createdAt: "desc" },
       include: {
         service: true,
-        expert: { include: { user: { select: { name: true, avatarUrl: true } } } },
+        expert: { include: { user: { select: { name: true, avatarUrl: true, avatarColor: true, avatarIcon: true } } } },
         replies: { where: { status: "SENT" }, orderBy: { sentAt: "asc" } },
       },
     }),
@@ -124,7 +124,7 @@ async function StudentView({ user, sp }) {
     return (
       <li key={b.id} className="card p-5 sm:p-6">
         <div className="flex items-start gap-3.5">
-          <Avatar name={b.expert.user.name} src={b.expert.user.avatarUrl} size={44} />
+          <Avatar name={b.expert.user.name} src={b.expert.user.avatarUrl} color={b.expert.user.avatarColor} icon={b.expert.user.avatarIcon} size={44} />
           <div className="min-w-0 flex-1">
             <Link href={`/experts/${b.expert.slug}`} className="block truncate font-semibold hover:text-brand">{b.expert.user.name}</Link>
             <p className="truncate text-sm text-muted">{b.service.title}, {inr(b.priceInr)}</p>

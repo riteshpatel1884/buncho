@@ -187,7 +187,7 @@ export default async function Admin({ searchParams }) {
     ? await prisma.expertProfile.findMany({
         where: EXPERT_WHERE[status],
         orderBy: { createdAt: status === "PENDING" ? "asc" : "desc" },
-        include: { user: { select: { name: true, email: true, avatarUrl: true } }, _count: { select: { services: true, bookings: true } } },
+        include: { user: { select: { name: true, email: true, avatarUrl: true, avatarColor: true, avatarIcon: true } }, _count: { select: { services: true, bookings: true } } },
       })
     : [];
 
@@ -602,7 +602,7 @@ export default async function Admin({ searchParams }) {
             {experts.map((e) => (
               <li key={e.id} className="card p-5 sm:p-6">
                 <div className="flex flex-col gap-4 sm:flex-row">
-                  <Avatar name={e.user.name} src={e.user.avatarUrl} size={56} />
+                  <Avatar name={e.user.name} src={e.user.avatarUrl} color={e.user.avatarColor} icon={e.user.avatarIcon} size={56} />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <Link href={`/experts/${e.slug}`} className="font-display text-xl font-bold hover:underline">{e.user.name}</Link>

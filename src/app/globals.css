@@ -253,3 +253,26 @@ nav[data-compact="true"] .font-logo > span:first-child { width: 1.75rem; height:
 
 .fade-edge { mask-image: linear-gradient(to right, transparent, #000 16px, #000 calc(100% - 16px), transparent); }
 @media (prefers-reduced-motion: reduce) { .skeleton::after { display: none; } }
+/* ---------- Avatars: one set of colors, switched by the theme toggle ---------- */
+.av { background: var(--av-bg); color: var(--av-fg); }
+.av-brand { --av-bg: var(--brand-soft); --av-fg: var(--brand); }
+.av-coral { --av-bg: #ffe4de; --av-fg: #c2410c; }
+.av-amber { --av-bg: #fff1d6; --av-fg: #a16207; }
+.av-emerald { --av-bg: #d9f5e5; --av-fg: #047857; }
+.av-teal { --av-bg: #d5f3f1; --av-fg: #0f766e; }
+.av-sky { --av-bg: #dcefff; --av-fg: #0369a1; }
+.av-violet { --av-bg: #ece6ff; --av-fg: #6d28d9; }
+.av-pink { --av-bg: #ffe0ee; --av-fg: #be185d; }
+.av-slate { --av-bg: #e6eaf1; --av-fg: #475569; }
+:root[data-theme="dark"] .av-coral { --av-bg: #3a1a12; --av-fg: #fb923c; }
+:root[data-theme="dark"] .av-amber { --av-bg: #33260a; --av-fg: #fbbf24; }
+:root[data-theme="dark"] .av-emerald { --av-bg: #0f2d1f; --av-fg: #34d399; }
+:root[data-theme="dark"] .av-teal { --av-bg: #0c2d2b; --av-fg: #2dd4bf; }
+:root[data-theme="dark"] .av-sky { --av-bg: #0e2336; --av-fg: #38bdf8; }
+:root[data-theme="dark"] .av-violet { --av-bg: #231a40; --av-fg: #a78bfa; }
+:root[data-theme="dark"] .av-pink { --av-bg: #3a1428; --av-fg: #f472b6; }
+:root[data-theme="dark"] .av-slate { --av-bg: #1c2430; --av-fg: #94a3b8; }
+
+/* Custom colors: the person's color is tinted for the current theme, so it still follows the toggle */
+.av-custom { --av-bg: color-mix(in srgb, var(--av-c) 16%, white); --av-fg: color-mix(in srgb, var(--av-c) 78%, black); }
+:root[data-theme="dark"] .av-custom { --av-bg: color-mix(in srgb, var(--av-c) 26%, #0a0f0c); --av-fg: color-mix(in srgb, var(--av-c) 62%, white); }

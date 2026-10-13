@@ -5,6 +5,7 @@ import { getPosts } from "@/lib/feed/feedQueries";
 import { TOPICS } from "@/lib/feed/feed";
 import { budgetLabel } from "@/lib/projects";
 import Avatar from "@/components/Avatar";
+import AvatarEditor from "@/components/AvatarEditor";
 import { BlueTick, OfficialTick, isBlueTick } from "@/components/Badges";
 import FeedList from "@/components/feed/FeedList";
 import PostComposer from "@/components/feed/PostComposer";
@@ -138,9 +139,13 @@ function ProfileHeader({
 
       <div className="px-4 pb-4 sm:px-5">
         <div className="-mt-10 flex items-end justify-between gap-3 sm:-mt-12 lg:-mt-10">
-          <Link href={profileHref} className="rounded-[28%] bg-surface p-1">
-            <Avatar name={me.name} src={me.avatarUrl} size={80} />
-          </Link>
+          <div className="rounded-[28%] bg-surface p-1">
+            {admin ? (
+              <Avatar name={me.name} admin size={80} />
+            ) : (
+              <AvatarEditor name={me.name} src={me.avatarUrl} color={me.avatarColor} icon={me.avatarIcon} size={80} />
+            )}
+          </div>
 
           <Link
             href={profileHref}
@@ -207,9 +212,13 @@ function MobileProfile({ me, admin, tick, roleLine, profileHref, postCount, foll
       <div className="h-14 bg-navy" style={DOTS} aria-hidden="true" />
       <div className="px-4 pb-3">
         <div className="-mt-7 flex items-end justify-between gap-3">
-          <Link href={profileHref} className="rounded-[28%] bg-surface p-1">
-            <Avatar name={me.name} src={me.avatarUrl} size={60} />
-          </Link>
+          <div className="rounded-[28%] bg-surface p-1">
+            {admin ? (
+              <Avatar name={me.name} admin size={60} />
+            ) : (
+              <AvatarEditor name={me.name} src={me.avatarUrl} color={me.avatarColor} icon={me.avatarIcon} size={60} />
+            )}
+          </div>
           <Link href={profileHref} className="btn-outline !rounded-full !px-4 !py-1.5 !text-[13px]">
             {label}
           </Link>
@@ -521,7 +530,7 @@ export default async function FeedPage({ searchParams }) {
           company: true,
           blueTickUntil: true,
           userId: true,
-          user: { select: { name: true, avatarUrl: true } },
+          user: { select: { name: true, avatarUrl: true, avatarColor: true, avatarIcon: true } },
         },
       })
       .catch(() => []),
@@ -673,6 +682,8 @@ export default async function FeedPage({ searchParams }) {
     slug: e.slug,
     name: e.user.name,
     avatarUrl: e.user.avatarUrl,
+    avatarColor: e.user.avatarColor,
+    avatarIcon: e.user.avatarIcon,
     subtitle: `${e.jobTitle} at ${e.company}`,
     tick: isBlueTick(e),
   }));
@@ -850,7 +861,7 @@ export default async function FeedPage({ searchParams }) {
             <PostComposer
               services={services}
               optionalTopic={admin}
-              user={me ? { name: me.name, avatarUrl: me.avatarUrl } : null}
+              user={me ? { name: me.name, avatarUrl: me.avatarUrl, avatarColor: me.avatarColor, avatarIcon: me.avatarIcon, admin } : null}
             />
           )}
 
@@ -942,7 +953,7 @@ export default async function FeedPage({ searchParams }) {
                       >
                         <Avatar
                           name={e.user.name}
-                          src={e.user.avatarUrl}
+                          src={e.user.avatarUrl} color={e.user.avatarColor} icon={e.user.avatarIcon}
                           size={40}
                         />
                         <span className="min-w-0 flex-1">

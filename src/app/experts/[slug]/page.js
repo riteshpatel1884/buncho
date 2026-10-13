@@ -40,7 +40,7 @@ export default async function ExpertPage({ params }) {
   const expert = await prisma.expertProfile.findUnique({
     where: { slug },
     include: {
-      user: { select: { id: true, name: true, avatarUrl: true, username: true } },
+      user: { select: { id: true, name: true, avatarUrl: true, avatarColor: true, avatarIcon: true, username: true } },
       services: { where: { active: true }, orderBy: { priceInr: "asc" } },
     },
   });
@@ -98,7 +98,7 @@ export default async function ExpertPage({ params }) {
         <div className="px-5 pb-6 sm:px-8 sm:pb-8">
           <div className="-mt-14 flex flex-wrap items-end justify-between gap-4 sm:-mt-16">
             <div className="rounded-[28%] bg-surface p-1.5">
-              <Avatar name={expert.user.name} src={expert.user.avatarUrl} size={112} />
+              <Avatar name={expert.user.name} src={expert.user.avatarUrl} color={expert.user.avatarColor} icon={expert.user.avatarIcon} size={112} />
             </div>
             {isOwner && (
               <div className="flex items-center gap-3">

@@ -94,7 +94,7 @@ export default function PostComposer({ services = [], optionalTopic = false, use
   return (
     <>
       <div className="card -mx-4 flex items-center gap-3 !rounded-none !border-x-0 p-3 sm:mx-0 sm:!rounded-2xl sm:!border-x sm:p-4">
-        {user && <Avatar name={user.name} src={user.avatarUrl} size={44} />}
+        {user && <Avatar name={user.name} src={user.avatarUrl} color={user.avatarColor} icon={user.avatarIcon} admin={user.admin} size={44} />}
         <button
           type="button"
           onClick={openForm}
@@ -120,7 +120,7 @@ export default function PostComposer({ services = [], optionalTopic = false, use
             {done ? <Success /> : (
               <form ref={formRef} onSubmit={onSubmit} className="flex min-h-0 flex-col overflow-y-auto">
                 <div className="flex gap-3 px-5 pt-4">
-                  {user && <Avatar name={user.name} src={user.avatarUrl} size={44} />}
+                  {user && <Avatar name={user.name} src={user.avatarUrl} color={user.avatarColor} icon={user.avatarIcon} admin={user.admin} size={44} />}
                   <div className="min-w-0 flex-1">
                     {user?.name && <p className="mb-1 truncate font-semibold">{user.name}</p>}
                     <textarea

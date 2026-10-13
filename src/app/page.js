@@ -6,7 +6,6 @@ import { TOPICS, timeAgo } from "@/lib/feed/feed";
 import { budgetLabel, days } from "@/lib/projects";
 import ExpertCard from "@/components/ExpertCard";
 import Avatar from "@/components/Avatar";
-import { LogoMark } from "@/components/Logo";
 import { SERVICE_TYPES, SERVICE_BLURBS, inr } from "@/lib/constants";
 import { BlueTick, OfficialTick } from "@/components/Badges";
 
@@ -76,7 +75,7 @@ function PreviewPost({ p, i }) {
     <li className="rise" style={{ "--i": i + 1 }}>
       <Link href={`/feed/${p.id}`} className="block px-5 py-4 transition-colors hover:bg-surface-2/70">
         <div className="flex items-center gap-3">
-          {p.author.isAdmin ? <LogoMark /> : <Avatar name={p.author.name} src={p.author.avatarUrl} size={38} />}
+          <Avatar name={p.author.name} src={p.author.avatarUrl} color={p.author.avatarColor} icon={p.author.avatarIcon} admin={p.author.isAdmin} size={38} />
           <div className="min-w-0 flex-1">
             <p className="flex items-center gap-1.5 text-sm font-semibold">
               <span className="truncate">{p.author.name || "Someone"}</span>
@@ -105,7 +104,7 @@ export default async function Home() {
       orderBy: { createdAt: "desc" },
       take: 6,
       include: {
-        user: { select: { name: true, avatarUrl: true } },
+        user: { select: { name: true, avatarUrl: true, avatarColor: true, avatarIcon: true } },
         services: { where: { active: true }, select: { type: true, title: true, priceInr: true } },
       },
     }),

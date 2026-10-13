@@ -49,7 +49,7 @@ export default async function Experts({ searchParams }) {
     orderBy: { createdAt: "desc" },
     take: 60,
     include: {
-      user: { select: { name: true, avatarUrl: true } },
+      user: { select: { name: true, avatarUrl: true, avatarColor: true, avatarIcon: true } },
       services: { where: { active: true }, select: { type: true, title: true, priceInr: true } },
     },
   });
