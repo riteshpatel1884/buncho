@@ -1,5 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getDbUser, isAdmin, getAdminUserIds } from "@/lib/user";
 import { getPosts } from "@/lib/feed/feedQueries";
@@ -117,6 +118,40 @@ export async function toggleLike(postId) {
 
 export async function toggleSave(postId) {
   return toggle("postSave", postId);
+}
+
+// Counts one unique view of a post. Called by the post card once it has really been on screen.
+// Signed-in people are counted by account, signed-out people by a random first-party cookie.
+// The unique index on (postId, viewerKey) means the same person can never add a second view.
+export async function recordView(postId) {
+  const id = String(postId);
+  const post = await prisma.post.findFirst({ where: { id, hidden: false }, select: { id: true, authorId: true } });
+  if (!post) return { ok: false };
+
+  const me = await getDbUser().catch(() => null);
+  if (me?.id === post.authorId) return { ok: true, counted: false }; // your own views don't count
+
+  let viewerKey;
+  if (me) {
+    viewerKey = `u:${me.id}`;
+  } else {
+    const jar = await cookies();
+    let vid = jar.get("buncho_vid")?.value;
+    if (!vid) {
+      vid = crypto.randomUUID();
+      jar.set("buncho_vid", vid, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 60 * 60 * 24 * 365,
+        path: "/",
+      });
+    }
+    viewerKey = `a:${vid}`;
+  }
+
+  const { count } = await prisma.postView.createMany({ data: [{ postId: post.id, viewerKey }], skipDuplicates: true });
+  return { ok: true, counted: count === 1 };
 }
 
 export async function toggleFollow(authorId) {

@@ -7,7 +7,7 @@ import Avatar from "../Avatar";
 import { BlueTick, OfficialTick } from "../Badges";
 import ReportButton from "../ReportButton";
 import { showToast } from "../Toast";
-import { toggleLike, toggleSave, toggleFollow, loadComments, addComment, deletePost, deleteComment } from "@/app/feed/actions";
+import { toggleLike, toggleSave, toggleFollow, loadComments, addComment, deletePost, deleteComment, recordView } from "@/app/feed/actions";
 import { TOPICS, MAX_COMMENT, timeAgo, postedLabel } from "@/lib/feed/feed";
 import { inr } from "@/lib/constants";
 
@@ -16,6 +16,7 @@ const ICON = {
   chat: "M4 5h16v11H9l-5 4z",
   mark: "M6 3h12v18l-6-4-6 4z",
   share: "M12 3v12M7 8l5-5 5 5M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4",
+  eye: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
 };
 
 // Small particles and a ring that fly out of an icon when it is switched on. `k` restarts it.
@@ -192,6 +193,35 @@ export default function PostCard({ post, signedIn, defaultOpen = false, onDelete
     onChange?.(p);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p]);
+
+  // Count a unique view once the post has really been on screen: mostly visible for a full second.
+  // (Opening the page alone doesn't count, and neither does scrolling past it quickly.)
+  const cardRef = useRef(null);
+  const counted = useRef(false);
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el || counted.current || post.mine) return;
+    try { if (sessionStorage.getItem(`pv:${post.id}`)) { counted.current = true; return; } } catch {}
+    let timer;
+    const io = new IntersectionObserver(
+      ([e]) => {
+        const seen = e.isIntersecting && (e.intersectionRatio >= 0.6 || e.intersectionRect.height >= window.innerHeight * 0.5);
+        if (!seen) { clearTimeout(timer); timer = undefined; return; }
+        if (timer) return;
+        timer = setTimeout(async () => {
+          counted.current = true;
+          io.disconnect();
+          const res = await recordView(post.id).catch(() => null);
+          if (!res?.ok) { counted.current = false; return; }
+          try { sessionStorage.setItem(`pv:${post.id}`, "1"); } catch {}
+          if (res.counted) setP((x) => ({ ...x, views: (x.views ?? 0) + 1 }));
+        }, 1000);
+      },
+      { threshold: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1] }
+    );
+    io.observe(el);
+    return () => { clearTimeout(timer); io.disconnect(); };
+  }, [post.id, post.mine]);
 
   // Comments load the first time they are needed: the pop-up, the post page, or the comment button.
   useEffect(() => {
@@ -426,13 +456,13 @@ export default function PostCard({ post, signedIn, defaultOpen = false, onDelete
           </Link>
         )}
 
-        {/* Like, comment and share on the left, bookmark on the right. Every button is at least 44px tall. */}
+        {/* Like, comment and share on the left, unique views and bookmark on the right. Every button is at least 44px tall. */}
         <footer className="-mx-3 mt-3 flex items-center border-t border-line pt-1.5">
           {renderBtn({ onClick: like, on: p.liked, icon: "heart", label: "Like", count: p.likes, fxKey: fx.like })}
           {inModal ? (
             <span className={`${act} cursor-default text-brand`}><Icon name="chat" /><span>{p.comments}</span><span className="sr-only">Comments</span></span>
           ) : (
-            <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className={`${act} ${open ? "text-brand" : "text-muted"}`}>
+            <button type="button" onClick={() => (focus ? setModal(true) : setOpen(!open))} aria-expanded={open} className={`${act} ${open ? "text-brand" : "text-muted"}`}>
               <Icon name="chat" /><span>{p.comments}</span><span className="sr-only">Comments</span>
             </button>
           )}
@@ -440,7 +470,12 @@ export default function PostCard({ post, signedIn, defaultOpen = false, onDelete
             <Icon name="share" anim={fx.share ? "anim-wiggle" : undefined} key={fx.share} />
             <span className="sr-only">{copied ? "Link copied" : "Share"}</span>
           </button>
-          <span className="ml-auto">{renderBtn({ onClick: save, on: p.saved, icon: "mark", label: "Save", fxKey: fx.save })}</span>
+          <span className="ml-auto inline-flex items-center gap-1 px-2 text-xs font-medium tabular-nums text-muted" title="Unique views">
+            <Icon name="eye" />
+            {new Intl.NumberFormat("en-IN", { notation: "compact" }).format(p.views ?? 0)}
+            <span className="sr-only">views</span>
+          </span>
+          {renderBtn({ onClick: save, on: p.saved, icon: "mark", label: "Save", fxKey: fx.save })}
         </footer>
 
         {error && <p role="alert" className="mt-3 rounded-lg bg-danger-soft p-2.5 text-sm text-danger">{error}</p>}
@@ -492,8 +527,9 @@ export default function PostCard({ post, signedIn, defaultOpen = false, onDelete
 
   return (
     <>
-      {/* Phones: full-width card with no side borders, like a real social feed. Larger screens: rounded card. */}
-      <article className={`post-card card ${focus ? "mx-auto max-h-full w-full max-w-xl overflow-y-auto overscroll-contain !rounded-2xl p-5 shadow-xl" : "-mx-4 !rounded-none !border-x-0 p-4 sm:mx-0 sm:!rounded-2xl sm:!border-x sm:p-5"}`}>{content(false)}</article>
+      {/* Phones: full-width card with no side borders, like a real social feed. Larger screens: rounded card.
+          In the full-screen viewer the card never scrolls on its own, so a swipe anywhere moves between posts. */}
+      <article ref={cardRef} className={`post-card card ${focus ? "mx-auto w-full max-w-xl !rounded-2xl p-5 shadow-xl" : "-mx-4 !rounded-none !border-x-0 p-4 sm:mx-0 sm:!rounded-2xl sm:!border-x sm:p-5"}`}>{content(false)}</article>
       {modal && <Modal onClose={() => setModal(false)}>{content(true)}</Modal>}
       {pendingDelete && (
         <ConfirmDialog

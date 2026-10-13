@@ -312,6 +312,7 @@ model Post {
 
   likes    PostLike[]
   saves    PostSave[]
+  views PostView[]
   comments PostComment[]
 
   @@index([createdAt])
@@ -459,4 +460,15 @@ model AdminProfile {
   contactInfo String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model PostView {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  viewerKey String   // "u:<userId>" when signed in, "a:<random id>" when signed out
+  createdAt DateTime @default(now())
+
+  @@unique([postId, viewerKey])
+  @@index([postId])
 }

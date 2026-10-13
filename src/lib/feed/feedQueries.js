@@ -58,7 +58,7 @@ export async function getPosts({ viewerId = null, cursor = null, topic = "", col
         },
       },
       service: { select: { id: true, title: true, priceInr: true, active: true } },
-      _count: { select: { likes: true, comments: true } },
+      _count: { select: { likes: true, comments: true, views: true } },
       ...(viewerId
         ? { likes: { where: { userId: viewerId }, select: { userId: true } }, saves: { where: { userId: viewerId }, select: { userId: true } } }
         : {}),
@@ -119,6 +119,7 @@ export async function getPosts({ viewerId = null, cursor = null, topic = "", col
         blueTick: admin ? false : !!tickUntil && tickUntil > new Date(),
       },
       service: p.service && p.service.active ? { id: p.service.id, title: p.service.title, priceInr: p.service.priceInr } : null,
+      views: p._count.views,
       likes: p._count.likes,
       comments: p._count.comments,
       liked: !!p.likes?.length,
