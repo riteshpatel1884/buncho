@@ -7,7 +7,7 @@ import { budgetLabel, days } from "@/lib/projects";
 import ExpertCard from "@/components/ExpertCard";
 import Avatar from "@/components/Avatar";
 import { SERVICE_TYPES, SERVICE_BLURBS, inr } from "@/lib/constants";
-import { BlueTick, OfficialTick } from "@/components/Badges";
+import { BlueTick, OfficialTick, isBlueTick } from "@/components/Badges";
 
 export const dynamic = "force-dynamic";
 
@@ -126,6 +126,13 @@ export default async function Home() {
     }),
     prisma.post.groupBy({ by: ["topic"], where: { hidden: false, topic: { not: null } }, _count: { _all: true } }).catch(() => []),
   ]);
+  // Does the signed-in person already have an active blue tick? Experts keep it on their expert profile, everyone else on the account.
+  const tickUntil =
+    me?.role === "EXPERT"
+      ? (await prisma.expertProfile.findUnique({ where: { userId: me.id }, select: { blueTickUntil: true } }).catch(() => null))?.blueTickUntil
+      : me?.blueTickUntil;
+  const hasTick = !!me && isBlueTick({ blueTickUntil: tickUntil });
+
   const typeInfo = new Map(byType.map((t) => [t.type, t]));
   const topicInfo = new Map(topicCounts.map((t) => [t.topic, t._count._all]));
   const services = Object.entries(SERVICE_TYPES).filter(([k]) => k !== "OTHER");
@@ -300,7 +307,7 @@ export default async function Home() {
         <div className="flex flex-wrap gap-3 lg:justify-end">
           {me ? (
             <>
-              <Link href="/dashboard/verification" className="btn-invert !rounded-full">Get the blue tick</Link>
+              {!hasTick && <Link href="/dashboard/verification" className="btn-invert !rounded-full">Get the blue tick</Link>}
               <Link href="/feed" className="btn-invert !rounded-full">Write a post</Link>
             </>
           ) : (

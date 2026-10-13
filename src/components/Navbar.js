@@ -8,6 +8,7 @@ import MobileMenu from "./MobileMenu";
 import ThemeToggle from "./ThemeToggle";
 import UserMenu from "./UserMenu";
 import NotificationBell from "./NotificationBell";
+import { isBlueTick } from "./Badges";
 import { REVIEW_WHERE, REPLY_OPEN, REFUND_OPEN, REQUEST_OPEN, PAYOUT_DUE, REPORT_OPEN } from "@/lib/review";
 
 // Unread notifications for the bell. Never breaks the navbar if the table isn't there yet.
@@ -26,13 +27,15 @@ export default async function Navbar() {
   const me = await getDbUser().catch(() => null);
   const myProfile =
     me?.role === "EXPERT"
-      ? await prisma.expertProfile.findUnique({ where: { userId: me.id }, select: { slug: true } }).catch(() => null)
+      ? await prisma.expertProfile.findUnique({ where: { userId: me.id }, select: { slug: true, blueTickUntil: true } }).catch(() => null)
       : null;
   // Experts don't need "Find experts" or "Become an expert". Students don't need "Become an expert".
   const showFind = me?.role !== "EXPERT";
   const showBecome = !me?.role;
-  // Normal users can buy the blue tick too, so they get a link to it.
-  const showTick = me?.role === "STUDENT";
+  // Experts and normal users can buy the blue tick, but the link only shows while they don't have an active one.
+  // Experts keep their tick on the expert profile, everyone else on the account.
+  const tickUntil = me?.role === "EXPERT" ? myProfile?.blueTickUntil : me?.blueTickUntil;
+  const showTick = (me?.role === "EXPERT" || me?.role === "STUDENT") && !isBlueTick({ blueTickUntil: tickUntil });
   const profileHref = myProfile ? `/experts/${myProfile.slug}` : null;
   const unread = me ? await unreadCount(me.id) : 0;
 
