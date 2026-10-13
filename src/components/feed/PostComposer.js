@@ -81,12 +81,19 @@ export default function PostComposer({ services = [], optionalTopic = false, use
   }
 
   const openForm = () => { setDone(false); setOpen(true); };
+
+  // Lets other parts of the feed (like the empty state) open the composer.
+  useEffect(() => {
+    const onCompose = () => { setDone(false); setOpen(true); };
+    window.addEventListener("buncho:compose", onCompose);
+    return () => window.removeEventListener("buncho:compose", onCompose);
+  }, []);
   const pct = Math.min(100, Math.round((text.length / MAX_POST) * 100));
   const ready = text.trim().length >= 20 && (optionalTopic || !!topic);
 
   return (
     <>
-      <div className="card flex items-center gap-3 p-3 sm:p-4">
+      <div className="card -mx-4 flex items-center gap-3 !rounded-none !border-x-0 p-3 sm:mx-0 sm:!rounded-2xl sm:!border-x sm:p-4">
         {user && <Avatar name={user.name} src={user.avatarUrl} size={44} />}
         <button
           type="button"

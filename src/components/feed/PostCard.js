@@ -570,7 +570,57 @@ function roleLine(author) {
   return author.role === "STUDENT" ? "Student" : "Expert";
 }
 
-export default function PostCard({ post, signedIn, defaultOpen = false, onDeleted }) {
+// Small green check for experts whose education or employment Buncho has verified.
+function VerifiedMark() {
+  return (
+    <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-mint-soft text-mint" title="Education or employment verified" role="img" aria-label="Verified">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+    </span>
+  );
+}
+
+// The "..." menu in a post header. Delete for the author or admin, Report for everyone else.
+// The menu stays mounted while closed, so the report pop-up it opens is not removed with it.
+function PostMenu({ p, signedIn, onDelete }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const away = (e) => {
+      if (ref.current?.contains(e.target) || e.target.closest?.('[role="dialog"]')) return;
+      setOpen(false);
+    };
+    const key = (e) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", key);
+    return () => {
+      document.removeEventListener("mousedown", away);
+      document.removeEventListener("keydown", key);
+    };
+  }, [open]);
+
+  const item = "block w-full cursor-pointer rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors hover:bg-surface-2";
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-label="More options" aria-haspopup="menu" aria-expanded={open} className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-ink">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
+      </button>
+      <div role="menu" className={`${open ? "expand-in" : "hidden"} absolute right-0 top-10 z-20 min-w-40 rounded-xl border border-line bg-surface p-1 shadow-xl`}>
+        {p.mine || p.viewerIsAdmin ? (
+          <button type="button" role="menuitem" onClick={() => { setOpen(false); onDelete(); }} className={`${item} text-danger`}>
+            {p.viewerIsAdmin && !p.mine ? "Delete this post" : "Delete post"}
+          </button>
+        ) : (
+          <ReportButton signedIn={signedIn} kind="person" target={{ id: p.author.id, name: p.author.name, username: p.author.username }} label="Report" className={item} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function PostCard({ post, signedIn, defaultOpen = false, onDeleted, focus = false }) {
   const router = useRouter();
   const [p, setP] = useState(post);
   const [modal, setModal] = useState(false);
@@ -695,7 +745,7 @@ export default function PostCard({ post, signedIn, defaultOpen = false, onDelete
     }
   }
 
-  const act = "inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-[background-color,color,transform] hover:bg-surface-2 active:scale-95";
+  const act = "inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-1.5 rounded-full px-3 text-sm font-medium tabular-nums transition-[background-color,color,transform] hover:bg-surface-2 active:scale-95";
   // Like and save buttons. A plain function (not a component) so it is not remounted on every render.
   const renderBtn = ({ onClick, on, icon, label, count, fxKey }) =>
     signedIn ? (
@@ -773,54 +823,49 @@ export default function PostCard({ post, signedIn, defaultOpen = false, onDelete
         <header className="flex items-start gap-3">
           {p.author.isAdmin ? <LogoMark size={44} /> : <Avatar name={p.author.name} src={p.author.avatarUrl} size={44} />}
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-              {/* Name and ticks stay on one line. Only the name shrinks, so the tick never gets pushed out on phones. */}
-              <div className="flex min-w-0 max-w-full items-center gap-1.5">
-                {p.author.slug ? (
-                  <Link href={`/experts/${p.author.slug}`} className="min-w-0 truncate font-semibold hover:text-brand">{p.author.name}</Link>
-                ) : (
-                  <span className="min-w-0 truncate font-semibold">{p.author.name}</span>
-                )}
-                {p.author.isAdmin && <OfficialTick className="h-[18px] w-[18px] shrink-0" />}
-                {p.author.blueTick && <BlueTick className="h-4 w-4 shrink-0" />}
-              </div>
-              {p.author.isAdmin && <span className="shrink-0 rounded-full bg-warn-soft px-2 py-0.5 text-[11px] font-semibold text-warn">Buncho Team</span>}
+            {/* Name and badge stay on one line. Only the name shrinks, so a badge is never pushed out on phones. */}
+            <div className="flex min-w-0 items-center gap-1.5">
+              {p.author.slug ? (
+                <Link href={`/experts/${p.author.slug}`} className="min-w-0 truncate font-semibold leading-5 hover:text-brand">{p.author.name}</Link>
+              ) : (
+                <span className="min-w-0 truncate font-semibold leading-5">{p.author.name}</span>
+              )}
+              {p.author.isAdmin && <OfficialTick className="h-[18px] w-[18px] shrink-0" />}
+              {p.author.blueTick && <BlueTick className="h-4 w-4 shrink-0" />}
+              {!p.author.isAdmin && !p.author.blueTick && p.author.verified && <VerifiedMark />}
             </div>
-            {p.author.isAdmin ? (
-              <>
-                <p className="truncate text-sm text-muted">Official update · {timeAgo(p.createdAt)}</p>
-                <p className="truncate text-xs text-muted">{p.author.followers} {p.author.followers === 1 ? "follower" : "followers"}</p>
-              </>
-            ) : (
-              <>
-                <p className="truncate text-sm text-muted">{roleLine(p.author)} · {timeAgo(p.createdAt)}</p>
-                <p className="truncate text-xs text-muted">{p.author.college ? `${p.author.college} · ` : ""}{p.author.followers} {p.author.followers === 1 ? "follower" : "followers"}</p>
-              </>
-            )}
+            <p className="truncate text-[13px] leading-5 text-muted">{p.author.isAdmin ? "Official Buncho Team" : roleLine(p.author)}</p>
+            <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs leading-5 text-muted">
+              <time dateTime={p.createdAt} className="shrink-0">{timeAgo(p.createdAt)}</time>
+              {p.topic && <span className="shrink-0 rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-semibold leading-4 text-brand">#{TOPICS[p.topic] ?? p.topic}</span>}
+              {p.author.college && !p.author.isAdmin && <span className="hidden min-w-0 truncate min-[420px]:inline">· {p.author.college}</span>}
+            </p>
           </div>
-          {!p.mine && !p.author.isAdmin && (
-            signedIn ? (
-              <button type="button" onClick={follow} className={`shrink-0 cursor-pointer ${p.following ? "btn-outline" : "btn-primary"} !rounded-full !px-4 !py-1.5`}>
-                {p.following ? "Following" : "Follow"}
-              </button>
-            ) : (
-              <Link href={signIn} className="btn-primary shrink-0 !rounded-full !px-4 !py-1.5">Follow</Link>
-            )
-          )}
+          <div className="-mr-1.5 flex shrink-0 items-center gap-0.5">
+            {!p.mine && !p.author.isAdmin && (
+              signedIn ? (
+                <button type="button" onClick={follow} className={`shrink-0 cursor-pointer ${p.following ? "btn-outline" : "btn-primary"} !rounded-full !px-3.5 !py-1 !text-[13px]`}>
+                  {p.following ? "Following" : "Follow"}
+                </button>
+              ) : (
+                <Link href={signIn} className="btn-primary shrink-0 !rounded-full !px-3.5 !py-1 !text-[13px]">Follow</Link>
+              )
+            )}
+            <PostMenu p={p} signedIn={signedIn} onDelete={() => setPendingDelete({ type: "post" })} />
+          </div>
         </header>
 
-        <div className="mt-4">
-          {p.topic && <span className="text-xs font-semibold text-brand">#{TOPICS[p.topic] ?? p.topic}</span>}
-          <p className="mt-1.5 whitespace-pre-line break-words text-[15px] leading-7">{long && !full ? preview : p.body}</p>
+        <div className="mt-3">
+          <p className={`whitespace-pre-line break-words ${focus ? "text-[17px] leading-8 sm:text-xl sm:leading-9" : "text-[15px] leading-[1.65]"}`}>{long && !full ? preview : p.body}</p>
           {long && !full && (
-            <button type="button" onClick={() => setModal(true)} className="mt-1 cursor-pointer text-sm font-medium text-brand hover:underline">
+            <button type="button" onClick={() => setModal(true)} className="mt-1 cursor-pointer text-sm font-semibold text-brand hover:underline">
               Read more
             </button>
           )}
         </div>
 
         {p.service && (
-          <Link href={`/book/${p.service.id}`} className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-brand/20 bg-brand-soft/60 p-3 text-sm transition-colors hover:border-brand">
+          <Link href={`/book/${p.service.id}`} className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-brand/20 bg-brand-soft/60 p-3 text-sm transition-colors hover:border-brand">
             <span className="min-w-0">
               <span className="block text-xs text-muted">Want personal feedback?</span>
               <span className="block truncate font-semibold">{p.service.title}</span>
@@ -829,7 +874,8 @@ export default function PostCard({ post, signedIn, defaultOpen = false, onDelete
           </Link>
         )}
 
-        <footer className="mt-4 flex flex-wrap items-center gap-0.5 border-t border-line pt-2.5">
+        {/* Like, comment and share on the left, bookmark on the right. Every button is at least 44px tall. */}
+        <footer className="-mx-3 mt-3 flex items-center border-t border-line pt-1.5">
           {renderBtn({ onClick: like, on: p.liked, icon: "heart", label: "Like", count: p.likes, fxKey: fx.like })}
           {inModal ? (
             <span className={`${act} cursor-default text-brand`}><Icon name="chat" /><span>{p.comments}</span><span className="sr-only">Comments</span></span>
@@ -838,19 +884,11 @@ export default function PostCard({ post, signedIn, defaultOpen = false, onDelete
               <Icon name="chat" /><span>{p.comments}</span><span className="sr-only">Comments</span>
             </button>
           )}
-          {renderBtn({ onClick: save, on: p.saved, icon: "mark", label: "Save", fxKey: fx.save })}
           <button type="button" onClick={share} className={`${act} text-muted`}>
-            <Icon name="share" anim={fx.share ? "anim-wiggle" : undefined} key={fx.share} /><span className="text-xs">{copied ? "Link copied" : "Share"}</span>
+            <Icon name="share" anim={fx.share ? "anim-wiggle" : undefined} key={fx.share} />
+            <span className="sr-only">{copied ? "Link copied" : "Share"}</span>
           </button>
-          <span className="ml-auto flex items-center gap-3">
-            {p.mine || p.viewerIsAdmin ? (
-              <button type="button" onClick={() => setPendingDelete({ type: "post" })} className="cursor-pointer text-xs font-medium text-muted underline hover:text-danger">
-                {p.viewerIsAdmin ? "Delete this post" : "Delete"}
-              </button>
-            ) : (
-              <ReportButton signedIn={signedIn} kind="person" target={{ id: p.author.id, name: p.author.name, username: p.author.username }} label="Report" className="text-xs font-medium text-muted underline hover:text-brand" />
-            )}
-          </span>
+          <span className="ml-auto">{renderBtn({ onClick: save, on: p.saved, icon: "mark", label: "Save", fxKey: fx.save })}</span>
         </footer>
 
         {error && <p role="alert" className="mt-3 rounded-lg bg-danger-soft p-2.5 text-sm text-danger">{error}</p>}
@@ -902,7 +940,8 @@ export default function PostCard({ post, signedIn, defaultOpen = false, onDelete
 
   return (
     <>
-      <article className="post-card card p-4 sm:p-5">{content(false)}</article>
+      {/* Phones: full-width card with no side borders, like a real social feed. Larger screens: rounded card. */}
+      <article className={`post-card card -mx-4 !rounded-none !border-x-0 p-4 sm:mx-0 sm:!rounded-2xl sm:!border-x sm:p-5 ${focus ? "flex flex-col justify-center" : ""}`}>{content(false)}</article>
       {modal && <Modal onClose={() => setModal(false)}>{content(true)}</Modal>}
       {pendingDelete && (
         <ConfirmDialog

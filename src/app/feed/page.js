@@ -192,6 +192,46 @@ function ProfileHeader({
   );
 }
 
+// Phone-only profile strip: avatar, name, role and counts in one compact block, so posts start higher up the screen.
+function MobileProfile({ me, admin, tick, roleLine, profileHref, postCount, followerCount, followingCount }) {
+  const label = admin || me.role ? (me.role === "EXPERT" ? "View profile" : "Edit profile") : "Finish setup";
+  const stat = (n, text) => (
+    <div className="px-2 py-2.5 text-center">
+      <p className="font-display text-base leading-none tabular-nums">{n}</p>
+      <p className="mt-1 text-xs text-muted">{text}</p>
+    </div>
+  );
+
+  return (
+    <section className="card -mx-4 overflow-hidden !rounded-none !border-x-0 sm:mx-0 sm:!rounded-2xl sm:!border-x lg:hidden">
+      <div className="h-14 bg-navy" style={DOTS} aria-hidden="true" />
+      <div className="px-4 pb-3">
+        <div className="-mt-7 flex items-end justify-between gap-3">
+          <Link href={profileHref} className="rounded-[28%] bg-surface p-1">
+            <Avatar name={me.name} src={me.avatarUrl} size={60} />
+          </Link>
+          <Link href={profileHref} className="btn-outline !rounded-full !px-4 !py-1.5 !text-[13px]">
+            {label}
+          </Link>
+        </div>
+        <h2 className="mt-2 flex w-fit max-w-full items-center gap-1 font-display text-lg leading-tight">
+          <span className="min-w-0 truncate">{me.name || "Your profile"}</span>
+          <Seal admin={admin} tick={tick} className="h-[18px] w-[18px]" />
+        </h2>
+        <p className="truncate text-[13px] text-muted">
+          {me.username ? `@${me.username} · ` : ""}
+          {roleLine}
+        </p>
+      </div>
+      <div className="grid grid-cols-3 divide-x divide-line border-t border-line">
+        {stat(postCount, postCount === 1 ? "Post" : "Posts")}
+        {stat(followerCount, followerCount === 1 ? "Follower" : "Followers")}
+        {stat(followingCount, "Following")}
+      </div>
+    </section>
+  );
+}
+
 function JoinCard({ signInHref, className = "" }) {
   return (
     <section className={`card p-5 ${className}`}>
@@ -480,6 +520,7 @@ export default async function FeedPage({ searchParams }) {
           jobTitle: true,
           company: true,
           blueTickUntil: true,
+          userId: true,
           user: { select: { name: true, avatarUrl: true } },
         },
       })
@@ -626,6 +667,16 @@ export default async function FeedPage({ searchParams }) {
               }
             : undefined;
 
+  // Plain data for the empty state's "experts worth following" list.
+  const expertPrompts = suggested.map((e) => ({
+    id: e.userId,
+    slug: e.slug,
+    name: e.user.name,
+    avatarUrl: e.user.avatarUrl,
+    subtitle: `${e.jobTitle} at ${e.company}`,
+    tick: isBlueTick(e),
+  }));
+
   const roleLine = admin
     ? adminProfile?.headline || "Buncho team"
     : profile?.jobTitle && profile?.company
@@ -647,6 +698,44 @@ export default async function FeedPage({ searchParams }) {
       : me?.role
         ? "/dashboard/profile"
         : "/onboarding";
+
+  const collegeForm = (
+    <form className="flex gap-2" data-nav role="search">
+              {tab !== "for-you" && (
+                <input type="hidden" name="tab" value={tab} />
+              )}
+              {topic && <input type="hidden" name="topic" value={topic} />}
+
+              <div className="relative min-w-0 flex-1">
+                <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted">
+                  <Svg
+                    d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3"
+                    size={16}
+                  />
+                </span>
+                <input
+                  name="college"
+                  defaultValue={college}
+                  placeholder="Filter posts by college"
+                  aria-label="Filter posts by college"
+                  className="input !rounded-full !pl-10"
+                />
+              </div>
+
+              <button className="btn-outline shrink-0 !rounded-full">
+                Filter
+              </button>
+
+              {college && (
+                <Link
+                  href={href({ college: "" })}
+                  className="btn-outline shrink-0 !rounded-full"
+                >
+                  Clear
+                </Link>
+              )}
+            </form>
+  );
 
   const topicChip = (active) =>
     `shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
@@ -713,15 +802,14 @@ export default async function FeedPage({ searchParams }) {
           </div>
         </aside>
 
-        <div className="min-w-0 space-y-4">
+        {/* On phones the cards run edge to edge, and the bottom padding keeps the last post clear of the tab bar. */}
+        <div className="min-w-0 space-y-3 pb-24 sm:space-y-4 md:pb-0">
           {me ? (
-            <ProfileHeader
-              className="lg:hidden"
+            <MobileProfile
               me={me}
               admin={admin}
               tick={tick}
               roleLine={roleLine}
-              adminProfile={adminProfile}
               profileHref={profileHref}
               postCount={postCount}
               followerCount={followerCount}
@@ -736,7 +824,7 @@ export default async function FeedPage({ searchParams }) {
 
           {stats && <MyStats s={stats} collapsible />}
 
-          <div className="sticky top-[4.25rem] z-30 -mx-4 bg-paper/85 px-4 py-2 backdrop-blur-xl sm:-mx-6 sm:px-6 lg:hidden">
+          <div className="sticky top-[4.25rem] z-30 -mx-4 border-b border-line/60 bg-paper/85 px-4 py-2 backdrop-blur-xl sm:-mx-6 sm:px-6 lg:hidden">
             <nav
               aria-label="Feed"
               className="flex gap-1 rounded-full border border-line bg-surface p-1"
@@ -782,43 +870,17 @@ export default async function FeedPage({ searchParams }) {
           </div>
 
           {tab !== "mine" && (
-            <form className="flex gap-2" data-nav role="search">
-              {tab !== "for-you" && (
-                <input type="hidden" name="tab" value={tab} />
-              )}
-              {topic && <input type="hidden" name="topic" value={topic} />}
-
-              <div className="relative min-w-0 flex-1">
-                <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted">
-                  <Svg
-                    d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3"
-                    size={16}
-                  />
-                </span>
-                <input
-                  name="college"
-                  defaultValue={college}
-                  placeholder="Filter posts by college"
-                  aria-label="Filter posts by college"
-                  className="input !rounded-full !pl-10"
-                />
-              </div>
-
-              <button className="btn-outline shrink-0 !rounded-full">
-                Filter
-              </button>
-
-              {college && (
-                <Link
-                  href={href({ college: "" })}
-                  className="btn-outline shrink-0 !rounded-full"
-                >
-                  Clear
-                </Link>
-              )}
-            </form>
+            <>
+              <details className="lg:hidden" open={!!college}>
+                <summary className="flex w-fit cursor-pointer list-none items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-1.5 text-sm font-medium text-muted transition-colors hover:border-brand hover:text-ink [&::-webkit-details-marker]:hidden">
+                  <Svg d="M3 5h18l-7 8v6l-4 2v-8z" size={15} />
+                  {college ? `College: ${college}` : "Filter by college"}
+                </summary>
+                <div className="mt-2">{collegeForm}</div>
+              </details>
+              <div className="hidden lg:block">{collegeForm}</div>
+            </>
           )}
-
           {needsSignIn ? (
             <div className="card flex flex-col items-center px-6 py-14 text-center">
               <span className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-soft text-brand">
@@ -849,6 +911,8 @@ export default async function FeedPage({ searchParams }) {
               signedIn={signedIn}
               empty={empty}
               editable={mine}
+              canPost={canPost}
+              experts={tab === "mine" || tab === "saved" ? [] : expertPrompts}
             />
           )}
         </div>

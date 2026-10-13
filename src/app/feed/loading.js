@@ -1,6 +1,6 @@
 function PostSkeleton() {
   return (
-    <div className="card space-y-4 p-5" aria-hidden="true">
+    <div className="card -mx-4 space-y-4 !rounded-none !border-x-0 p-4 sm:mx-0 sm:!rounded-2xl sm:!border-x sm:p-5" aria-hidden="true">
       <div className="flex items-center gap-3">
         <div className="skeleton h-11 w-11 !rounded-[28%]" />
         <div className="flex-1 space-y-2">
@@ -37,7 +37,7 @@ export default function FeedLoading() {
           <div className="skeleton h-9 w-full" />
         </div>
       </aside>
-      <div className="space-y-4">
+      <div className="space-y-2 sm:space-y-4">
         <div className="skeleton h-[72px] w-full !rounded-2xl" />
         <PostSkeleton />
         <PostSkeleton />
