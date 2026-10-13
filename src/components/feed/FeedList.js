@@ -194,6 +194,16 @@ export default function FeedList({ initial, filters, signedIn, empty, editable =
     return () => mq.removeEventListener("change", sync);
   }, []);
 
+  // Scroll mode: the posts scroll with the page and snap into place one at a time.
+  // (They used to scroll inside their own box, which trapped the touch and blocked going back up to the profile.)
+  useEffect(() => {
+    if (!scrollMode) return;
+    const root = document.documentElement;
+    const prev = root.style.scrollSnapType;
+    root.style.scrollSnapType = "y proximity";
+    return () => { root.style.scrollSnapType = prev; };
+  }, [scrollMode]);
+
   function changeMode(next) {
     setMode(next);
     try {
@@ -204,11 +214,14 @@ export default function FeedList({ initial, filters, signedIn, empty, editable =
 
   // After router.refresh() (e.g. a new post was created) the server sends a fresh first page.
   // Add any posts we don't have yet at the top, and keep what has already been scrolled in.
+  // (Only for the Latest sort, where new posts really belong at the top.)
   useEffect(() => {
+    if (filters.sort && filters.sort !== "latest") return;
     setPosts((prev) => {
       const fresh = initial.posts.filter((n) => !prev.some((x) => x.id === n.id));
       return fresh.length ? [...fresh, ...prev] : prev;
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initial]);
 
   useEffect(() => {
@@ -227,8 +240,7 @@ export default function FeedList({ initial, filters, signedIn, empty, editable =
           setLoading(false);
         }
       },
-      // In Scroll mode the posts scroll inside their own box, so watch that box instead of the page.
-      { root: scrollMode ? scroller.current : null, rootMargin: "600px" }
+      { root: null, rootMargin: "600px" }
     );
     io.observe(sentinel.current);
     return () => io.disconnect();
@@ -275,12 +287,9 @@ export default function FeedList({ initial, filters, signedIn, empty, editable =
       {!editable && <ModeToggle mode={mode} onChange={changeMode} />}
 
       {scrollMode ? (
-        <div
-          ref={scroller}
-          className="-mx-4 h-[calc(100dvh-15rem)] min-h-[26rem] scroll-mt-28 snap-y snap-proximity overflow-y-auto overscroll-contain"
-        >
+        <div ref={scroller} className="-mx-4 scroll-mt-28">
           {posts.map((p) => (
-            <section key={p.id} className="flex min-h-full snap-start snap-always flex-col justify-center px-4 py-2">
+            <section key={p.id} className="flex min-h-[calc(100dvh-13.5rem)] snap-start snap-always scroll-mt-[7.75rem] flex-col justify-center px-4 py-2">
               <PostCard post={p} signedIn={signedIn} onDeleted={onDeleted} focus />
             </section>
           ))}

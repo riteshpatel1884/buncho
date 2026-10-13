@@ -1,11 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import { getAdminUserIds } from "@/lib/user";
-import { PAGE_SIZE, TOPICS } from "@/lib/feed/feed";
+import { PAGE_SIZE, TOPICS, SORTS } from "@/lib/feed/feed";
+
+// Latest (default), oldest, or most popular (likes, then comments). The id keeps the order stable for paging.
+function orderFor(sort) {
+  if (!Object.hasOwn(SORTS, sort)) sort = "latest";
+  if (sort === "oldest") return [{ createdAt: "asc" }, { id: "asc" }];
+  if (sort === "popular") return [{ likes: { _count: "desc" } }, { comments: { _count: "desc" } }, { createdAt: "desc" }, { id: "desc" }];
+  return [{ createdAt: "desc" }, { id: "desc" }];
+}
 
 // One page of posts, shaped for the client.
 // Shown: posts by live experts, posts by normal users (students), and posts by the admin
 // (everyone "follows" the admin automatically).
-export async function getPosts({ viewerId = null, cursor = null, topic = "", college = "", tab = "for-you", postId = null, authorId = null } = {}) {
+export async function getPosts({ viewerId = null, cursor = null, topic = "", college = "", tab = "for-you", sort = "latest", postId = null, authorId = null } = {}) {
   const adminIds = await getAdminUserIds();
   const adminSet = new Set(adminIds);
 
@@ -38,7 +46,7 @@ export async function getPosts({ viewerId = null, cursor = null, topic = "", col
 
   const rows = await prisma.post.findMany({
     where,
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    orderBy: orderFor(sort),
     take: PAGE_SIZE + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     include: {

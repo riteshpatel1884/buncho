@@ -1,5 +1,10 @@
 export const TOPICS = { CAREER: "Career", PLACEMENTS: "Placements", RESEARCH: "Research", TECHNOLOGY: "Technology" };
 export const PAGE_SIZE = 10;
+
+// Sort options shown when a feed tab is tapped. "latest" is the default.
+export const SORTS = { latest: "Latest", oldest: "Oldest", popular: "Most popular" };
+// Tabs that get the sort menu.
+export const SORTABLE_TABS = ["for-you", "following", "mine"];
 export const MAX_POST = 1500;
 export const MAX_COMMENT = 500;
 

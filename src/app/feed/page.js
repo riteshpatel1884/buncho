@@ -2,12 +2,13 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getDbUser, isAdmin, getAdminUserIds } from "@/lib/user";
 import { getPosts } from "@/lib/feed/feedQueries";
-import { TOPICS } from "@/lib/feed/feed";
+import { TOPICS, SORTS, SORTABLE_TABS } from "@/lib/feed/feed";
 import { budgetLabel } from "@/lib/projects";
 import Avatar from "@/components/Avatar";
 import AvatarEditor from "@/components/AvatarEditor";
 import { BlueTick, OfficialTick, isBlueTick } from "@/components/Badges";
 import FeedList from "@/components/feed/FeedList";
+import FeedTabNav from "@/components/feed/FeedTabNav";
 import PostComposer from "@/components/feed/PostComposer";
 import StatsPopup from "@/components/feed/StatsPopup";
 
@@ -19,6 +20,7 @@ const TABS = [
   ["for-you", "For you"],
   ["following", "Following"],
   ["saved", "Saved"],
+
 ];
 
 const TAB_ICON = {
@@ -43,26 +45,6 @@ function Svg({ d, size = 18 }) {
     >
       <path d={d} />
     </svg>
-  );
-}
-
-function NavItem({ href, active, icon, label, count }) {
-  return (
-    <Link
-      href={href}
-      aria-current={active ? "page" : undefined}
-      className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-        active
-          ? "bg-brand-soft text-brand"
-          : "text-muted hover:bg-surface-2 hover:text-ink"
-      }`}
-    >
-      {icon && <Svg d={icon} />}
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      {count != null && (
-        <span className="text-xs tabular-nums opacity-80">{count}</span>
-      )}
-    </Link>
   );
 }
 
@@ -412,21 +394,35 @@ export default async function FeedPage({ searchParams }) {
   const topic = Object.hasOwn(TOPICS, sp.topic) ? sp.topic : "";
   const college = (sp.college || "").trim();
   const tab = TABS.some(([k]) => k === sp.tab) ? sp.tab : "for-you";
+  // Sorting only applies on the For you, Following and Saved tabs.
+  const sort = SORTABLE_TABS.includes(tab) && Object.hasOwn(SORTS, sp.sort) ? sp.sort : "latest";
   const needsSignIn = !signedIn && tab !== "for-you";
   const mine = tab === "mine" && signedIn;
   const visibleTabs = signedIn ? TABS : TABS.slice(0, 3);
 
   const href = (over = {}) => {
     const q = new URLSearchParams();
-    const v = { tab, topic, college, ...over };
+    const v = { tab, topic, college, sort, ...over };
 
     Object.entries(v).forEach(([k, val]) => {
-      if (val && !(k === "tab" && val === "for-you")) q.set(k, val);
+      if (val && !(k === "tab" && val === "for-you") && !(k === "sort" && val === "latest")) q.set(k, val);
     });
 
     const s = q.toString();
     return s ? `/feed?${s}` : "/feed";
   };
+
+  // Tabs for the nav. The three sortable ones carry their own sort links.
+  const navTabs = visibleTabs.map(([k, label]) => ({
+    key: k,
+    label,
+    href: href({ tab: k }),
+    icon: TAB_ICON[k],
+    sortable: SORTABLE_TABS.includes(k),
+    options: SORTABLE_TABS.includes(k)
+      ? Object.entries(SORTS).map(([sk, sl]) => ({ key: sk, label: sl, href: href({ tab: k, sort: sk }) }))
+      : [],
+  }));
 
   // Team accounts are automatically followed for display purposes.
   const adminIds = me ? await getAdminUserIds().catch(() => []) : [];
@@ -462,6 +458,7 @@ export default async function FeedPage({ searchParams }) {
           topic,
           college,
           tab,
+          sort,
           ...(mine ? { authorId: me.id } : {}),
         }),
 
@@ -716,7 +713,9 @@ export default async function FeedPage({ searchParams }) {
         : "/onboarding";
 
   return (
-    <div className="relative left-1/2 w-[min(calc(100vw-2rem),1480px)] -translate-x-1/2 sm:w-[min(calc(100vw-3rem),1480px)]">
+    // No CSS transform here: a transformed parent would trap the fixed "Create post" button.
+    // The wrapper is centred with a negative left margin (half its own width) instead.
+    <div className="relative left-1/2 w-[min(calc(100vw-2rem),1480px)] -ml-[min(calc(50vw-1rem),740px)] sm:w-[min(calc(100vw-3rem),1480px)] sm:-ml-[min(calc(50vw-1.5rem),740px)]">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-8 xl:grid-cols-[290px_minmax(0,1fr)_350px] xl:gap-10">
         <h1 className="sr-only">Buncho Feed</h1>
 
@@ -740,17 +739,9 @@ export default async function FeedPage({ searchParams }) {
               />
             )}
 
-            <nav aria-label="Feed" className="card space-y-0.5 p-2">
-              {visibleTabs.map(([k, label]) => (
-                <NavItem
-                  key={k}
-                  href={href({ tab: k })}
-                  active={tab === k}
-                  icon={TAB_ICON[k]}
-                  label={label}
-                />
-              ))}
-            </nav>
+            <div className="card p-2">
+              <FeedTabNav tabs={navTabs} active={tab} sort={sort} variant="side" />
+            </div>
 
           </div>
         </aside>
@@ -779,23 +770,7 @@ export default async function FeedPage({ searchParams }) {
           {stats && <MyStats s={stats} collapsible />}
 
           <div className="sticky top-[4.25rem] z-30 -mx-4 border-b border-line bg-paper/90 backdrop-blur-xl sm:-mx-6 lg:hidden">
-            <nav aria-label="Feed" className="flex">
-              {visibleTabs.map(([k, label]) => (
-                <Link
-                  key={k}
-                  href={href({ tab: k })}
-                  aria-current={tab === k ? "page" : undefined}
-                  className={`relative min-w-0 flex-1 truncate px-1 py-3 text-center text-sm font-semibold transition-colors ${
-                    tab === k ? "text-ink" : "text-muted hover:text-ink"
-                  }`}
-                >
-                  {label}
-                  {tab === k && (
-                    <span className="absolute inset-x-1/2 bottom-0 h-1 w-10 -translate-x-1/2 rounded-full bg-brand" aria-hidden="true" />
-                  )}
-                </Link>
-              ))}
-            </nav>
+            <FeedTabNav tabs={navTabs} active={tab} sort={sort} variant="bar" />
           </div>
 
           {canPost && (
@@ -805,7 +780,6 @@ export default async function FeedPage({ searchParams }) {
               user={me ? { name: me.name, avatarUrl: me.avatarUrl, avatarColor: me.avatarColor, avatarIcon: me.avatarIcon, admin } : null}
             />
           )}
-
 
           {needsSignIn ? (
             <div className="card flex flex-col items-center px-6 py-14 text-center">
@@ -826,12 +800,13 @@ export default async function FeedPage({ searchParams }) {
             </div>
           ) : (
             <FeedList
-              key={`${tab}|${topic}|${college}`}
+              key={`${tab}|${topic}|${college}|${sort}`}
               initial={initial}
               filters={{
                 tab,
                 topic,
                 college,
+                sort,
                 ...(mine ? { authorId: me.id } : {}),
               }}
               signedIn={signedIn}
