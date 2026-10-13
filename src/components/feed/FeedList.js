@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import PostCard from "./PostCard";
 import EditablePost from "./EditablePost";
@@ -8,7 +9,6 @@ import { BlueTick } from "../Badges";
 import { showToast } from "../Toast";
 import { loadPosts, toggleFollow } from "@/app/feed/actions";
 
-const MODE_KEY = "buncho-feed-mode";
 // Phones get edge-to-edge cards; larger screens get rounded ones. Same classes as PostCard.
 const CARD_EDGE = "card -mx-4 !rounded-none !border-x-0 sm:mx-0 sm:!rounded-2xl sm:!border-x";
 
@@ -167,6 +167,130 @@ function ModeToggle({ mode, onChange }) {
   );
 }
 
+// Full-screen "reels" viewer. One post fills the screen. Swipe up for the next post, swipe down for the
+// previous one. The browser's own scroll-snap does the swiping, so it feels native and keeps its momentum.
+// It sits at z-60: above the navbar and tab bar, below the pop-ups (z-70 and up) a post can open.
+function Reels({ posts, signedIn, onDeleted, onChange, onClose, onNearEnd, hasMore, loading }) {
+  const rootRef = useRef(null);
+  const scrollerRef = useRef(null);
+  const raf = useRef(0);
+  const [index, setIndex] = useState(0);
+
+  // Opening zooms out: the screen starts slightly bigger and settles to normal size.
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    el.animate(
+      [{ transform: "scale(1.14)", opacity: 0 }, { transform: "scale(1)", opacity: 1 }],
+      { duration: 320, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" }
+    );
+  }, []);
+
+  // The page behind must not scroll while the viewer is open.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  // Keyboard: arrows / page keys move between posts, Esc closes. Ignored while typing or when a pop-up is open.
+  useEffect(() => {
+    const onKey = (e) => {
+      const t = e.target;
+      if (t?.closest?.("input, textarea, [contenteditable=true]")) return;
+      if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
+      const el = scrollerRef.current;
+      if (e.key === "Escape") return onClose(index);
+      const dir = e.key === "ArrowDown" || e.key === "PageDown" ? 1 : e.key === "ArrowUp" || e.key === "PageUp" ? -1 : 0;
+      if (!dir || !el) return;
+      e.preventDefault();
+      el.scrollBy({ top: dir * el.clientHeight, behavior: "smooth" });
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose, index]);
+
+  // Work out which post is on screen (used for the counter and for loading more).
+  function onScroll() {
+    if (raf.current) return;
+    raf.current = requestAnimationFrame(() => {
+      raf.current = 0;
+      const el = scrollerRef.current;
+      if (el && el.clientHeight) setIndex(Math.round(el.scrollTop / el.clientHeight));
+    });
+  }
+  useEffect(() => () => cancelAnimationFrame(raf.current), []);
+
+  // Fetch the next page a few posts before the end so the swiping never stops.
+  useEffect(() => {
+    if (hasMore && index >= posts.length - 3) onNearEnd();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, posts.length, hasMore]);
+
+  const shown = Math.min(index + 1, posts.length);
+
+  return (
+    <div ref={rootRef} role="region" aria-label="Posts, one at a time" className="fixed inset-0 z-[60] overflow-hidden bg-paper">
+      {/* Top bar: close button on the left, position on the right. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-between px-3 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
+        <button
+          type="button"
+          onClick={() => onClose(index)}
+          aria-label="Close and go back to the feed"
+          className="pointer-events-auto flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-line bg-surface/85 text-ink shadow-sm backdrop-blur"
+        >
+          <Svg d="M6 6l12 12M18 6L6 18" size={18} />
+        </button>
+        <span className="pointer-events-auto rounded-full border border-line bg-surface/85 px-3 py-1.5 text-xs font-semibold tabular-nums text-muted shadow-sm backdrop-blur">
+          {shown} / {posts.length}{hasMore ? "+" : ""}
+        </span>
+      </div>
+
+      <div
+        ref={scrollerRef}
+        onScroll={onScroll}
+        className="h-full snap-y snap-mandatory overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {posts.map((p, i) => (
+          <section
+            key={p.id}
+            aria-label={`Post ${i + 1} of ${posts.length}`}
+            className="flex h-full snap-start snap-always items-center justify-center px-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[calc(max(0.75rem,env(safe-area-inset-top))+3.5rem)]"
+          >
+            <PostCard post={p} signedIn={signedIn} onDeleted={onDeleted} onChange={onChange} focus />
+          </section>
+        ))}
+
+        {/* Last screen: either more posts are loading, or this is the end. */}
+        <section className="flex h-full snap-start snap-always flex-col items-center justify-center gap-3 px-6 text-center text-sm text-muted">
+          {hasMore || loading ? (
+            <>
+              <span className="h-7 w-7 animate-spin rounded-full border-2 border-line border-t-brand" aria-hidden="true" />
+              Loading more posts…
+            </>
+          ) : (
+            <>
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-2 text-brand">
+                <Svg d="M5 13l4 4L19 7" size={22} />
+              </span>
+              <p className="font-display text-lg text-ink">You're all caught up</p>
+              <button type="button" onClick={() => onClose(index)} className="btn-outline mt-1 cursor-pointer !rounded-full">Back to feed</button>
+            </>
+          )}
+        </section>
+      </div>
+
+      {/* Little hint on the first post only. */}
+      {index === 0 && posts.length > 1 && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-10 flex flex-col items-center text-[11px] font-medium text-muted" aria-hidden="true">
+          <span className="animate-bounce"><Svg d="M6 15l6-6 6 6" size={18} /></span>
+          Swipe up for the next post
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Infinite scroll. Remount it (via `key`) when the filters change.
 // editable: show an Edit button under each post (used for the "My posts" list).
 // experts: suggested people to follow, used by the empty state. canPost: show the "create post" prompt.
@@ -176,17 +300,14 @@ export default function FeedList({ initial, filters, signedIn, empty, editable =
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState("list");
   const [mobile, setMobile] = useState(false);
+  const [listKey, setListKey] = useState(0); // bumped when the viewer closes, so the list shows the latest like/save state
   const sentinel = useRef(null);
-  const scroller = useRef(null);
   const busy = useRef(false);
 
-  // "Scroll" is a phone layout. The choice is remembered on this device.
+  // "Scroll" is a phone layout: the full-screen, one-post-at-a-time viewer.
   const scrollMode = mode === "scroll" && mobile && !editable;
 
   useEffect(() => {
-    try {
-      if (localStorage.getItem(MODE_KEY) === "scroll") setMode("scroll");
-    } catch {}
     const mq = window.matchMedia("(max-width: 767px)");
     const sync = () => setMobile(mq.matches);
     sync();
@@ -194,22 +315,17 @@ export default function FeedList({ initial, filters, signedIn, empty, editable =
     return () => mq.removeEventListener("change", sync);
   }, []);
 
-  // Scroll mode: the posts scroll with the page and snap into place one at a time.
-  // (They used to scroll inside their own box, which trapped the touch and blocked going back up to the profile.)
-  useEffect(() => {
-    if (!scrollMode) return;
-    const root = document.documentElement;
-    const prev = root.style.scrollSnapType;
-    root.style.scrollSnapType = "y proximity";
-    return () => { root.style.scrollSnapType = prev; };
-  }, [scrollMode]);
-
+  // Tapping "Scroll" opens the full-screen viewer; closing it goes back to the normal list,
+  // scrolled to the post that was last on screen.
   function changeMode(next) {
     setMode(next);
-    try {
-      localStorage.setItem(MODE_KEY, next);
-    } catch {}
-    if (next === "scroll") requestAnimationFrame(() => scroller.current?.scrollIntoView({ block: "start", behavior: "smooth" }));
+  }
+
+  function closeReels(lastIndex) {
+    const id = posts[Math.min(lastIndex ?? 0, posts.length - 1)]?.id;
+    setMode("list");
+    setListKey((k) => k + 1);
+    if (id) setTimeout(() => document.getElementById(`feed-post-${id}`)?.scrollIntoView({ block: "center" }), 60);
   }
 
   // After router.refresh() (e.g. a new post was created) the server sends a fresh first page.
@@ -224,30 +340,38 @@ export default function FeedList({ initial, filters, signedIn, empty, editable =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initial]);
 
+  // Load the next page. Used by the normal list (when the bottom comes into view) and by the viewer.
+  async function loadMore() {
+    if (!cursor || busy.current) return;
+    busy.current = true;
+    setLoading(true);
+    try {
+      const next = await loadPosts({ ...filters, cursor });
+      setPosts((p) => [...p, ...next.posts.filter((n) => !p.some((x) => x.id === n.id))]);
+      setCursor(next.nextCursor);
+    } catch {
+      // Network hiccup: leave the cursor alone, the next scroll tries again.
+    } finally {
+      busy.current = false;
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
-    if (!cursor || !sentinel.current) return;
+    if (scrollMode || !cursor || !sentinel.current) return;
     const io = new IntersectionObserver(
-      async ([entry]) => {
-        if (!entry.isIntersecting || busy.current) return;
-        busy.current = true;
-        setLoading(true);
-        try {
-          const next = await loadPosts({ ...filters, cursor });
-          setPosts((p) => [...p, ...next.posts.filter((n) => !p.some((x) => x.id === n.id))]);
-          setCursor(next.nextCursor);
-        } finally {
-          busy.current = false;
-          setLoading(false);
-        }
-      },
+      ([entry]) => entry.isIntersecting && loadMore(),
       { root: null, rootMargin: "600px" }
     );
     io.observe(sentinel.current);
     return () => io.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cursor, filters, scrollMode]);
 
   const onDeleted = (id) => setPosts((list) => list.filter((x) => x.id !== id));
   const onUpdated = (id, patch) => setPosts((list) => list.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  // A card reports its new state (like, save, follow, comment count) so nothing goes stale between the two views.
+  const onCardChange = useCallback((np) => setPosts((list) => list.map((x) => (x.id === np.id ? { ...x, ...np } : x))), []);
 
   if (posts.length === 0) {
     return <EmptyState empty={empty} experts={experts} canPost={canPost} signedIn={signedIn} />;
@@ -260,7 +384,7 @@ export default function FeedList({ initial, filters, signedIn, empty, editable =
       {loading && (
         <>
           <PostSkeleton />
-          {!scrollMode && <PostSkeleton />}
+          <PostSkeleton />
         </>
       )}
     </div>
@@ -286,29 +410,34 @@ export default function FeedList({ initial, filters, signedIn, empty, editable =
     <div className="space-y-3">
       {!editable && <ModeToggle mode={mode} onChange={changeMode} />}
 
-      {scrollMode ? (
-        <div ref={scroller} className="-mx-4 scroll-mt-28">
-          {posts.map((p) => (
-            <section key={p.id} className="flex min-h-[calc(100dvh-13.5rem)] snap-start snap-always scroll-mt-[7.75rem] flex-col justify-center px-4 py-2">
-              <PostCard post={p} signedIn={signedIn} onDeleted={onDeleted} focus />
-            </section>
-          ))}
-          <div className="px-4">{tail}</div>
-        </div>
-      ) : (
-        <div className="space-y-2 sm:space-y-4">
-          {posts.map((p, i) => (
-            <div key={p.id} className="post-in" style={{ "--i": Math.min(i % 10, 5) }}>
-              {editable ? (
-                <EditablePost post={p} signedIn={signedIn} onDeleted={onDeleted} onUpdated={onUpdated} />
-              ) : (
-                <PostCard post={p} signedIn={signedIn} onDeleted={onDeleted} />
-              )}
-            </div>
-          ))}
-          {tail}
-        </div>
-      )}
+      {/* The normal list stays mounted behind the full-screen viewer, so closing it puts you back where you were. */}
+      <div key={listKey} className="space-y-2 sm:space-y-4">
+        {posts.map((p, i) => (
+          <div key={p.id} id={`feed-post-${p.id}`} className="post-in scroll-mt-32" style={{ "--i": Math.min(i % 10, 5) }}>
+            {editable ? (
+              <EditablePost post={p} signedIn={signedIn} onDeleted={onDeleted} onUpdated={onUpdated} />
+            ) : (
+              <PostCard post={p} signedIn={signedIn} onDeleted={onDeleted} onChange={onCardChange} />
+            )}
+          </div>
+        ))}
+        {tail}
+      </div>
+
+      {scrollMode &&
+        createPortal(
+          <Reels
+            posts={posts}
+            signedIn={signedIn}
+            onDeleted={onDeleted}
+            onChange={onCardChange}
+            onClose={closeReels}
+            onNearEnd={loadMore}
+            hasMore={!!cursor}
+            loading={loading}
+          />,
+          document.body
+        )}
     </div>
   );
 }
