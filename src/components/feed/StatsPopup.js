@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 
 // A "Your stats" button that opens the numbers in a pop-up: a bottom sheet on phones, a centred card on tablets.
 // The server page passes the stats in as children, so they stay server-rendered.
-export default function StatsPopup({ summary, children }) {
+export default function StatsPopup({ summary, children, variant = "card" }) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -24,23 +24,40 @@ export default function StatsPopup({ summary, children }) {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-haspopup="dialog"
-        className="card flex w-full cursor-pointer items-center gap-3 p-4 text-left transition-colors hover:border-brand"
-      >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {variant === "inline" ? (
+        // A single quiet line, used inside the phone profile where space is tight.
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-haspopup="dialog"
+          className="flex w-full min-w-0 cursor-pointer items-center gap-2 py-1 text-left text-sm text-muted transition-colors hover:text-brand"
+        >
+          <svg className="shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
           </svg>
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block font-display text-base">Your stats</span>
-          <span className="block truncate text-xs text-muted">{summary}</span>
-        </span>
-        <svg className="shrink-0 text-muted" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
-      </button>
+          <span className="shrink-0 font-semibold text-ink">Your stats</span>
+          <span className="min-w-0 flex-1 truncate">{summary}</span>
+          <svg className="shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-haspopup="dialog"
+          className="card flex w-full cursor-pointer items-center gap-3 p-4 text-left transition-colors hover:border-brand"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+            </svg>
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-display text-base">Your stats</span>
+            <span className="block truncate text-xs text-muted">{summary}</span>
+          </span>
+          <svg className="shrink-0 text-muted" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+        </button>
+      )}
 
       {mounted && open && createPortal(
         <div

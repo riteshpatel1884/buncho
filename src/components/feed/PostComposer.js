@@ -93,7 +93,7 @@ export default function PostComposer({ services = [], optionalTopic = false, use
 
   return (
     <>
-      <div className="card -mx-4 flex items-center gap-3 !rounded-none !border-x-0 p-3 sm:mx-0 sm:!rounded-2xl sm:!border-x sm:p-4">
+      <div className="card hidden items-center gap-3 !rounded-2xl p-3 md:flex md:p-4">
         {user && <Avatar name={user.name} src={user.avatarUrl} color={user.avatarColor} icon={user.avatarIcon} admin={user.admin} size={44} />}
         <button
           type="button"
@@ -107,6 +107,17 @@ export default function PostComposer({ services = [], optionalTopic = false, use
           Create post
         </button>
       </div>
+
+      {/* Phones: no inline box. A round button floats at the bottom right, above the tab bar. */}
+      <button
+        type="button"
+        onClick={openForm}
+        aria-label="Create post"
+        className="fixed bottom-24 right-4 z-40 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-brand text-on-brand shadow-[0_8px_24px_rgba(0,0,0,0.28)] transition-transform active:scale-95 md:hidden"
+        style={{ marginBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+      </button>
 
       {open && createPortal(
         <div className="modal-backdrop fixed inset-0 z-[70] flex items-end justify-center bg-black/50 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={(e) => e.target === e.currentTarget && close()}>

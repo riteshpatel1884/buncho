@@ -15,10 +15,10 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Feed | buncho" };
 
 const TABS = [
+  ["mine", "My posts"],
   ["for-you", "For you"],
   ["following", "Following"],
   ["saved", "Saved"],
-  ["mine", "My posts"],
 ];
 
 const TAB_ICON = {
@@ -197,21 +197,16 @@ function ProfileHeader({
   );
 }
 
-// Phone-only profile strip: avatar, name, role and counts in one compact block, so posts start higher up the screen.
-function MobileProfile({ me, admin, tick, roleLine, profileHref, postCount, followerCount, followingCount }) {
+// Phone-only profile, laid out like a social profile page: short cover, avatar, name, one stats line
+// (in the spot where "Joined ..." would be) and the counts. Kept short so posts start about halfway down the screen.
+function MobileProfile({ me, admin, tick, roleLine, profileHref, postCount, followerCount, followingCount, stats }) {
   const label = admin || me.role ? (me.role === "EXPERT" ? "View profile" : "Edit profile") : "Finish setup";
-  const stat = (n, text) => (
-    <div className="px-2 py-2.5 text-center">
-      <p className="font-display text-base leading-none tabular-nums">{n}</p>
-      <p className="mt-1 text-xs text-muted">{text}</p>
-    </div>
-  );
 
   return (
     <section className="card -mx-4 overflow-hidden !rounded-none !border-x-0 sm:mx-0 sm:!rounded-2xl sm:!border-x lg:hidden">
-      <div className="h-14 bg-navy" style={DOTS} aria-hidden="true" />
+      <div className="h-12 bg-navy" style={DOTS} aria-hidden="true" />
       <div className="px-4 pb-3">
-        <div className="-mt-7 flex items-end justify-between gap-3">
+        <div className="-mt-8 flex items-end justify-between gap-3">
           <div className="rounded-[28%] bg-surface p-1">
             {admin ? (
               <Avatar name={me.name} admin size={60} />
@@ -223,7 +218,8 @@ function MobileProfile({ me, admin, tick, roleLine, profileHref, postCount, foll
             {label}
           </Link>
         </div>
-        <h2 className="mt-2 flex w-fit max-w-full items-center gap-1 font-display text-lg leading-tight">
+
+        <h2 className="mt-1.5 flex w-fit max-w-full items-center gap-1 font-display text-lg leading-tight">
           <span className="min-w-0 truncate">{me.name || "Your profile"}</span>
           <Seal admin={admin} tick={tick} className="h-[18px] w-[18px]" />
         </h2>
@@ -231,11 +227,20 @@ function MobileProfile({ me, admin, tick, roleLine, profileHref, postCount, foll
           {me.username ? `@${me.username} · ` : ""}
           {roleLine}
         </p>
-      </div>
-      <div className="grid grid-cols-3 divide-x divide-line border-t border-line">
-        {stat(postCount, postCount === 1 ? "Post" : "Posts")}
-        {stat(followerCount, followerCount === 1 ? "Follower" : "Followers")}
-        {stat(followingCount, "Following")}
+
+        {stats && (
+          <div className="mt-1.5">
+            <StatsPopup variant="inline" summary={`${stats.likes} likes · ${stats.comments} comments · ${stats.saves} bookmarks`}>
+              <StatsBody s={stats} />
+            </StatsPopup>
+          </div>
+        )}
+
+        <p className="mt-1 flex gap-4 text-sm text-muted">
+          <span><b className="text-ink">{postCount}</b> {postCount === 1 ? "Post" : "Posts"}</span>
+          <span><b className="text-ink">{followingCount}</b> Following</span>
+          <span><b className="text-ink">{followerCount}</b> {followerCount === 1 ? "Follower" : "Followers"}</span>
+        </p>
       </div>
     </section>
   );
@@ -381,7 +386,7 @@ function StatsBody({ s }) {
 function MyStats({ s, collapsible = false }) {
   if (collapsible) {
     return (
-      <div className="xl:hidden">
+      <div className="hidden lg:block xl:hidden">
         <StatsPopup
           summary={`${s.likes} likes · ${s.comments} comments · ${s.saves} bookmarks`}
         >
@@ -710,51 +715,6 @@ export default async function FeedPage({ searchParams }) {
         ? "/dashboard/profile"
         : "/onboarding";
 
-  const collegeForm = (
-    <form className="flex gap-2" data-nav role="search">
-              {tab !== "for-you" && (
-                <input type="hidden" name="tab" value={tab} />
-              )}
-              {topic && <input type="hidden" name="topic" value={topic} />}
-
-              <div className="relative min-w-0 flex-1">
-                <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted">
-                  <Svg
-                    d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3"
-                    size={16}
-                  />
-                </span>
-                <input
-                  name="college"
-                  defaultValue={college}
-                  placeholder="Filter posts by college"
-                  aria-label="Filter posts by college"
-                  className="input !rounded-full !pl-10"
-                />
-              </div>
-
-              <button className="btn-outline shrink-0 !rounded-full">
-                Filter
-              </button>
-
-              {college && (
-                <Link
-                  href={href({ college: "" })}
-                  className="btn-outline shrink-0 !rounded-full"
-                >
-                  Clear
-                </Link>
-              )}
-            </form>
-  );
-
-  const topicChip = (active) =>
-    `shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
-      active
-        ? "border-brand bg-brand text-on-brand"
-        : "border-line bg-surface text-muted hover:border-brand hover:text-ink"
-    }`;
-
   return (
     <div className="relative left-1/2 w-[min(calc(100vw-2rem),1480px)] -translate-x-1/2 sm:w-[min(calc(100vw-3rem),1480px)]">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-8 xl:grid-cols-[290px_minmax(0,1fr)_350px] xl:gap-10">
@@ -792,24 +752,6 @@ export default async function FeedPage({ searchParams }) {
               ))}
             </nav>
 
-            <SideCard title="Topics">
-              <nav aria-label="Topics" className="space-y-0.5">
-                <NavItem
-                  href={href({ topic: "" })}
-                  active={!topic}
-                  label="All topics"
-                />
-                {Object.entries(TOPICS).map(([k, label]) => (
-                  <NavItem
-                    key={k}
-                    href={href({ topic: k })}
-                    active={topic === k}
-                    label={`#${label}`}
-                    count={counts.get(k) ?? 0}
-                  />
-                ))}
-              </nav>
-            </SideCard>
           </div>
         </aside>
 
@@ -825,6 +767,7 @@ export default async function FeedPage({ searchParams }) {
               postCount={postCount}
               followerCount={followerCount}
               followingCount={followingCount}
+              stats={stats}
             />
           ) : (
             <JoinCard
@@ -835,23 +778,21 @@ export default async function FeedPage({ searchParams }) {
 
           {stats && <MyStats s={stats} collapsible />}
 
-          <div className="sticky top-[4.25rem] z-30 -mx-4 border-b border-line/60 bg-paper/85 px-4 py-2 backdrop-blur-xl sm:-mx-6 sm:px-6 lg:hidden">
-            <nav
-              aria-label="Feed"
-              className="flex gap-1 rounded-full border border-line bg-surface p-1"
-            >
+          <div className="sticky top-[4.25rem] z-30 -mx-4 border-b border-line bg-paper/90 backdrop-blur-xl sm:-mx-6 lg:hidden">
+            <nav aria-label="Feed" className="flex">
               {visibleTabs.map(([k, label]) => (
                 <Link
                   key={k}
                   href={href({ tab: k })}
                   aria-current={tab === k ? "page" : undefined}
-                  className={`min-w-0 flex-1 truncate rounded-full px-2 py-2 text-center text-sm font-medium transition-colors ${
-                    tab === k
-                      ? "bg-brand text-on-brand shadow-sm"
-                      : "text-muted hover:text-ink"
+                  className={`relative min-w-0 flex-1 truncate px-1 py-3 text-center text-sm font-semibold transition-colors ${
+                    tab === k ? "text-ink" : "text-muted hover:text-ink"
                   }`}
                 >
                   {label}
+                  {tab === k && (
+                    <span className="absolute inset-x-1/2 bottom-0 h-1 w-10 -translate-x-1/2 rounded-full bg-brand" aria-hidden="true" />
+                  )}
                 </Link>
               ))}
             </nav>
@@ -865,33 +806,7 @@ export default async function FeedPage({ searchParams }) {
             />
           )}
 
-          <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0 lg:hidden">
-            <Link href={href({ topic: "" })} className={topicChip(!topic)}>
-              All
-            </Link>
-            {Object.entries(TOPICS).map(([k, label]) => (
-              <Link
-                key={k}
-                href={href({ topic: k })}
-                className={topicChip(topic === k)}
-              >
-                #{label}
-              </Link>
-            ))}
-          </div>
 
-          {tab !== "mine" && (
-            <>
-              <details className="lg:hidden" open={!!college}>
-                <summary className="flex w-fit cursor-pointer list-none items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-1.5 text-sm font-medium text-muted transition-colors hover:border-brand hover:text-ink [&::-webkit-details-marker]:hidden">
-                  <Svg d="M3 5h18l-7 8v6l-4 2v-8z" size={15} />
-                  {college ? `College: ${college}` : "Filter by college"}
-                </summary>
-                <div className="mt-2">{collegeForm}</div>
-              </details>
-              <div className="hidden lg:block">{collegeForm}</div>
-            </>
-          )}
           {needsSignIn ? (
             <div className="card flex flex-col items-center px-6 py-14 text-center">
               <span className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-soft text-brand">
