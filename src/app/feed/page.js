@@ -212,7 +212,7 @@ function MobileProfile({ me, admin, tick, roleLine, profileHref, postCount, foll
 
         {stats && (
           <div className="mt-1.5">
-            <StatsPopup variant="inline" summary={`${stats.likes} likes · ${stats.comments} comments · ${stats.saves} bookmarks`}>
+            <StatsPopup variant="inline" summary={`${stats.views} views · ${stats.likes} likes · ${stats.comments} comments · ${stats.saves} bookmarks`}>
               <StatsBody s={stats} />
             </StatsPopup>
           </div>
@@ -258,11 +258,12 @@ const ICON = {
   users: "M16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM8 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2 20a6 6 0 0 1 12 0M14 20a5 5 0 0 1 8 0",
   doc: "M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6",
   trend: "M3 17l6-6 4 4 8-8M15 7h6v6",
+  eye: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
 };
 
-function StatTile({ icon, label, value, color = "text-brand bg-brand-soft" }) {
+function StatTile({ icon, label, value, color = "text-brand bg-brand-soft", wide = false }) {
   return (
-    <div className="rounded-xl border border-line p-3">
+    <div className={`rounded-xl border border-line p-3 ${wide ? "col-span-2" : ""}`}>
       <span
         className={`flex h-8 w-8 items-center justify-center rounded-lg ${color}`}
       >
@@ -280,6 +281,13 @@ function StatsBody({ s }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-2.5">
+        <StatTile
+          wide
+          icon="eye"
+          label={s.views === 1 ? "Unique view" : "Unique views"}
+          value={s.views}
+          color="text-[#0ea5e9] bg-[#0ea5e9]/10"
+        />
         <StatTile
           icon="doc"
           label={s.posts === 1 ? "Post" : "Posts"}
@@ -316,6 +324,10 @@ function StatsBody({ s }) {
 
       <dl className="space-y-2 rounded-xl bg-surface-2 p-3 text-sm">
         <div className="flex items-center justify-between gap-3">
+          <dt className="text-muted">Views per post</dt>
+          <dd className="font-semibold tabular-nums">{s.avgViews}</dd>
+        </div>
+        <div className="flex items-center justify-between gap-3">
           <dt className="text-muted">Likes per post</dt>
           <dd className="font-semibold tabular-nums">{s.avgLikes}</dd>
         </div>
@@ -350,6 +362,7 @@ function StatsBody({ s }) {
             {s.top.body}
           </p>
           <p className="mt-2 flex gap-3 text-xs text-muted">
+            <span>{s.top._count.views} views</span>
             <span>{s.top._count.likes} likes</span>
             <span>{s.top._count.comments} comments</span>
             <span>{s.top._count.saves} saves</span>
@@ -370,7 +383,7 @@ function MyStats({ s, collapsible = false }) {
     return (
       <div className="hidden lg:block xl:hidden">
         <StatsPopup
-          summary={`${s.likes} likes · ${s.comments} comments · ${s.saves} bookmarks`}
+          summary={`${s.views} views · ${s.likes} likes · ${s.comments} comments · ${s.saves} bookmarks`}
         >
           <StatsBody s={s} />
         </StatsPopup>
@@ -584,7 +597,7 @@ export default async function FeedPage({ searchParams }) {
               topic: true,
               createdAt: true,
               _count: {
-                select: { likes: true, comments: true, saves: true },
+                select: { likes: true, comments: true, saves: true, views: true },
               },
             },
           })
@@ -601,8 +614,9 @@ export default async function FeedPage({ searchParams }) {
       likes: a.likes + p._count.likes,
       comments: a.comments + p._count.comments,
       saves: a.saves + p._count.saves,
+      views: a.views + p._count.views,
     }),
-    { likes: 0, comments: 0, saves: 0 }
+    { likes: 0, comments: 0, saves: 0, views: 0 }
   );
 
   const byTopic = new Map();
@@ -624,6 +638,7 @@ export default async function FeedPage({ searchParams }) {
         followers: followerCount,
         following: followingCount,
         ...sum,
+        avgViews: per(sum.views),
         avgLikes: per(sum.likes),
         avgInteractions: per(sum.likes + sum.comments + sum.saves),
         weekPosts: myPosts.filter(

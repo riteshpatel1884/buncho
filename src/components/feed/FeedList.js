@@ -377,7 +377,17 @@ export default function FeedList({ initial, filters, signedIn, empty, editable =
     return <EmptyState empty={empty} experts={experts} canPost={canPost} signedIn={signedIn} />;
   }
 
+  // The feed isn't empty here (an empty feed shows EmptyState above), so the end is a clear
+  // "caught up" divider. When there are only a few posts, suggestions follow under it.
   const few = !cursor && !editable && posts.length < 4;
+
+  const caughtUp = (
+    <div className="flex items-center gap-3 py-6 text-xs font-medium text-muted" role="status">
+      <span className="h-px flex-1 bg-line" />
+      <span className="inline-flex items-center gap-1.5"><Svg d="M5 13l4 4L19 7" size={14} />You're all caught up</span>
+      <span className="h-px flex-1 bg-line" />
+    </div>
+  );
 
   const tail = cursor ? (
     <div ref={sentinel} className="space-y-2 py-2 sm:space-y-4" role="status" aria-label={loading ? "Loading more posts" : undefined}>
@@ -388,22 +398,17 @@ export default function FeedList({ initial, filters, signedIn, empty, editable =
         </>
       )}
     </div>
-  ) : few ? (
-    <div className={`${CARD_EDGE} flex flex-col items-center px-5 py-7 text-center sm:px-8`}>
-      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-soft text-brand">
-        <Svg d="M12 3l2.2 5.8L20 11l-5.8 2.2L12 19l-2.2-5.8L4 11l5.8-2.2z" size={20} />
-      </span>
-      <p className="mt-3 font-display text-lg">It's quiet in here</p>
-      <p className="mt-1 max-w-sm text-sm text-muted">Follow experts to fill your feed, or start the conversation yourself.</p>
-      <Prompts experts={experts} canPost={canPost} signedIn={signedIn} nudge="Be the next voice in the feed" />
-    </div>
   ) : (
-    <div className="flex flex-col items-center gap-2 py-8 text-sm text-muted">
-      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-2 text-brand">
-        <Svg d="M5 13l4 4L19 7" size={16} />
-      </span>
-      You're all caught up.
-    </div>
+    <>
+      {caughtUp}
+      {few && (
+        <div className={`${CARD_EDGE} px-5 py-6 sm:px-8`}>
+          <p className="font-display text-lg">Want more to read?</p>
+          <p className="mt-1 max-w-sm text-sm text-muted">Follow a few experts to see their posts here, or share something yourself.</p>
+          <Prompts experts={experts} canPost={canPost} signedIn={signedIn} nudge="Be the next voice in the feed" />
+        </div>
+      )}
+    </>
   );
 
   return (

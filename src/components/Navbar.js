@@ -7,7 +7,17 @@ import NavShell from "./NavShell";
 import MobileMenu from "./MobileMenu";
 import ThemeToggle from "./ThemeToggle";
 import UserMenu from "./UserMenu";
+import NotificationBell from "./NotificationBell";
 import { REVIEW_WHERE, REPLY_OPEN, REFUND_OPEN, REQUEST_OPEN, PAYOUT_DUE, REPORT_OPEN } from "@/lib/review";
+
+// Unread notifications for the bell. Never breaks the navbar if the table isn't there yet.
+async function unreadCount(userId) {
+  try {
+    return await prisma.notification.count({ where: { userId, readAt: null } });
+  } catch {
+    return 0;
+  }
+}
 
 export default async function Navbar() {
   const admin = await isAdmin();
@@ -24,6 +34,7 @@ export default async function Navbar() {
   // Normal users can buy the blue tick too, so they get a link to it.
   const showTick = me?.role === "STUDENT";
   const profileHref = myProfile ? `/experts/${myProfile.slug}` : null;
+  const unread = me ? await unreadCount(me.id) : 0;
 
   const [toReview, repliesOpen, refundsOpen, requestsOpen, payoutsDue, reportsOpen] = admin
     ? await Promise.all([
@@ -58,6 +69,7 @@ export default async function Navbar() {
       <div className="flex items-center gap-2 text-sm font-medium sm:gap-4">
         <ThemeToggle />
         <Show when="signed-in">
+          {me && <NotificationBell initialCount={unread} />}
           <Link href="/dashboard" className={link}>Dashboard</Link>
           {profileHref && <Link href={profileHref} className={link}>My profile</Link>}
           {showTick && <Link href="/dashboard/verification" className={link}>Blue tick</Link>}

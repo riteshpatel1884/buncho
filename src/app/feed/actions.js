@@ -1,12 +1,14 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
+import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getDbUser, isAdmin, getAdminUserIds } from "@/lib/user";
 import { getPosts } from "@/lib/feed/feedQueries";
 import { findContactInfo } from "@/lib/contactCheck";
 import { TOPICS, MAX_POST, MAX_COMMENT } from "@/lib/feed/feed";
 import { isAvatarColor, isAvatarIcon } from "@/lib/avatar";
+import { notify, unnotify, findMentions, withoutMentions } from "@/lib/notifications";
 
 const get = (fd, k) => String(fd.get(k) || "").trim();
 const SIGN_IN = { error: "Sign in to do that." };
@@ -43,7 +45,9 @@ export async function createPost(_prev, formData) {
   if (topic ? !Object.hasOwn(TOPICS, topic) : !admin) return { error: "Choose a topic." };
   if (body.length < 20) return { error: "Write at least 20 characters." };
   if (body.length > MAX_POST) return { error: `Keep it under ${MAX_POST} characters.` };
-  if (!admin && findContactInfo(body).length) return { error: NO_CONTACT };
+  // A real @mention of a Buncho member is allowed; any other @handle, link, email or number is not.
+  const mentioned = await findMentions(body);
+  if (!admin && findContactInfo(withoutMentions(body, mentioned)).length) return { error: NO_CONTACT };
 
   // Only experts can link one of their services.
   let linked = null;
@@ -59,7 +63,9 @@ export async function createPost(_prev, formData) {
     }
   }
 
-  await prisma.post.create({ data: { authorId: me.id, body, topic: topic || null, serviceId: linked?.id ?? null } });
+  const created = await prisma.post.create({ data: { authorId: me.id, body, topic: topic || null, serviceId: linked?.id ?? null } });
+  // Tell the people mentioned. Runs after the response is sent, so posting stays fast.
+  after(() => Promise.all(mentioned.map((u) => notify({ userId: u.id, actorId: me.id, type: "MENTION", postId: created.id, preview: body }))));
   revalidatePath("/feed");
   revalidatePath("/");
   return { ok: true };
@@ -81,7 +87,7 @@ export async function updatePost(postId, text, topic) {
   if (nextTopic ? !Object.hasOwn(TOPICS, nextTopic) : !admin) return { error: "Choose a topic." };
   if (body.length < 20) return { error: "Write at least 20 characters." };
   if (body.length > MAX_POST) return { error: `Keep it under ${MAX_POST} characters.` };
-  if (!admin && findContactInfo(body).length) return { error: NO_CONTACT };
+  if (!admin && findContactInfo(withoutMentions(body, await findMentions(body))).length) return { error: NO_CONTACT };
 
   await prisma.post.update({ where: { id: post.id }, data: { body, topic: nextTopic || null } });
   revalidatePath("/feed");
@@ -105,11 +111,17 @@ async function toggle(model, postId) {
   const me = await getDbUser();
   if (!me) return SIGN_IN;
   const key = { postId_userId: { postId: String(postId), userId: me.id } };
-  const post = await prisma.post.findFirst({ where: { id: String(postId), hidden: false }, select: { id: true } });
+  const post = await prisma.post.findFirst({ where: { id: String(postId), hidden: false }, select: { id: true, authorId: true, body: true } });
   if (!post) return { error: "Post not found." };
   const existing = await prisma[model].findUnique({ where: key });
   if (existing) await prisma[model].delete({ where: key });
   else await prisma[model].create({ data: { postId: post.id, userId: me.id } });
+
+  // A like tells the author. Taking the like back removes that notification again.
+  if (model === "postLike") {
+    if (existing) after(() => unnotify({ userId: post.authorId, actorId: me.id, type: "LIKE", postId: post.id }));
+    else after(() => notify({ userId: post.authorId, actorId: me.id, type: "LIKE", postId: post.id, preview: post.body }));
+  }
   return { ok: true, on: !existing };
 }
 export async function toggleLike(postId) {
@@ -166,6 +178,8 @@ export async function toggleFollow(authorId) {
   const existing = await prisma.follow.findUnique({ where: key });
   if (existing) await prisma.follow.delete({ where: key });
   else await prisma.follow.create({ data: { followerId: me.id, followingId: author.id } });
+  if (existing) after(() => unnotify({ userId: author.id, actorId: me.id, type: "FOLLOW" }));
+  else after(() => notify({ userId: author.id, actorId: me.id, type: "FOLLOW" }));
   return { ok: true, on: !existing };
 }
 
@@ -213,14 +227,15 @@ export async function addComment(postId, text, parentId = null) {
   const body = String(text || "").trim();
   if (body.length < 2) return { error: "Write a little more." };
   if (body.length > MAX_COMMENT) return { error: `Keep it under ${MAX_COMMENT} characters.` };
-  if (findContactInfo(body).length) return { error: NO_CONTACT };
+  const mentioned = await findMentions(body);
+  if (findContactInfo(withoutMentions(body, mentioned)).length) return { error: NO_CONTACT };
 
-  const post = await prisma.post.findFirst({ where: { id: String(postId), hidden: false }, select: { id: true } });
+  const post = await prisma.post.findFirst({ where: { id: String(postId), hidden: false }, select: { id: true, authorId: true } });
   if (!post) return { error: "Post not found." };
 
   let parent = null;
   if (parentId) {
-    parent = await prisma.postComment.findFirst({ where: { id: String(parentId), postId: post.id }, select: { id: true, user: { select: { name: true } } } });
+    parent = await prisma.postComment.findFirst({ where: { id: String(parentId), postId: post.id }, select: { id: true, userId: true, user: { select: { name: true } } } });
     if (!parent) return { error: "That comment no longer exists." };
   }
 
@@ -230,9 +245,23 @@ export async function addComment(postId, text, parentId = null) {
   }
   const [admin, profile] = await Promise.all([isAdmin(), prisma.expertProfile.findUnique({ where: { userId: me.id }, select: { blueTickUntil: true } })]);
   const c = await prisma.postComment.create({ data: { postId: post.id, userId: me.id, body, parentId: parent?.id ?? null } });
+
+  // Tell people, one notification each: whoever was replied to, then the post's author, then anyone mentioned.
+  after(async () => {
+    const told = new Set([me.id]);
+    const send = async (userId, type) => {
+      if (!userId || told.has(userId)) return;
+      told.add(userId);
+      await notify({ userId, actorId: me.id, type, postId: post.id, commentId: c.id, preview: body });
+    };
+    await send(parent?.userId, "REPLY");
+    await send(post.authorId, "COMMENT");
+    for (const u of mentioned) await send(u.id, "MENTION");
+  });
   return { ok: true, comment: { id: c.id, body, parentId: parent?.id ?? null, replyToName: parent?.user.name ?? null, createdAt: c.createdAt.toISOString(), name: me.name, avatarUrl: me.avatarUrl, avatarColor: me.avatarColor, avatarIcon: me.avatarIcon, expert: me.role === "EXPERT", blueTick: !admin && tickActive(profile?.blueTickUntil ?? me.blueTickUntil), official: admin } };
 }
-// Lets  person choose how their avatar looks: a color and either their letters, an icon or their photo.
+
+// Lets a person choose how their avatar looks: a color and either their letters, an icon or their photo.
 // The admin always shows the official Buncho mark, so it can't be changed.
 export async function updateAvatar(color, icon) {
   const me = await getDbUser();
