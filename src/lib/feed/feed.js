@@ -37,3 +37,5 @@ export function postedLabel(iso) {
   const date = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", ...(sameYear ? {} : { year: "numeric" }), timeZone: tz }).format(then);
   return `${date} · ${d} ${d === 1 ? "day" : "days"} ago`;
 }
+// Public profile address: buncho.live/<username>. Accounts without a username fall back to /u/<id>.
+export const profilePath = (a) => (a?.username ? `/${a.username}` : `/u/${a.id}`);

@@ -5,9 +5,10 @@ import { getAdminUserIds } from "@/lib/user";
 // Everything the public profile card needs for one person. Works for visitors who are not signed in.
 // Returns null when the person should not be public: unknown id, or an expert who is not live yet
 // (the expert themselves can still see it).
-export async function getPublicProfile(userId, viewerId = null) {
-  const u = await prisma.user.findUnique({
-    where: { id: String(userId) },
+export async function getPublicProfile(key, viewerId = null) {
+  const k = String(key);
+  const u = await prisma.user.findFirst({
+    where: { OR: [{ username: k.toLowerCase() }, { id: k }] },
     select: {
       id: true, name: true, avatarUrl: true, avatarColor: true, avatarIcon: true, username: true, role: true, blueTickUntil: true,
       expertProfile: { select: { slug: true, headline: true, jobTitle: true, company: true, college: true, status: true, educationVerified: true, employmentVerified: true, blueTickUntil: true } },

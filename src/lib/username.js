@@ -1,7 +1,10 @@
 const PATTERN = /^[a-z][a-z0-9_]{2,19}$/;
 const RESERVED = new Set([
   "admin", "administrator", "buncho", "support", "help", "staff", "team", "official",
-  "moderator", "mod", "root", "system", "null", "undefined", "api", "www",
+  "moderator", "mod", "root", "system", "null", "undefined", "api", "www",  "moderator", "mod", "root", "system", "null", "undefined", "api", "www",
+  // Page addresses, so a profile at buncho.live/<username> never clashes with a real page.
+  "feed", "experts", "projects", "dashboard", "onboarding", "book", "pay", "notifications",
+  "privacy", "terms", "contact", "report", "community", "u", "sign", "signin", "signup",
 ]);
 
 // "@Ritesh_01 " -> "ritesh_01"

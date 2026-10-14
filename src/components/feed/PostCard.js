@@ -8,7 +8,7 @@ import { BlueTick, OfficialTick } from "../Badges";
 import ReportButton from "../ReportButton";
 import { showToast } from "../Toast";
 import { toggleLike, toggleSave, toggleFollow, loadComments, addComment, deletePost, deleteComment, recordView } from "@/app/feed/actions";
-import { TOPICS, MAX_COMMENT, timeAgo, postedLabel } from "@/lib/feed/feed";
+import { TOPICS, MAX_COMMENT, timeAgo, postedLabel, profilePath } from "@/lib/feed/feed";
 import { inr } from "@/lib/constants";
 
 const ICON = {
@@ -402,13 +402,13 @@ export default function PostCard({ post, signedIn, defaultOpen = false, onDelete
     return (
       <>
         <header className="flex items-start gap-3">
-          <Link href={`/u/${p.author.id}`} aria-label={`View ${p.author.name || "this person"}'s profile`} className="shrink-0">
+          <Link href={profilePath(p.author)} aria-label={`View ${p.author.name || "this person"}'s profile`} className="shrink-0">
             <Avatar name={p.author.name} src={p.author.avatarUrl} color={p.author.avatarColor} icon={p.author.avatarIcon} admin={p.author.isAdmin} size={44} />
           </Link>
           <div className="min-w-0 flex-1">
             {/* Name and badge stay on one line. Only the name shrinks, so a badge is never pushed out on phones. */}
             <div className="flex min-w-0 items-center gap-1.5">
-              <Link href={`/u/${p.author.id}`} className="min-w-0 truncate font-semibold leading-5 hover:text-brand">{p.author.name}</Link>
+              <Link href={profilePath(p.author)} className="min-w-0 truncate font-semibold leading-5 hover:text-brand">{p.author.name}</Link>
               {p.author.isAdmin && <OfficialTick className="h-[18px] w-[18px] shrink-0" />}
               {p.author.blueTick && <BlueTick className="h-4 w-4 shrink-0" />}
               {!p.author.isAdmin && !p.author.blueTick && p.author.verified && <VerifiedMark />}
