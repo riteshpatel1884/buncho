@@ -104,22 +104,21 @@ function Rail({ items, side }) {
   return (
     <div aria-hidden="true" className="relative">
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible">
-        {items.map((it, i) => (
-          <path
-            key={it.key}
-            d={side === "left" ? `M0 ${ys[i]} C60 ${ys[i]} 40 ${ts[i]} 100 ${ts[i]}` : `M0 ${ts[i]} C60 ${ts[i]} 40 ${ys[i]} 100 ${ys[i]}`}
-            fill="none"
-            stroke={it.color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            vectorEffect="non-scaling-stroke"
-          />
-        ))}
+        {items.map((it, i) => {
+          const d = side === "left" ? `M0 ${ys[i]} C60 ${ys[i]} 40 ${ts[i]} 100 ${ts[i]}` : `M0 ${ts[i]} C60 ${ts[i]} 40 ${ys[i]} 100 ${ys[i]}`;
+          const line = { d, fill: "none", stroke: it.color, strokeWidth: 2, strokeLinecap: "round", vectorEffect: "non-scaling-stroke" };
+          return (
+            <g key={it.key}>
+              <path {...line} opacity="0.35" />
+              <path {...line} className="flow-line" style={{ animationDelay: `${i * 0.25}s` }} />
+            </g>
+          );
+        })}
       </svg>
       {items.map((it, i) => (
         <span key={it.key}>
-          <span className="absolute h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full sm:h-2.5 sm:w-2.5" style={{ left: side === "left" ? "0%" : "100%", top: `${ys[i]}%`, background: it.color }} />
-          <span className="absolute h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full sm:h-2.5 sm:w-2.5" style={{ left: side === "left" ? "100%" : "0%", top: `${ts[i]}%`, background: it.color }} />
+          <span className="absolute h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full sm:h-2.5 sm:w-2.5 dot-pulse" style={{ left: side === "left" ? "0%" : "100%", top: `${ys[i]}%`, background: it.color, "--c": it.color, animationDelay: `${i * 0.35}s` }} />
+          <span className="absolute h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full sm:h-2.5 sm:w-2.5 dot-pulse" style={{ left: side === "left" ? "100%" : "0%", top: `${ts[i]}%`, background: it.color, "--c": it.color, animationDelay: `${i * 0.35 + 0.9}s` }} />
         </span>
       ))}
     </div>
@@ -182,11 +181,11 @@ function ServiceCard({ href, icon, label, blurb, price, n, color }) {
 }
 
 // ---------- Timeline: coloured line with numbered stops (desktop), coloured rail (mobile) ----------
-function StepCircle({ color, icon, size = "h-24 w-24 border-[9px]", iconSize = 38 }) {
+function StepCircle({ color, icon, size = "h-24 w-24 border-[9px]", iconSize = 38, delay = 0 }) {
   return (
     <span
-      className={`flex shrink-0 items-center justify-center rounded-full bg-surface text-ink ${size}`}
-      style={{ borderStyle: "solid", borderColor: color, boxShadow: `0 18px 34px -14px ${color}` }}
+      className={`circle-glow flex shrink-0 items-center justify-center rounded-full bg-surface text-ink ${size}`}
+      style={{ borderStyle: "solid", borderColor: color, "--c": color, animationDelay: `${delay}s` }}
     >
       <Svg d={icon} size={iconSize} />
     </span>
@@ -196,9 +195,9 @@ function StepCircle({ color, icon, size = "h-24 w-24 border-[9px]", iconSize = 3
 function StepStem({ color, icon, n, up }) {
   return (
     <div className="relative flex flex-col items-center">
-      {up && <StepCircle color={color} icon={icon} />}
+      {up && <StepCircle color={color} icon={icon} delay={(n - 1) * 1.2} />}
       <span aria-hidden="true" className="h-14 w-2 rounded-full" style={{ background: color }} />
-      {!up && <StepCircle color={color} icon={icon} />}
+      {!up && <StepCircle color={color} icon={icon} delay={(n - 1) * 1.2} />}
       <span aria-hidden="true" className={`absolute left-1/2 ml-6 font-display text-5xl leading-none ${up ? "bottom-2" : "top-2"}`} style={{ color }}>0{n}</span>
     </div>
   );
@@ -228,7 +227,10 @@ function Timeline() {
               {textAbove ? <div className="pb-8"><StepText n={n} title={title} text={text} color={color} /></div> : <StepStem color={color} icon={icon} n={n} up />}
             </div>,
             <div key={`line${i}`} style={{ gridColumn: n, gridRow: 2, background: color }} className="relative">
-              <span className="absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-[4px] bg-surface" style={{ borderColor: color }} />
+              <span aria-hidden="true" className="absolute inset-0 overflow-hidden">
+                <span className="bar-shimmer absolute inset-y-0 left-0 w-2/5" style={{ animationDelay: `${i * 1.2}s` }} />
+              </span>
+              <span className="node-pulse absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-[4px] bg-surface" style={{ borderColor: color, "--c": color, animationDelay: `${i * 1.2 + 0.5}s` }} />
             </div>,
             <div key={`bottom${i}`} style={{ gridColumn: n, gridRow: 3 }} className="flex min-h-[14rem] flex-col items-center justify-start">
               {textAbove ? <StepStem color={color} icon={icon} n={n} up={false} /> : <div className="pt-8"><StepText n={n} title={title} text={text} color={color} /></div>}
@@ -244,10 +246,11 @@ function Timeline() {
           className="absolute bottom-8 left-[1.8rem] top-8 w-1.5 rounded-full"
           style={{ background: `linear-gradient(to bottom, ${STEPS.map((s) => s[2]).join(", ")})` }}
         />
+        <span aria-hidden="true" className="rail-travel absolute left-[1.625rem] z-[5] h-3 w-3 rounded-full bg-white shadow-[0_0_0_3px_rgba(255,255,255,0.35),0_0_14px_3px_rgba(255,255,255,0.9)]" />
         {STEPS.map(([title, text, color, icon], i) => (
           <li key={title} className="relative flex gap-4">
             <span className="relative z-10">
-              <StepCircle color={color} icon={icon} size="h-16 w-16 border-[6px]" iconSize={24} />
+              <StepCircle color={color} icon={icon} size="h-16 w-16 border-[6px]" iconSize={24} delay={i * 1.2} />
             </span>
             <div className="min-w-0 pt-1">
               <p className="font-display text-lg uppercase leading-tight">
@@ -512,7 +515,7 @@ export default async function Home() {
               className="rounded-2xl border border-line px-2 py-4 text-center shadow-[0_24px_50px_-28px_rgba(11,27,51,0.35)] sm:rounded-3xl sm:px-6 sm:py-8 lg:py-10"
               style={{ background: "linear-gradient(180deg, color-mix(in srgb, #fb923c 14%, var(--surface)), var(--surface) 70%)" }}
             >
-              <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full text-white shadow-lg sm:h-20 sm:w-20 [&>svg]:h-5 [&>svg]:w-5 sm:[&>svg]:h-9 sm:[&>svg]:w-9" style={{ background: "linear-gradient(135deg, #fb923c, #e11d8f)" }}>
+              <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full text-white shadow-lg ring-pulse sm:h-20 sm:w-20 [&>svg]:h-5 [&>svg]:w-5 sm:[&>svg]:h-9 sm:[&>svg]:w-9" style={{ background: "linear-gradient(135deg, #fb923c, #e11d8f)" }}>
                 <Svg d="M12 15a6 6 0 1 0 0-12 6 6 0 0 0 0 12zM8.2 13.9L7 22l5-3 5 3-1.2-8.1" size={38} />
               </span>
               <p className="mt-3 whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.08em] text-[#f26a1b] sm:mt-4 sm:text-xs sm:tracking-[0.3em]">Get unstuck</p>
