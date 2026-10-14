@@ -276,3 +276,51 @@ nav[data-compact="true"] .font-logo > span:first-child { width: 1.75rem; height:
 /* Custom colors: the person's color is tinted for the current theme, so it still follows the toggle */
 .av-custom { --av-bg: color-mix(in srgb, var(--av-c) 16%, white); --av-fg: color-mix(in srgb, var(--av-c) 78%, black); }
 :root[data-theme="dark"] .av-custom { --av-bg: color-mix(in srgb, var(--av-c) 26%, #0a0f0c); --av-fg: color-mix(in srgb, var(--av-c) 62%, white); }
+
+/* ---------- Home page redesign ---------- */
+/* Soft colour wash behind the hero */
+.home-glow {
+  background:
+    radial-gradient(55% 60% at 0% 0%, color-mix(in srgb, #fb923c 22%, transparent), transparent 70%),
+    radial-gradient(50% 60% at 100% 8%, color-mix(in srgb, var(--brand) 18%, transparent), transparent 70%),
+    radial-gradient(45% 50% at 55% 100%, color-mix(in srgb, #a78bfa 14%, transparent), transparent 70%);
+}
+
+/* Gradient text for the highlighted word in a heading */
+.grad-text {
+  background: linear-gradient(90deg, var(--brand), #7c3aed 55%, #e11d8f);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  padding-bottom: 0.08em;
+}
+
+/* Little dotted corner decoration */
+.dot-grid {
+  background-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--ink) 28%, transparent) 1.3px, transparent 0);
+  background-size: 14px 14px;
+}
+
+/* Tinted card. Set --tone (a colour) on the element; the tint, border and hover glow follow it in light and dark. */
+.tone-card {
+  --tone-bg: color-mix(in srgb, var(--tone) 8%, var(--surface));
+  --tone-bd: color-mix(in srgb, var(--tone) 20%, var(--surface));
+  background: var(--tone-bg);
+  border: 1px solid var(--tone-bd);
+  border-radius: 1.25rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.tone-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--tone) 45%, var(--surface));
+  box-shadow: 0 16px 32px -20px var(--tone);
+}
+.tone-icon {
+  background: var(--surface);
+  color: var(--tone);
+  box-shadow: 0 4px 14px -4px color-mix(in srgb, var(--tone) 40%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tone-card:hover { transform: none; }
+}

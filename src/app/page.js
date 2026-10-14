@@ -26,11 +26,28 @@ const TOPIC_ICON = {
 };
 
 const STEPS = [
-  ["Set up your profile", "Tell people what you build, your college and the role you are aiming for."],
-  ["Share what you're learning", "Post a lesson, a build or a question in the feed. Others reply, like and save."],
-  ["Find people to build with", "Open a collab, or send a proposal on a project someone else published."],
-  ["Get unstuck with an expert", "Book a resume review, a mock interview or a project review from someone who has done it."],
+  ["Set up your profile", "Tell people what you build, your college and the role you are aiming for.", "#ff6a00", "M20 21a8 8 0 0 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"],
+  ["Share what you're learning", "Post a lesson, a build or a question in the feed. Others reply, like and save.", "#16a34a", "M4 5h16v11H9l-5 4zM8 9h8M8 12h5"],
+  ["Find people to build with", "Open a collab, or send a proposal on a project someone else published.", "#06b6d4", "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"],
+  ["Get unstuck with an expert", "Book a resume review, a mock interview or a project review from someone who has done it.", "#7c3aed", "M12 15a6 6 0 1 0 0-12 6 6 0 0 0 0 12zM8.2 13.9L7 22l5-3 5 3-1.2-8.1"],
 ];
+
+// One accent colour and one line of copy per feed topic. Unknown topics fall back to teal.
+const TOPIC_META = {
+  CAREER: ["#2f6bff", "Roles, switches and what to do next."],
+  PLACEMENTS: ["#f97316", "Prep, interviews and the offers that worked."],
+  RESEARCH: ["#7c3aed", "Papers, labs and how to get started."],
+  TECHNOLOGY: ["#16a34a", "Builds, stacks and things worth learning."],
+};
+const TOPIC_FALLBACK = ["#0891b2", "Posts from people building in this area."];
+
+const SERVICE_TONE = {
+  RESUME_REVIEW: "#2f6bff",
+  MOCK_INTERVIEW: "#f97316",
+  CAREER_GUIDANCE: "#16a34a",
+  PROJECT_REVIEW: "#7c3aed",
+};
+const PROJECT_TONES = ["#2f6bff", "#f97316", "#16a34a", "#7c3aed"];
 
 function Svg({ d, size = 20, sw = 2 }) {
   return (
@@ -40,15 +57,208 @@ function Svg({ d, size = 20, sw = 2 }) {
   );
 }
 
-function SectionHead({ title, text, href, cta }) {
+// Small orange label with a line on each side, like "SPECIAL ATTRACTIONS".
+function Eyebrow({ children, center = true }) {
+  return (
+    <p className={`flex items-center gap-3 text-xs font-bold uppercase tracking-[0.28em] text-[#f26a1b] ${center ? "justify-center" : ""}`}>
+      {center && <span aria-hidden="true" className="h-px w-8 bg-current opacity-60 sm:w-14" />}
+      {children}
+      <span aria-hidden="true" className="h-px w-8 bg-current opacity-60 sm:w-14" />
+    </p>
+  );
+}
+
+// Centred heading with a gradient word. Used for the big sections.
+function CenterHead({ eyebrow, title, accent, text }) {
+  return (
+    <div className="text-center">
+      <Eyebrow>{eyebrow}</Eyebrow>
+      <h2 className="mt-3 font-display text-3xl leading-[1.1] sm:text-5xl">
+        {title} {accent}
+      </h2>
+      {text && <p className="mx-auto mt-3 max-w-xl text-sm text-muted sm:text-base">{text}</p>}
+    </div>
+  );
+}
+
+function SectionHead({ eyebrow, title, text, href, cta }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
-        <h2 className="font-display text-2xl leading-tight sm:text-3xl">{title}</h2>
-        {text && <p className="mt-1 max-w-xl text-sm text-muted sm:text-base">{text}</p>}
+        {eyebrow && <Eyebrow center={false}>{eyebrow}</Eyebrow>}
+        <h2 className="mt-2 font-display text-2xl leading-tight sm:text-4xl">{title}</h2>
+        {text && <p className="mt-1.5 max-w-xl text-sm text-muted sm:text-base">{text}</p>}
       </div>
       {href && <Link href={href} className="shrink-0 text-sm font-semibold text-brand hover:underline">{cta}</Link>}
     </div>
+  );
+}
+
+// ---------- Hub: a centre card with cards on both sides, joined by curved lines (desktop only) ----------
+// items: [{ key, color, node }]. On a phone the centre card comes first and the cards stack below it.
+function Rail({ items, side }) {
+  const n = items.length;
+  if (!n) return <div />;
+  const ys = items.map((_, i) => ((i + 0.5) / n) * 100); // where each card is
+  const ts = items.map((_, i) => 50 + (i - (n - 1) / 2) * 9); // where each line lands on the centre card
+  return (
+    <div aria-hidden="true" className="relative">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible">
+        {items.map((it, i) => (
+          <path
+            key={it.key}
+            d={side === "left" ? `M0 ${ys[i]} C60 ${ys[i]} 40 ${ts[i]} 100 ${ts[i]}` : `M0 ${ts[i]} C60 ${ts[i]} 40 ${ys[i]} 100 ${ys[i]}`}
+            fill="none"
+            stroke={it.color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
+      </svg>
+      {items.map((it, i) => (
+        <span key={it.key}>
+          <span className="absolute h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full sm:h-2.5 sm:w-2.5" style={{ left: side === "left" ? "0%" : "100%", top: `${ys[i]}%`, background: it.color }} />
+          <span className="absolute h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full sm:h-2.5 sm:w-2.5" style={{ left: side === "left" ? "100%" : "0%", top: `${ts[i]}%`, background: it.color }} />
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function HubSide({ items }) {
+  return (
+    <div className="flex flex-col gap-2 sm:gap-3 lg:gap-4 [&>*]:flex-1">
+      {items.map((it) => (
+        <div key={it.key} className="flex">{it.node}</div>
+      ))}
+    </div>
+  );
+}
+
+// Same layout on every screen: cards on the left, one card in the centre, cards on the right.
+// Only the sizes change, and on small screens the cards show less text.
+function Hub({ center, left, right }) {
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_0.75rem_minmax(0,1.15fr)_0.75rem_minmax(0,1fr)] sm:grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,16rem)_2.5rem_minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_4.5rem_minmax(0,22rem)_4.5rem_minmax(0,1fr)]">
+      <HubSide items={left} />
+      <Rail items={left} side="left" />
+      <div className="self-center">{center}</div>
+      <Rail items={right} side="right" />
+      <HubSide items={right} />
+    </div>
+  );
+}
+
+// On a phone these cards show only the icon and title (plus the count or price). The description, number and arrow appear on a laptop.
+function TopicCard({ href, icon, label, blurb, count, color }) {
+  return (
+    <Link href={href} className="tone-card flex w-full flex-col items-start gap-1.5 p-2 sm:gap-2.5 sm:p-4 lg:flex-row lg:items-center lg:gap-4 lg:p-5" style={{ "--tone": color }}>
+      <span className="tone-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-full sm:h-11 sm:w-11 lg:h-14 lg:w-14 [&>svg]:h-4 [&>svg]:w-4 sm:[&>svg]:h-[22px] sm:[&>svg]:w-[22px]"><Svg d={icon} size={22} /></span>
+      <span className="min-w-0">
+        <span className="block font-display text-xs leading-tight sm:text-[15px] lg:text-lg lg:leading-snug">{label}</span>
+        <span className="mt-0.5 hidden text-sm leading-5 text-muted lg:block">{blurb}</span>
+        <span className="mt-0.5 block text-[10px] text-muted sm:text-xs lg:mt-1.5 lg:text-sm">{count} {count === 1 ? "post" : "posts"}</span>
+      </span>
+    </Link>
+  );
+}
+
+function ServiceCard({ href, icon, label, blurb, price, n, color }) {
+  return (
+    <Link href={href} className="tone-card relative flex w-full flex-col items-start gap-1.5 p-2 sm:gap-2.5 sm:p-4 lg:flex-row lg:items-center lg:gap-4 lg:p-5 lg:pb-5" style={{ "--tone": color }}>
+      <span className="absolute right-4 top-3 hidden font-display text-3xl leading-none text-muted opacity-40 lg:block">0{n}</span>
+      <span className="tone-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-xl sm:h-11 sm:w-11 sm:rounded-2xl lg:h-14 lg:w-14 [&>svg]:h-4 [&>svg]:w-4 sm:[&>svg]:h-[22px] sm:[&>svg]:w-[22px]"><Svg d={icon} size={22} /></span>
+      <span className="min-w-0 lg:flex-1 lg:pr-11">
+        <span className="block font-display text-xs leading-tight sm:text-[15px] lg:text-lg lg:leading-snug">{label}</span>
+        <span className="mt-0.5 hidden text-sm leading-5 text-muted lg:line-clamp-2 lg:block">{blurb}</span>
+        <span className="mt-0.5 block text-[10px] text-muted sm:text-xs lg:mt-1.5 lg:text-sm">{price}</span>
+      </span>
+      <span className="absolute bottom-3.5 right-4 hidden h-8 w-8 items-center justify-center rounded-full text-white lg:flex" style={{ background: "var(--tone)" }}>
+        <Svg d="M5 12h14M13 6l6 6-6 6" size={15} />
+      </span>
+    </Link>
+  );
+}
+
+// ---------- Timeline: coloured line with numbered stops (desktop), coloured rail (mobile) ----------
+function StepCircle({ color, icon, size = "h-24 w-24 border-[9px]", iconSize = 38 }) {
+  return (
+    <span
+      className={`flex shrink-0 items-center justify-center rounded-full bg-surface text-ink ${size}`}
+      style={{ borderStyle: "solid", borderColor: color, boxShadow: `0 18px 34px -14px ${color}` }}
+    >
+      <Svg d={icon} size={iconSize} />
+    </span>
+  );
+}
+
+function StepStem({ color, icon, n, up }) {
+  return (
+    <div className="relative flex flex-col items-center">
+      {up && <StepCircle color={color} icon={icon} />}
+      <span aria-hidden="true" className="h-14 w-2 rounded-full" style={{ background: color }} />
+      {!up && <StepCircle color={color} icon={icon} />}
+      <span aria-hidden="true" className={`absolute left-1/2 ml-6 font-display text-5xl leading-none ${up ? "bottom-2" : "top-2"}`} style={{ color }}>0{n}</span>
+    </div>
+  );
+}
+
+function StepText({ n, title, text, color }) {
+  return (
+    <div className="px-5 text-center">
+      <p className="font-display text-lg uppercase leading-tight">
+        <span style={{ color }}>0{n}</span> {title}
+      </p>
+      <p className="mt-2 text-sm leading-6 text-muted">{text}</p>
+    </div>
+  );
+}
+
+function Timeline() {
+  return (
+    <>
+      {/* Desktop: one grid so the line stays straight; steps alternate above and below it */}
+      <div className="mx-auto hidden max-w-6xl grid-cols-4 grid-rows-[auto_0.875rem_auto] lg:grid">
+        {STEPS.flatMap(([title, text, color, icon], i) => {
+          const textAbove = i % 2 === 0;
+          const n = i + 1;
+          return [
+            <div key={`top${i}`} style={{ gridColumn: n, gridRow: 1 }} className="flex min-h-[14rem] flex-col items-center justify-end">
+              {textAbove ? <div className="pb-8"><StepText n={n} title={title} text={text} color={color} /></div> : <StepStem color={color} icon={icon} n={n} up />}
+            </div>,
+            <div key={`line${i}`} style={{ gridColumn: n, gridRow: 2, background: color }} className="relative">
+              <span className="absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-[4px] bg-surface" style={{ borderColor: color }} />
+            </div>,
+            <div key={`bottom${i}`} style={{ gridColumn: n, gridRow: 3 }} className="flex min-h-[14rem] flex-col items-center justify-start">
+              {textAbove ? <StepStem color={color} icon={icon} n={n} up={false} /> : <div className="pt-8"><StepText n={n} title={title} text={text} color={color} /></div>}
+            </div>,
+          ];
+        })}
+      </div>
+
+      {/* Mobile: a coloured rail down the left */}
+      <ol className="relative mx-auto max-w-md space-y-8 lg:hidden">
+        <span
+          aria-hidden="true"
+          className="absolute bottom-8 left-[1.8rem] top-8 w-1.5 rounded-full"
+          style={{ background: `linear-gradient(to bottom, ${STEPS.map((s) => s[2]).join(", ")})` }}
+        />
+        {STEPS.map(([title, text, color, icon], i) => (
+          <li key={title} className="relative flex gap-4">
+            <span className="relative z-10">
+              <StepCircle color={color} icon={icon} size="h-16 w-16 border-[6px]" iconSize={24} />
+            </span>
+            <div className="min-w-0 pt-1">
+              <p className="font-display text-lg uppercase leading-tight">
+                <span style={{ color }}>0{i + 1}</span> {title}
+              </p>
+              <p className="mt-1.5 text-sm leading-6 text-muted">{text}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </>
   );
 }
 
@@ -147,12 +357,41 @@ export default async function Home() {
         ? { href: "/projects", label: "Browse projects" }
         : { href: "/onboarding", label: "Finish setup" };
 
+  // Cards for the two "hub" sections.
+  const topicItems = Object.entries(TOPICS).map(([k, label]) => {
+    const [color, blurb] = TOPIC_META[k] ?? TOPIC_FALLBACK;
+    return {
+      key: k,
+      color,
+      node: <TopicCard href={`/feed?topic=${k}`} color={color} icon={TOPIC_ICON[k] ?? TOPIC_ICON.TECHNOLOGY} label={label} blurb={blurb} count={topicInfo.get(k) ?? 0} />,
+    };
+  });
+  const serviceItems = services.map(([key, label], i) => {
+    const color = SERVICE_TONE[key] ?? "#0891b2";
+    const info = typeInfo.get(key);
+    return {
+      key,
+      color,
+      node: <ServiceCard href={`/experts?service=${key}`} color={color} icon={SERVICE_ICON[key]} label={label} blurb={SERVICE_BLURBS[key]} price={info ? `from ${inr(info._min.priceInr)}` : "Coming soon"} n={i + 1} />,
+    };
+  });
+  const split = (list) => [list.slice(0, Math.ceil(list.length / 2)), list.slice(Math.ceil(list.length / 2))];
+  const [topicsLeft, topicsRight] = split(topicItems);
+  const [servicesLeft, servicesRight] = split(serviceItems);
+
+  const heroStats = [
+    [memberCount, "builders", "#2f6bff"],
+    [expertCount, "checked experts", "#16a34a"],
+    [openProjects, "open collabs", "#f97316"],
+  ];
+
   return (
-    <div className="space-y-16 md:space-y-24">
+    <div className="space-y-20 md:space-y-28">
       {/* Hero: the feed itself is the picture */}
-      <section className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-16">
+      <section className="relative isolate grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-16">
         <div>
-          <h1 className="font-display text-[2.4rem] leading-[1.04] sm:text-5xl lg:text-[3.6rem]">
+          <Eyebrow center={false}>Students and experts</Eyebrow>
+          <h1 className="mt-4 font-display text-[2.4rem] leading-[1.04] sm:text-5xl lg:text-[3.6rem]">
             Share what you build. Find who to build it with.
           </h1>
           <p className="mt-5 max-w-lg text-base leading-7 text-muted sm:text-lg">
@@ -162,12 +401,18 @@ export default async function Home() {
             <Link href={primary.href} className="btn-primary !rounded-full !px-6 !py-3">{primary.label}</Link>
             <Link href={secondary.href} className="btn-outline !rounded-full !px-6 !py-3">{secondary.label}</Link>
           </div>
-          <p className="mt-6 text-sm text-muted">
-            <b className="text-ink">{memberCount}</b> builders, <b className="text-ink">{expertCount}</b> checked experts and <b className="text-ink">{openProjects}</b> open collabs on Buncho right now.
-          </p>
+          <ul className="mt-8 grid max-w-md grid-cols-3 gap-2.5 sm:gap-3">
+            {heroStats.map(([n, label, color]) => (
+              <li key={label} className="tone-card px-2 py-3 text-center sm:px-3" style={{ "--tone": color }}>
+                <p className="font-display text-2xl leading-none sm:text-3xl" style={{ color }}>{n}</p>
+                <p className="mt-1.5 text-[11px] leading-tight text-muted sm:text-xs">{label}</p>
+              </li>
+            ))}
+          </ul>
         </div>
 
         <div className="relative isolate">
+          <div aria-hidden="true" className="dot-grid absolute -right-4 -top-6 -z-10 hidden h-24 w-24 sm:block" />
           <div aria-hidden="true" className="absolute inset-x-5 -bottom-4 top-5 -z-10 rotate-[2.5deg] rounded-[2rem] bg-brand-soft" />
           <div className="overflow-hidden rounded-3xl border border-line bg-surface shadow-[0_28px_60px_-24px_rgba(11,27,51,0.3)]">
             <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
@@ -191,61 +436,62 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Topics */}
-      <section className="space-y-5">
-        <SectionHead title="Pick a topic" text="Jump straight into what you want to read." href="/feed" cta="Open the feed" />
-        <ul className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          {Object.entries(TOPICS).map(([k, label]) => {
-            const n = topicInfo.get(k) ?? 0;
-            return (
-              <li key={k}>
-                <Link href={`/feed?topic=${k}`} className="card card-hover flex h-full items-center gap-3 p-4">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-soft text-brand">
-                    <Svg d={TOPIC_ICON[k] ?? TOPIC_ICON.TECHNOLOGY} />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate font-display text-base">{label}</span>
-                    <span className="block text-xs text-muted">{n} {n === 1 ? "post" : "posts"}</span>
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+      {/* Topics: centre card with a card for each topic */}
+      <section className="space-y-8">
+        <CenterHead eyebrow="Feed topics" title="Find your" accent="focus" text="Jump straight into what you want to read." />
+        <Hub
+          left={topicsLeft}
+          right={topicsRight}
+          center={
+            <div className="rounded-2xl border border-line bg-surface px-2 py-4 text-center shadow-[0_24px_50px_-28px_rgba(11,27,51,0.35)] sm:rounded-3xl sm:px-6 sm:py-8 lg:py-10">
+              <p className="whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.08em] text-[#f26a1b] sm:text-xs sm:tracking-[0.3em]">Buncho feed</p>
+              <p className="mt-2 whitespace-nowrap font-display text-xl uppercase leading-[0.95] sm:mt-3 sm:text-4xl lg:text-5xl">Pick a</p>
+              <p className="whitespace-nowrap font-display text-xl uppercase leading-[1.05] sm:text-4xl lg:text-5xl">topic</p>
+              <p className="mx-auto mt-4 hidden max-w-[15rem] text-sm text-muted sm:block">Read what people are sharing, then join the conversation.</p>
+              <Link href="/feed" className="btn-primary mt-4 !rounded-full whitespace-nowrap !px-2.5 !py-1.5 !text-[11px] sm:mt-5 sm:!px-5 sm:!py-2.5 sm:!text-sm">
+                <span className="sm:hidden">Open feed</span>
+                <span className="hidden sm:inline">Open the feed</span>
+              </Link>
+            </div>
+          }
+        />
       </section>
 
       {/* Collab */}
-      <section className="space-y-5">
-        <SectionHead title="Collab" text="Projects published by students. Send a proposal, or ask a question first." href="/projects" cta="See all projects" />
+      <section className="space-y-6">
+        <SectionHead eyebrow="Collab" title="Build something together" text="Projects published by students. Send a proposal, or ask a question first." href="/projects" cta="See all projects" />
         {projects.length === 0 ? (
           <Empty title="No open projects yet" text="Be the first to publish a project and get proposals from experts." href={me ? "/projects/new" : "/sign-up"} cta={me ? "Post a project" : "Join to post one"} />
         ) : (
           <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {projects.map((p) => (
-              <li key={p.id}>
-                <Link href={`/projects/${p.id}`} className="card card-hover flex h-full flex-col gap-3 p-5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="chip">{SERVICE_TYPES[p.helpType]}</span>
-                    <span className="font-display text-lg">{budgetLabel(p)}</span>
-                  </div>
-                  <h3 className="font-display text-lg leading-snug">{p.title}</h3>
-                  <p className="line-clamp-2 text-sm text-muted">{p.description}</p>
-                  <div className="mt-auto flex items-center gap-2.5 border-t border-line pt-3">
-                    <Avatar name={p.student.name} size={28} />
-                    <p className="min-w-0 flex-1 truncate text-xs text-muted">
-                      <span className="font-medium text-ink">{p.student.name || "A student"}</span> · {days(p.deadlineDays)} · {timeAgo(p.createdAt.toISOString())}
-                    </p>
-                  </div>
-                </Link>
-              </li>
-            ))}
+            {projects.map((p, i) => {
+              const color = PROJECT_TONES[i % PROJECT_TONES.length];
+              return (
+                <li key={p.id}>
+                  <Link href={`/projects/${p.id}`} className="tone-card flex h-full flex-col gap-3 p-5" style={{ "--tone": color }}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center rounded-full bg-surface px-2.5 py-0.5 text-xs font-semibold" style={{ color }}>{SERVICE_TYPES[p.helpType]}</span>
+                      <span className="font-display text-lg">{budgetLabel(p)}</span>
+                    </div>
+                    <h3 className="font-display text-lg leading-snug">{p.title}</h3>
+                    <p className="line-clamp-2 text-sm text-muted">{p.description}</p>
+                    <div className="mt-auto flex items-center gap-2.5 border-t pt-3" style={{ borderColor: "var(--tone-bd)" }}>
+                      <Avatar name={p.student.name} size={28} />
+                      <p className="min-w-0 flex-1 truncate text-xs text-muted">
+                        <span className="font-medium text-ink">{p.student.name || "A student"}</span> · {days(p.deadlineDays)} · {timeAgo(p.createdAt.toISOString())}
+                      </p>
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
 
       {/* Experts */}
-      <section className="space-y-5">
-        <SectionHead title="Experts" text="Seniors and working professionals, each checked by Buncho before they go live." href="/experts" cta="Find an expert" />
+      <section className="space-y-6">
+        <SectionHead eyebrow="Experts" title="Learn from people who did it" text="Seniors and working professionals, each checked by Buncho before they go live." href="/experts" cta="Find an expert" />
         {featured.length === 0 ? (
           <Empty title="Experts are joining now" text="Placed somewhere or built something real? Help the people coming up behind you." href="/onboarding/expert" cta="Become an expert" />
         ) : (
@@ -255,38 +501,36 @@ export default async function Home() {
         )}
       </section>
 
-      {/* Expert help by service */}
-      <section className="space-y-5">
-        <SectionHead title="Get expert help" text="Written answers from people who have been where you are." />
-        <ul className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          {services.map(([key, label]) => {
-            const info = typeInfo.get(key);
-            return (
-              <li key={key}>
-                <Link href={`/experts?service=${key}`} className="card card-hover flex h-full flex-col gap-2 p-4 sm:p-5">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-soft text-brand"><Svg d={SERVICE_ICON[key]} /></span>
-                  <h3 className="mt-1 font-display text-base leading-snug sm:text-lg">{label}</h3>
-                  <p className="line-clamp-2 text-xs text-muted sm:text-sm">{SERVICE_BLURBS[key]}</p>
-                  <p className="mt-auto pt-2 text-sm font-semibold text-brand">{info ? `from ${inr(info._min.priceInr)}` : "Coming soon"}</p>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+      {/* Expert help by service: numbered cards around a centre card */}
+      <section className="space-y-8">
+        <CenterHead eyebrow="Expert help" title="More than a" accent="feed" text="Written answers from people who have been where you are." />
+        <Hub
+          left={servicesLeft}
+          right={servicesRight}
+          center={
+            <div
+              className="rounded-2xl border border-line px-2 py-4 text-center shadow-[0_24px_50px_-28px_rgba(11,27,51,0.35)] sm:rounded-3xl sm:px-6 sm:py-8 lg:py-10"
+              style={{ background: "linear-gradient(180deg, color-mix(in srgb, #fb923c 14%, var(--surface)), var(--surface) 70%)" }}
+            >
+              <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full text-white shadow-lg sm:h-20 sm:w-20 [&>svg]:h-5 [&>svg]:w-5 sm:[&>svg]:h-9 sm:[&>svg]:w-9" style={{ background: "linear-gradient(135deg, #fb923c, #e11d8f)" }}>
+                <Svg d="M12 15a6 6 0 1 0 0-12 6 6 0 0 0 0 12zM8.2 13.9L7 22l5-3 5 3-1.2-8.1" size={38} />
+              </span>
+              <p className="mt-3 whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.08em] text-[#f26a1b] sm:mt-4 sm:text-xs sm:tracking-[0.3em]">Get unstuck</p>
+              <p className="mt-1 font-display text-base leading-tight sm:text-3xl lg:text-4xl">Ask an expert</p>
+              <p className="mx-auto mt-3 hidden max-w-[15rem] text-sm text-muted sm:block">Resume, interviews, career and projects, reviewed by someone who has done it.</p>
+              <Link href="/experts" className="btn-primary mt-4 !rounded-full whitespace-nowrap !px-2.5 !py-1.5 !text-[11px] sm:mt-5 sm:!px-5 sm:!py-2.5 sm:!text-sm">
+                <span className="sm:hidden">Find experts</span>
+                <span className="hidden sm:inline">Find an expert</span>
+              </Link>
+            </div>
+          }
+        />
       </section>
 
       {/* How it works: a real sequence, so the steps are numbered */}
-      <section className="space-y-5">
-        <SectionHead title="How Buncho works" />
-        <ol className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {STEPS.map(([title, text], i) => (
-            <li key={title} className="card p-5">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-sm font-bold text-on-brand">{i + 1}</span>
-              <p className="mt-3 font-display text-lg leading-snug">{title}</p>
-              <p className="mt-1.5 text-sm text-muted">{text}</p>
-            </li>
-          ))}
-        </ol>
+      <section className="space-y-10 md:space-y-12">
+        <CenterHead eyebrow="How it works" title="Four steps to" accent="getting started" />
+        <Timeline />
       </section>
 
       {/* Join / blue tick */}
