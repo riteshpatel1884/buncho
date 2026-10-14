@@ -294,7 +294,7 @@ function Reels({ posts, signedIn, onDeleted, onChange, onClose, onNearEnd, hasMo
 // Infinite scroll. Remount it (via `key`) when the filters change.
 // editable: show an Edit button under each post (used for the "My posts" list).
 // experts: suggested people to follow, used by the empty state. canPost: show the "create post" prompt.
-export default function FeedList({ initial, filters, signedIn, empty, editable = false, experts = [], canPost = false }) {
+export default function FeedList({ initial, filters, signedIn, empty, editable = false, experts = [], canPost = false, hideFollow = false }) {
   const [posts, setPosts] = useState(initial.posts);
   const [cursor, setCursor] = useState(initial.nextCursor);
   const [loading, setLoading] = useState(false);
@@ -422,7 +422,7 @@ export default function FeedList({ initial, filters, signedIn, empty, editable =
             {editable ? (
               <EditablePost post={p} signedIn={signedIn} onDeleted={onDeleted} onUpdated={onUpdated} />
             ) : (
-              <PostCard post={p} signedIn={signedIn} onDeleted={onDeleted} onChange={onCardChange} />
+              <PostCard post={p} signedIn={signedIn} onDeleted={onDeleted} onChange={onCardChange} hideFollow={hideFollow} />
             )}
           </div>
         ))}

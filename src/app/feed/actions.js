@@ -16,9 +16,9 @@ const NO_CONTACT = "Please remove phone numbers, emails, links and social handle
 
 // Next page of the feed. Anyone can read it, signed in or not.
 // authorId is only honoured when it is the signed-in person's own id (the "My posts" tab).
-export async function loadPosts({ cursor, topic, college, tab, sort, authorId }) {
+export async function loadPosts({ cursor, topic, college, tab, sort, authorId, profileId }) {
   const me = await getDbUser();
-  return getPosts({ viewerId: me?.id ?? null, cursor, topic, college, tab, sort, authorId: me && authorId === me.id ? me.id : null });
+  return getPosts({ viewerId: me?.id ?? null, cursor, topic, college, tab, sort, authorId: me && authorId === me.id ? me.id : null, profileId: profileId ? String(profileId) : null });
 }
 
 export async function createPost(_prev, formData) {

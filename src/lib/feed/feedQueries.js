@@ -13,7 +13,7 @@ function orderFor(sort) {
 // One page of posts, shaped for the client.
 // Shown: posts by live experts, posts by normal users (students), and posts by the admin
 // (everyone "follows" the admin automatically).
-export async function getPosts({ viewerId = null, cursor = null, topic = "", college = "", tab = "for-you", sort = "latest", postId = null, authorId = null } = {}) {
+export async function getPosts({ viewerId = null, cursor = null, topic = "", college = "", tab = "for-you", sort = "latest", postId = null, authorId = null, profileId = null } = {}) {
   const adminIds = await getAdminUserIds();
   const adminSet = new Set(adminIds);
 
@@ -41,6 +41,8 @@ export async function getPosts({ viewerId = null, cursor = null, topic = "", col
   }
   if (and.length) where.AND = and;
   if (postId) where.id = postId;
+  // A public profile page: one person's posts, still limited to people who are visible in the feed.
+  if (profileId && !authorId) where.authorId = String(profileId);
   if (Object.hasOwn(TOPICS, topic)) where.topic = topic;
   if (viewerId && tab === "saved") where.saves = { some: { userId: viewerId } };
 
