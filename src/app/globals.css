@@ -384,3 +384,16 @@ nav[data-compact="true"] .font-logo > span:first-child { width: 1.75rem; height:
   .flow-line { stroke-dasharray: none; }
   .circle-glow { box-shadow: 0 18px 34px -14px var(--c); }
 }
+
+/* ---------- Experts page ---------- */
+/* Soft wash behind the finder header; follows the brand colour in light and dark */
+.finder-wash {
+  background:
+    radial-gradient(60% 90% at 0% 0%, color-mix(in srgb, var(--brand) 11%, transparent), transparent 70%),
+    radial-gradient(40% 70% at 100% 0%, color-mix(in srgb, #fb923c 9%, transparent), transparent 70%),
+    var(--surface);
+}
+/* Edge fade for a horizontally scrolling row, only where it actually scrolls (phones) */
+@media (max-width: 639px) {
+  .fade-edge-mobile { mask-image: linear-gradient(to right, transparent, #000 16px, #000 calc(100% - 16px), transparent); }
+}

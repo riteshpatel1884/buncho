@@ -163,7 +163,7 @@ function PostMenu({ p, signedIn, onDelete }) {
   );
 }
 
-export default function PostCard({ post, signedIn, defaultOpen = false, onDeleted, onChange, focus = false }) {
+export default function PostCard({ post, signedIn, defaultOpen = false, onDeleted, onChange, focus = false, hideFollow = false }) {
   const router = useRouter();
   const [p, setP] = useState(post);
   const [modal, setModal] = useState(false);
@@ -424,7 +424,7 @@ export default function PostCard({ post, signedIn, defaultOpen = false, onDelete
             </p>
           </div>
           <div className="-mr-1.5 flex shrink-0 items-center gap-0.5">
-            {!p.mine && !p.author.isAdmin && (
+            {!p.mine && !p.author.isAdmin && !hideFollow && (
               signedIn ? (
                 <button type="button" onClick={follow} className={`shrink-0 cursor-pointer ${p.following ? "btn-outline" : "btn-primary"} !rounded-full !px-3.5 !py-1 !text-[13px]`}>
                   {p.following ? "Following" : "Follow"}
