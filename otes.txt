@@ -1,3 +1,7 @@
 npx prisma db push
 npx prisma generate
 npm run dev
+
+
+Buncho followers mismatch
+expert profile
