@@ -9,503 +9,103 @@ datasource db {
 }
 
 enum Role {
-  STUDENT
-  EXPERT
+  USER
+  ADMIN
 }
 
-enum ExpertStatus {
-  PENDING
-  ACTIVE
-  SUSPENDED
+enum PollType {
+  OPINION
+  PREDICTION
+  CROWD_QUESTION
 }
 
-enum ServiceType {
-  RESUME_REVIEW
-  MOCK_INTERVIEW
-  CAREER_GUIDANCE
-  PROJECT_REVIEW
-  OTHER
-}
-
-enum BookingStatus {
-  PENDING
-  CONFIRMED
-  COMPLETED
-  CANCELLED
-  DECLINED
-}
-
-enum PaymentStatus {
-  FREE          // price is 0, nothing to pay
-  UNPAID        // waiting for the student to pay on Cashfree
-  PAID
-  REFUNDED
-  REFUND_FAILED // needs a manual refund from the Cashfree dashboard
-}
-
-// ---------- Projects (new) ----------
-enum BudgetMode {
-  FIXED
-  NEGOTIABLE
+enum PollStatus {
   OPEN
-}
-
-enum ProjectStatus {
-  PENDING_REVIEW // waiting for an admin to read it
-  OPEN           // experts can propose
-  AGREED         // a price is agreed with one expert, waiting for payment
-  IN_PROGRESS    // paid, expert is working
-  COMPLETED
-  CLOSED
-  REJECTED
-}
-
-enum ProposalStatus {
-  ACTIVE      // negotiating
-  AGREED      // both accepted the same terms, waiting for payment
-  IN_PROGRESS // paid
-  DELIVERED
-  COMPLETED
-  DECLINED    // student declined
-  WITHDRAWN   // expert withdrew
-  CANCELLED   // cancelled after agreement, or by admin refund
-}
-
-enum ProjectMessageKind {
-  MESSAGE
-  OFFER
-  DELIVERY
-}
-
-enum ProjectReviewStatus {
-  PENDING_REVIEW
-  APPROVED
-  REJECTED
-}
-
-enum ProjectPaymentStatus {
-  UNPAID
-  PAID
-  REFUNDED
-  REFUND_FAILED
+  RESOLVED
+  CANCELLED
 }
 
 model User {
-  id           String   @id @default(cuid())
-  clerkUserId  String   @unique
-  email        String   @unique
-  name         String?
-  avatarUrl    String?
-  avatarColor  String?
-  avatarIcon   String?
-  role         Role?
-  createdAt    DateTime @default(now())
-  username     String?  @unique
-  reportsMade  Report[] @relation("ReportsMade")
-  reportsAbout Report[] @relation("ReportsAbout")
-  isAdmin      Boolean       @default(false)
-  adminProfile AdminProfile?
-
-  // Blue tick (paid, 30 days per payment). Experts keep theirs on ExpertProfile, everyone else keeps it here.
-  blueTickUntil    DateTime?
-  blueTickPayments BlueTickPayment[]
-
-  studentProfile StudentProfile?
-  expertProfile  ExpertProfile?
-  bookings       Booking[]       @relation("StudentBookings")
-
-  // Feed
-  posts        Post[]
-  postLikes    PostLike[]
-  postSaves    PostSave[]
-  postComments PostComment[]
-  following    Follow[]       @relation("Following")
-  followers    Follow[]       @relation("Followers")
-
-  // Projects
-  projects        Project[]        @relation("ProjectStudent")
-  projectMessages ProjectMessage[] @relation("ProjectMessageAuthor")
-
-  // Notifications
-  notifications     Notification[]     @relation("NotificationRecipient")
-  notificationsSent Notification[]     @relation("NotificationActor")
-  pushSubscriptions PushSubscription[]
-}
-
-model StudentProfile {
-  id         String   @id @default(cuid())
-  userId     String   @unique
-  college    String
-  branch     String
-  year       String
-  skills     String[]
-  targetRole String
-  careerGoal String
-  problems   String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model ExpertProfile {
-  id                 String       @id @default(cuid())
-  userId             String       @unique
-  slug               String       @unique
-  headline           String?
-  college            String
-  branch             String
-  graduationYear     Int
-  company            String
-  jobTitle           String
-  experienceYears    Int
-  skills             String[]
-  bio                String
-  linkedinUrl        String
-  githubUrl          String?
-  status             ExpertStatus @default(PENDING)
-  educationVerified  Boolean      @default(false)
-  employmentVerified Boolean      @default(false)
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
-
-  // Blue tick (paid, 30 days per payment)
-  blueTickUntil DateTime?
-
-  // Set when a verified expert changes details, so an admin re-checks them
-  needsReview      Boolean  @default(false)
-  unverifiedFields String[] @default([])
-
-  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  services         Service[]
-  availability     Availability[]
-  bookings         Booking[]
-  projectProposals ProjectProposal[]
-
-  @@index([status, createdAt])
-}
-
-model Service {
-  id           String      @id @default(cuid())
-  expertId     String
-  type         ServiceType
-  title        String
-  description  String
-  priceInr     Int
-  deliverables String[]
-  active       Boolean     @default(true)
-  createdAt    DateTime    @default(now())
-
-  expert   ExpertProfile @relation(fields: [expertId], references: [id], onDelete: Cascade)
-  bookings Booking[]
-  posts    Post[]
-
-  @@index([expertId, active])
-}
-
-// Weekly recurring window, in India time. weekday: 0 = Sunday ... 6 = Saturday.
-// Not used by booking any more. Kept until you decide to remove it.
-model Availability {
-  id       String @id @default(cuid())
-  expertId String
-  weekday  Int
-  startMin Int
-  endMin   Int
-
-  expert ExpertProfile @relation(fields: [expertId], references: [id], onDelete: Cascade)
-
-  @@index([expertId])
-}
-
-model Booking {
-  id              String        @id @default(cuid())
-  studentId       String
-  expertId        String
-  serviceId       String
-  status          BookingStatus @default(PENDING)
-  note            String?       // the student's question
-  meetingUrl      String?       // no longer used, meeting links are not allowed
-  priceInr        Int
-  paymentStatus   PaymentStatus @default(FREE) // FREE default keeps old bookings valid
-  cashfreeOrderId String?       @unique        // set when the payment succeeds, used for refunds
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  cancelledBy      String?   // "EXPERT" or "STUDENT"
-  statusChangedAt  DateTime?
-  resolvedAt       DateTime? // set when the admin has dealt with a refund case
-  followUpNote     String?
-  followUpAt       DateTime?
-  followUpCount    Int       @default(0)
-  paidAt           DateTime?
-  reviewStatus     String    @default("APPROVED") // PENDING_REVIEW | APPROVED | REJECTED
-  noteFlags        String[]  @default([])
-  reviewNote       String?
-  payoutReleasedAt DateTime?
-  payoutNote       String?
-
-  student User           @relation("StudentBookings", fields: [studentId], references: [id])
-  expert  ExpertProfile  @relation(fields: [expertId], references: [id])
-  service Service        @relation(fields: [serviceId], references: [id])
-  replies BookingReply[]
-  reports Report[]
-
-  @@index([expertId, createdAt])
-  @@index([studentId, createdAt])
-  @@index([paymentStatus, createdAt])
-}
-
-// One row per blue tick payment, so the same payment is never counted twice.
-// paymentId holds the Cashfree order id.
-// Belongs to an expert (expertId) or to a normal user (userId).
-model BlueTickPayment {
-  paymentId String   @id
-  expertId  String?
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-}
-
-model BookingReply {
-  id         String    @id @default(cuid())
-  bookingId  String
-  booking    Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  body       String
-  flags      String[]  @default([])
-  status     String    @default("PENDING") // PENDING | SENDING | SENT | SEND_FAILED | REJECTED
-  adminNote  String?
-  createdAt  DateTime  @default(now())
-  reviewedAt DateTime?
-  sentAt     DateTime?
-
-  @@index([status, createdAt])
-  @@index([bookingId])
-}
-
-model Report {
-  id         String    @id @default(cuid())
-  reporterId String
-  reporter   User      @relation("ReportsMade", fields: [reporterId], references: [id], onDelete: Cascade)
-  kind       String    // PROBLEM | PERSON
-  category   String
-  message    String
-  targetId   String?
-  target     User?     @relation("ReportsAbout", fields: [targetId], references: [id], onDelete: SetNull)
-  bookingId  String?
-  booking    Booking?  @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-  status     String    @default("OPEN") // OPEN | RESOLVED
-  adminNote  String?
-  createdAt  DateTime  @default(now())
-  resolvedAt DateTime?
-
-  @@index([status, createdAt])
-}
-
-// ---------- Feed ----------
-model Post {
   id        String   @id @default(cuid())
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  body      String
-  topic     String?  // CAREER | PLACEMENTS | RESEARCH | TECHNOLOGY, null = admin "No category"
-  serviceId String?
-  service   Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
-  hidden    Boolean  @default(false) // set true to take a post down without deleting it
+  clerkId   String   @unique
+  username  String   @unique
+  name      String
+  imageUrl  String?
+  bio       String?
+  role      Role     @default(USER)
+  isPublic  Boolean  @default(true)
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  likes         PostLike[]
-  saves         PostSave[]
-  views         PostView[]
-  comments      PostComment[]
-  notifications Notification[]
+  polls Poll[]
+  votes PollVote[]
+}
 
+model Tag {
+  id    String @id @default(cuid())
+  name  String @unique
+  slug  String @unique
+  polls Poll[]
+}
+
+model Poll {
+  id                 String     @id @default(cuid())
+  question           String
+  description        String?
+  type               PollType
+  status             PollStatus @default(OPEN)
+  resolutionCriteria String?
+  resolutionSource   String?
+  closesAt           DateTime
+  createdAt          DateTime   @default(now())
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  options    PollOption[]
+  votes      PollVote[]
+  tags       Tag[]
+  resolution PollResolution?
+
+  @@index([status, closesAt])
   @@index([createdAt])
-  @@index([topic, createdAt])
-  @@index([authorId, createdAt])
+  @@index([authorId])
 }
 
-model PostLike {
-  postId    String
-  userId    String
-  createdAt DateTime @default(now())
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+model PollOption {
+  id       String @id @default(cuid())
+  text     String
+  position Int
+  pollId   String
+  poll     Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes    PollVote[]
 
-  @@id([postId, userId])
+  @@index([pollId])
 }
 
-model PostSave {
-  postId    String
-  userId    String
-  createdAt DateTime @default(now())
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([postId, userId])
-  @@index([userId, createdAt])
-}
-
-model PostComment {
-  id        String        @id @default(cuid())
-  postId    String
-  userId    String
-  body      String
-  parentId  String?       // set when this is a reply to another comment
-  createdAt DateTime      @default(now())
-  post      Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent    PostComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies   PostComment[] @relation("CommentReplies")
-
-  @@index([postId, createdAt])
-  @@index([parentId])
-}
-
-model Follow {
-  followerId  String
-  followingId String
-  createdAt   DateTime @default(now())
-  follower    User     @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
-  following   User     @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
-
-  @@id([followerId, followingId])
-  @@index([followingId])
-}
-
-// ---------- Projects (new): Projects -> Proposals -> Negotiation -> Agreement -> Payment -> Completion ----------
-model Project {
-  id           String        @id @default(cuid())
-  studentId    String
-  student      User          @relation("ProjectStudent", fields: [studentId], references: [id], onDelete: Cascade)
-  title        String
-  description  String
-  helpType     ServiceType
-  deliverables String[]
-  deadlineDays Int
-  budgetMode   BudgetMode    @default(NEGOTIABLE)
-  budgetMinInr Int?          // null when budgetMode is OPEN
-  budgetMaxInr Int?
-  status       ProjectStatus @default(PENDING_REVIEW)
-  reviewNote   String?
-  noteFlags    String[]      @default([])
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-
-  proposals ProjectProposal[]
-
-  @@index([status, createdAt])
-  @@index([studentId])
-}
-
-model ProjectProposal {
-  id        String         @id @default(cuid())
-  projectId String
-  project   Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  expertId  String
-  expert    ExpertProfile  @relation(fields: [expertId], references: [id], onDelete: Cascade)
-  status    ProposalStatus @default(ACTIVE)
-
-  // The agreed terms, copied from the accepted offer
-  agreedPriceInr Int?
-  agreedScope    String?
-  agreedDays     Int?
-  agreedAt       DateTime?
-
-  // Payment
-  paymentStatus   ProjectPaymentStatus @default(UNPAID)
-  cashfreeOrderId String?              @unique
-  paidAt          DateTime?
-  feePct          Int?
-  feeInr          Int?
-  payoutInr       Int?
-
-  completedAt      DateTime?
-  payoutReleasedAt DateTime?
-  payoutNote       String?
-  cancelledBy      String?   // EXPERT | STUDENT | ADMIN
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-
-  messages ProjectMessage[]
-
-  @@unique([projectId, expertId])
-  @@index([status])
-  @@index([paymentStatus, status])
-}
-
-// Messages, offers and deliveries reach the other person straight away.
-// Admin review only applies when a message is held back (reviewStatus PENDING_REVIEW).
-model ProjectMessage {
-  id           String              @id @default(cuid())
-  proposalId   String
-  proposal     ProjectProposal     @relation(fields: [proposalId], references: [id], onDelete: Cascade)
-  authorId     String
-  author       User                @relation("ProjectMessageAuthor", fields: [authorId], references: [id], onDelete: Cascade)
-  kind         ProjectMessageKind  @default(MESSAGE)
-  body         String
-  priceInr     Int?                // OFFER only
-  deliveryDays Int?                // OFFER only
-  reviewStatus ProjectReviewStatus @default(PENDING_REVIEW)
-  adminNote    String?
-  flags        String[]            @default([])
-  reviewedAt   DateTime?
-  createdAt    DateTime            @default(now())
-
-  @@index([proposalId, createdAt])
-  @@index([reviewStatus, createdAt])
-}
-
-model AdminProfile {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  headline    String?
-  about       String?
-  contactInfo String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model PostView {
+model PollVote {
   id        String   @id @default(cuid())
-  postId    String
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  viewerKey String   // "u:<userId>" when signed in, "a:<random id>" when signed out
+  pollId    String
+  optionId  String
+  userId    String
   createdAt DateTime @default(now())
 
-  @@unique([postId, viewerKey])
-  @@index([postId])
+  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, userId]) // one vote per user per poll, enforced by the DB
+  @@index([optionId])
 }
 
-// ---------- Notifications ----------
-model Notification {
-  id        String    @id @default(cuid())
-  userId    String
-  user      User      @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
-  actorId   String?
-  actor     User?     @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
-  type      String    // FOLLOW | LIKE | COMMENT | REPLY | MENTION | MESSAGE
-  postId    String?
-  post      Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  commentId String?
-  preview   String?
-  readAt    DateTime?
-  createdAt DateTime  @default(now())
+model PollResolution {
+  id              String   @id @default(cuid())
+  pollId          String   @unique
+  winningOptionId String
+  evidenceNote    String
+  evidenceUrl     String?
+  resolvedById    String
+  resolvedAt      DateTime @default(now())
 
-  @@index([userId, readAt])
-  @@index([userId, createdAt])
-}
-
-model PushSubscription {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  endpoint  String   @unique
-  p256dh    String
-  auth      String
-  createdAt DateTime @default(now())
-
-  @@index([userId])
+  poll Poll @relation(fields: [pollId], references: [id], onDelete: Cascade)
 }

@@ -1,9 +1,10 @@
-import { clerkMiddleware } from "@clerk/nextjs/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-// Runs Clerk on every request so auth() works in pages and actions.
-// Pages protect themselves (see lib/user.js), so no path matching is needed here.
-// On Next.js 15 or older, name this file middleware.js instead.
-export default clerkMiddleware();
+const isProtected = createRouteMatcher(["/profile(.*)", "/polls/new(.*)"]);
+
+export default clerkMiddleware(async (auth, req) => {
+  if (isProtected(req)) await auth.protect();
+});
 
 export const config = {
   matcher: [
