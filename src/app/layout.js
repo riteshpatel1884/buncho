@@ -105,7 +105,7 @@ export default function RootLayout({ children }) {
           <MobileTabBar />
           <ToastHost />
 
-          {/* Vercel Analytics and performance monitoring */}
+         
           <Analytics />
           <SpeedInsights />
         </body>
