@@ -1,8 +1,8 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
-import { getDbUser } from "@/lib/user";
-import { profileSchema } from "@/lib/validators";
+import { prisma } from "../../lib/prisma";
+import { getDbUser } from "..//../lib/user";
+import { profileSchema } from "../../lib/validators";
 
 export async function updateProfile(formData) {
   const user = await getDbUser();

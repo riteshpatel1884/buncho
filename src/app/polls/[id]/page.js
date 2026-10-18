@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-import { getDbUser } from "@/lib/user";
-import { POLL_TYPES, STATUS_STYLES, effectiveStatus, timeLeft } from "@/lib/poll-utils";
-import PollResults from "@/components/poll-results";
-import VoteForm from "@/components/vote-form";
-import ResolveForm from "@/components/resolve-form";
-import TagChip from "@/components/tag-chip";
-import LocalTime from "@/components/local-time";
-import { btnPrimary, card } from "@/components/ui";
+import { prisma } from "../../../lib/prisma";
+import { getDbUser } from "../../../lib/user";
+import { POLL_TYPES, STATUS_STYLES, effectiveStatus, timeLeft } from "../../../lib/poll-utils";
+import PollResults from "../../components/poll-results";
+import VoteForm from "../../components/vote-form";
+import ResolveForm from "../../components/resolve-form";
+import TagChip from "../../components/tag-chip";
+import LocalTime from "../../components/local-time";
+import { btnPrimary, card } from "../../components/ui";
 
-export const dynamic = "force-dynamic";
+
 
 export async function generateMetadata({ params }) {
   const { id } = await params;

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import PollCard from "@/components/poll-card";
-import { btnGhost, btnPrimary, card } from "@/components/ui";
+import PollCard from "./components/poll-card";
+import { btnGhost, btnPrimary, card } from "./components/ui";
 
 export const dynamic = "force-dynamic";
 

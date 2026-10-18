@@ -1,8 +1,8 @@
-import { prisma } from "@/lib/prisma";
-import { getDbUser } from "@/lib/user";
-import { updateProfile } from "@/app/actions/profile";
-import PollCard from "@/components/poll-card";
-import { btnPrimary, card, inputCls } from "@/components/ui";
+import { prisma } from "../../lib/prisma";
+import { getDbUser } from "../../lib/user";
+import { updateProfile } from "../actions/profile";
+import PollCard from "../components/poll-card";
+import { btnPrimary, card, inputCls } from "../components/ui";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Your profile" };

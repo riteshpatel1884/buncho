@@ -1,10 +1,10 @@
 "use server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
-import { getDbUser } from "@/lib/user";
-import { DURATIONS } from "@/lib/poll-utils";
-import { createPollSchema, resolvePollSchema } from "@/lib/validators";
+import { prisma } from "../../lib/prisma";
+import { getDbUser } from "../../lib/user";
+import { DURATIONS } from "../../lib/poll-utils";
+import { createPollSchema, resolvePollSchema } from "../../lib/validators";
 
 const str = (fd, k) => String(fd.get(k) ?? "");
 

@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
-import PollCard from "@/components/poll-card";
-import { btnGhost, btnPrimary, card, inputCls } from "@/components/ui";
-import { POLL_TYPES } from "@/lib/poll-utils";
+import { prisma } from "../../lib/prisma";
+import PollCard from "../components/poll-card";
+import { btnGhost, btnPrimary, card, inputCls } from "../components/ui";
+import { POLL_TYPES } from "../../lib/poll-utils";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Before It Happens" };
