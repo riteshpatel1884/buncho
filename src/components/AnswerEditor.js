@@ -18,7 +18,7 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
   const [savedText, setSavedText] = useState(initialContent);
   const [everSaved, setEverSaved] = useState(hasSubmission);
   const [lang, setLang] = useState('en-IN');
-  const [message, setMessage] = useState(null); // { type: 'ok' | 'error', text }
+  const [message, setMessage] = useState(null); 
   const [pending, startTransition] = useTransition();
 
   // Dictated phrases are appended to the end of the answer
