@@ -1,13 +1,46 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const fs = require('node:fs');
+const path = require('node:path');
+const { PrismaClient } = require('@prisma/client');
+const { topics, problems } = require('./seed-data');
 
-const tags = ["AI & Tech", "Sports", "College", "Careers", "Startups", "Gaming", "Entertainment", "Finance", "Culture"];
+const prisma = new PrismaClient();
+const read = (slug, kind) => fs.readFileSync(path.join(__dirname, 'content', `${slug}.${kind}.md`), 'utf8').trim();
 
 async function main() {
-  for (const name of tags) {
-    const slug = name.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-    await prisma.tag.upsert({ where: { slug }, update: {}, create: { name, slug } });
+  const topicIds = {};
+  for (const [order, t] of topics.entries()) {
+    const row = await prisma.topic.upsert({
+      where: { slug: t.slug },
+      update: { name: t.name, description: t.description, order },
+      create: { ...t, order },
+    });
+    topicIds[t.slug] = row.id;
   }
+
+  for (const [position, p] of problems.entries()) {
+    const { topic, related, allowDirectReveal = false, ...rest } = p;
+    const data = { ...rest, allowDirectReveal, description: read(p.slug, 'question'), topicId: topicIds[topic], position };
+    const problem = await prisma.problem.upsert({ where: { slug: p.slug }, update: data, create: data });
+
+    const content = read(p.slug, 'solution');
+    await prisma.expertSolution.upsert({
+      where: { problemId: problem.id },
+      update: { content },
+      create: { problemId: problem.id, content },
+    });
+  }
+
+  // Related links (second pass, so every problem exists)
+  for (const p of problems) {
+    await prisma.problem.update({
+      where: { slug: p.slug },
+      data: { related: { set: p.related.map((slug) => ({ slug })) } },
+    });
+  }
+
+  console.log(`Seeded ${topics.length} topics and ${problems.length} problems.`);
 }
 
-main().finally(() => prisma.$disconnect());
+main()
+  .catch((e) => { console.error(e); process.exit(1); })
+  .finally(() => prisma.$disconnect());

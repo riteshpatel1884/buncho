@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum ProblemType {
+  CONCEPTUAL
+  PRACTICAL
+  DEBUGGING
+  SYSTEM_DESIGN
+  CASE_STUDY
+}
+
+enum ProgressStatus {
+  ATTEMPTED
+  COMPLETED
+}
+
+model User {
+  id          String            @id @default(cuid())
+  clerkId     String            @unique
+  email       String?
+  name        String?
+  imageUrl    String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  submissions Submission[]
+  bookmarks   Bookmark[]
+  progress    ProblemProgress[]
+
+  @@index([email])
+}
+
+model Topic {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  name        String
+  description String
+  order       Int       @default(0)
+  problems    Problem[]
+}
+
+model Problem {
+  id                String            @id @default(cuid())
+  slug              String            @unique
+  title             String
+  description       String            @db.Text // Markdown
+  topicId           String
+  topic             Topic             @relation(fields: [topicId], references: [id])
+  subcategory       String?
+  difficulty        Difficulty
+  type              ProblemType
+  roles             String[]
+  estimatedMinutes  Int               @default(10)
+  hints             String[]
+  // If true, users may reveal the solution without submitting an attempt
+  allowDirectReveal Boolean           @default(false)
+  published         Boolean           @default(true)
+  position          Int               @default(0)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  expertSolution ExpertSolution?
+  related        Problem[]         @relation("RelatedProblems")
+  relatedBy      Problem[]         @relation("RelatedProblems")
+  submissions    Submission[]
+  bookmarks      Bookmark[]
+  progress       ProblemProgress[]
+
+  @@index([topicId, difficulty])
+  @@index([published, difficulty])
+}
+
+// Authoritative, admin-curated. Kept separate from user content on purpose.
+model ExpertSolution {
+  id         String    @id @default(cuid())
+  problemId  String    @unique
+  problem    Problem   @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  content    String    @db.Text // Markdown
+  // Only set these after a real human review
+  reviewedBy String?
+  reviewedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+// Private by default. Public sharing arrives in Phase 3 as a separate CommunityAnswer model.
+model Submission {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problemId String
+  problem   Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, problemId])
+  @@index([problemId])
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problemId String
+  problem   Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, problemId])
+  @@index([userId])
+}
+
+model ProblemProgress {
+  id               String         @id @default(cuid())
+  userId           String
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problemId        String
+  problem          Problem        @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  status           ProgressStatus @default(ATTEMPTED)
+  solutionRevealed Boolean        @default(false)
+  completedAt      DateTime?
+  lastActivityAt   DateTime       @default(now())
+  createdAt        DateTime       @default(now())
+
+  @@unique([userId, problemId])
+  @@index([userId, status])
+}

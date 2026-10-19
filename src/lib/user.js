@@ -1,13 +1,13 @@
-import { auth, currentUser } from "@clerk/nextjs/server";
-import { prisma } from "./prisma";
+import { cache } from 'react';
+import { auth, currentUser } from '@clerk/nextjs/server';
+import { prisma } from './prisma';
 
-function makeUsername(cu) {
-  const raw = cu.username || cu.emailAddresses?.[0]?.emailAddress?.split("@")[0] || "user";
-  return raw.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20) || "user";
-}
-
-// Returns the DB user for the signed-in Clerk user, creating it on first use.
-export async function getDbUser() {
+/**
+ * Returns the database user for the signed-in Clerk user, creating it on first visit.
+ * Cached per request so several components can call it without extra queries.
+ * Clerk's API is only called the first time a user is seen.
+ */
+export const getOrCreateUser = cache(async () => {
   const { userId } = await auth();
   if (!userId) return null;
 
@@ -16,21 +16,13 @@ export async function getDbUser() {
 
   const cu = await currentUser();
   if (!cu) return null;
-  const base = makeUsername(cu);
-  const name = [cu.firstName, cu.lastName].filter(Boolean).join(" ") || base;
 
-  for (let i = 0; i < 5; i++) {
-    const username = i === 0 ? base : `${base}${Math.floor(1000 + Math.random() * 9000)}`;
-    try {
-      return await prisma.user.create({
-        data: { clerkId: userId, username, name, imageUrl: cu.imageUrl },
-      });
-    } catch (e) {
-      if (e?.code !== "P2002") throw e;
-      // Either a concurrent request created this user, or the username is taken.
-      const again = await prisma.user.findUnique({ where: { clerkId: userId } });
-      if (again) return again;
-    }
-  }
-  throw new Error("Could not create user");
-}
+  const email = cu.primaryEmailAddress?.emailAddress ?? cu.emailAddresses?.[0]?.emailAddress ?? null;
+  const name = [cu.firstName, cu.lastName].filter(Boolean).join(' ') || cu.username || null;
+
+  return prisma.user.upsert({
+    where: { clerkId: cu.id },
+    update: {},
+    create: { clerkId: cu.id, email, name, imageUrl: cu.imageUrl },
+  });
+});

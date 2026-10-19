@@ -8,104 +8,132 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-enum Role {
-  USER
-  ADMIN
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
 }
 
-enum PollType {
-  OPINION
-  PREDICTION
-  CROWD_QUESTION
+enum ProblemType {
+  CONCEPTUAL
+  PRACTICAL
+  DEBUGGING
+  SYSTEM_DESIGN
+  CASE_STUDY
 }
 
-enum PollStatus {
-  OPEN
-  RESOLVED
-  CANCELLED
+enum ProgressStatus {
+  ATTEMPTED
+  COMPLETED
 }
 
 model User {
+  id          String            @id @default(cuid())
+  clerkId     String            @unique
+  email       String?
+  name        String?
+  imageUrl    String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  submissions Submission[]
+  bookmarks   Bookmark[]
+  progress    ProblemProgress[]
+
+  @@index([email])
+}
+
+model Topic {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  name        String
+  description String
+  order       Int       @default(0)
+  problems    Problem[]
+}
+
+model Problem {
+  id                String            @id @default(cuid())
+  slug              String            @unique
+  title             String
+  description       String            @db.Text // Markdown
+  topicId           String
+  topic             Topic             @relation(fields: [topicId], references: [id])
+  subcategory       String?
+  difficulty        Difficulty
+  type              ProblemType
+  roles             String[]
+  estimatedMinutes  Int               @default(10)
+  hints             String[]
+  // If true, users may reveal the solution without submitting an attempt
+  allowDirectReveal Boolean           @default(false)
+  published         Boolean           @default(true)
+  position          Int               @default(0)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  expertSolution ExpertSolution?
+  related        Problem[]         @relation("RelatedProblems")
+  relatedBy      Problem[]         @relation("RelatedProblems")
+  submissions    Submission[]
+  bookmarks      Bookmark[]
+  progress       ProblemProgress[]
+
+  @@index([topicId, difficulty])
+  @@index([published, difficulty])
+}
+
+// Authoritative, admin-curated. Kept separate from user content on purpose.
+model ExpertSolution {
+  id         String    @id @default(cuid())
+  problemId  String    @unique
+  problem    Problem   @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  content    String    @db.Text // Markdown
+  // Only set these after a real human review
+  reviewedBy String?
+  reviewedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+// Private by default. Public sharing arrives in Phase 3 as a separate CommunityAnswer model.
+model Submission {
   id        String   @id @default(cuid())
-  clerkId   String   @unique
-  username  String   @unique
-  name      String
-  imageUrl  String?
-  bio       String?
-  role      Role     @default(USER)
-  isPublic  Boolean  @default(true)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problemId String
+  problem   Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  content   String   @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  polls Poll[]
-  votes PollVote[]
+  @@unique([userId, problemId])
+  @@index([problemId])
 }
 
-model Tag {
-  id    String @id @default(cuid())
-  name  String @unique
-  slug  String @unique
-  polls Poll[]
-}
-
-model Poll {
-  id                 String     @id @default(cuid())
-  question           String
-  description        String?
-  type               PollType
-  status             PollStatus @default(OPEN)
-  resolutionCriteria String?
-  resolutionSource   String?
-  closesAt           DateTime
-  createdAt          DateTime   @default(now())
-
-  authorId String
-  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
-
-  options    PollOption[]
-  votes      PollVote[]
-  tags       Tag[]
-  resolution PollResolution?
-
-  @@index([status, closesAt])
-  @@index([createdAt])
-  @@index([authorId])
-}
-
-model PollOption {
-  id       String @id @default(cuid())
-  text     String
-  position Int
-  pollId   String
-  poll     Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
-  votes    PollVote[]
-
-  @@index([pollId])
-}
-
-model PollVote {
+model Bookmark {
   id        String   @id @default(cuid())
-  pollId    String
-  optionId  String
   userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problemId String
+  problem   Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
-  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
-  option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
-  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([pollId, userId]) // one vote per user per poll, enforced by the DB
-  @@index([optionId])
+  @@unique([userId, problemId])
+  @@index([userId])
 }
 
-model PollResolution {
-  id              String   @id @default(cuid())
-  pollId          String   @unique
-  winningOptionId String
-  evidenceNote    String
-  evidenceUrl     String?
-  resolvedById    String
-  resolvedAt      DateTime @default(now())
+model ProblemProgress {
+  id               String         @id @default(cuid())
+  userId           String
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problemId        String
+  problem          Problem        @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  status           ProgressStatus @default(ATTEMPTED)
+  solutionRevealed Boolean        @default(false)
+  completedAt      DateTime?
+  lastActivityAt   DateTime       @default(now())
+  createdAt        DateTime       @default(now())
 
-  poll Poll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  @@unique([userId, problemId])
+  @@index([userId, status])
 }
