@@ -8,6 +8,8 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+/* ---------- Enums ---------- */
+
 enum Difficulty {
   EASY
   MEDIUM
@@ -27,17 +29,47 @@ enum ProgressStatus {
   COMPLETED
 }
 
+// Phase 3
+enum AnswerStatus {
+  PUBLISHED
+  UNSHARED
+  HIDDEN
+}
+
+enum ReportReason {
+  INCORRECT
+  COPIED
+  INAPPROPRIATE
+  SPAM
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  ACTIONED
+  DISMISSED
+}
+
+/* ---------- Core models (Phase 1-2) ---------- */
+
 model User {
-  id          String            @id @default(cuid())
-  clerkId     String            @unique
-  email       String?
-  name        String?
-  imageUrl    String?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  submissions Submission[]
-  bookmarks   Bookmark[]
-  progress    ProblemProgress[]
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String?
+  name      String?
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  submissions      Submission[]
+  bookmarks        Bookmark[]
+  progress         ProblemProgress[]
+  // Phase 3
+  communityAnswers CommunityAnswer[]
+  answerVotes      AnswerVote[]
+  answerBookmarks  AnswerBookmark[]
+  reports          Report[]
+  comments         AnswerComment[]
 
   @@index([email])
 }
@@ -52,31 +84,33 @@ model Topic {
 }
 
 model Problem {
-  id                String            @id @default(cuid())
-  slug              String            @unique
+  id                String      @id @default(cuid())
+  slug              String      @unique
   title             String
-  description       String            @db.Text // Markdown
+  description       String      @db.Text // Markdown
   topicId           String
-  topic             Topic             @relation(fields: [topicId], references: [id])
+  topic             Topic       @relation(fields: [topicId], references: [id])
   subcategory       String?
   difficulty        Difficulty
   type              ProblemType
   roles             String[]
-  estimatedMinutes  Int               @default(10)
+  estimatedMinutes  Int         @default(10)
   hints             String[]
   // If true, users may reveal the solution without submitting an attempt
-  allowDirectReveal Boolean           @default(false)
-  published         Boolean           @default(true)
-  position          Int               @default(0)
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  allowDirectReveal Boolean     @default(false)
+  published         Boolean     @default(true)
+  position          Int         @default(0)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 
-  expertSolution ExpertSolution?
-  related        Problem[]         @relation("RelatedProblems")
-  relatedBy      Problem[]         @relation("RelatedProblems")
-  submissions    Submission[]
-  bookmarks      Bookmark[]
-  progress       ProblemProgress[]
+  expertSolution   ExpertSolution?
+  related          Problem[]         @relation("RelatedProblems")
+  relatedBy        Problem[]         @relation("RelatedProblems")
+  submissions      Submission[]
+  bookmarks        Bookmark[]
+  progress         ProblemProgress[]
+  // Phase 3
+  communityAnswers CommunityAnswer[]
 
   @@index([topicId, difficulty])
   @@index([published, difficulty])
@@ -95,7 +129,7 @@ model ExpertSolution {
   updatedAt  DateTime  @updatedAt
 }
 
-// Private by default. Public sharing arrives in Phase 3 as a separate CommunityAnswer model.
+// Private to the user. Public sharing creates a separate CommunityAnswer copy.
 model Submission {
   id        String   @id @default(cuid())
   userId    String
@@ -136,4 +170,86 @@ model ProblemProgress {
 
   @@unique([userId, problemId])
   @@index([userId, status])
+}
+
+/* ---------- Community (Phase 3) ---------- */
+
+// Public copy of a user's answer, created only when they choose to share.
+// Editing the private Submission never changes this until the user updates the shared version.
+model CommunityAnswer {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problemId String
+  problem   Problem      @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  content   String       @db.Text // Markdown
+  anonymous Boolean      @default(false)
+  status    AnswerStatus @default(PUBLISHED)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  votes     AnswerVote[]
+  bookmarks AnswerBookmark[]
+  reports   Report[]
+  comments  AnswerComment[]
+
+  // One shared answer per user per problem
+  @@unique([userId, problemId])
+  @@index([problemId, status])
+}
+
+// "Helpful" votes. The unique constraint prevents duplicate votes.
+model AnswerVote {
+  id        String          @id @default(cuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answerId  String
+  answer    CommunityAnswer @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  createdAt DateTime        @default(now())
+
+  @@unique([userId, answerId])
+  @@index([answerId])
+}
+
+model AnswerBookmark {
+  id        String          @id @default(cuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answerId  String
+  answer    CommunityAnswer @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  createdAt DateTime        @default(now())
+
+  @@unique([userId, answerId])
+  @@index([userId])
+}
+
+// One report per user per answer. Open reports from distinct users drive auto-hide.
+model Report {
+  id         String          @id @default(cuid())
+  reporterId String
+  reporter   User            @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  answerId   String
+  answer     CommunityAnswer @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  reason     ReportReason
+  details    String?         @db.Text
+  status     ReportStatus    @default(OPEN)
+  createdAt  DateTime        @default(now())
+  resolvedAt DateTime?
+
+  @@unique([reporterId, answerId])
+  @@index([status, createdAt])
+  @@index([answerId])
+}
+
+model AnswerComment {
+  id        String          @id @default(cuid())
+  answerId  String
+  answer    CommunityAnswer @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String          @db.Text
+  createdAt DateTime        @default(now())
+
+  @@index([answerId, createdAt])
+  @@index([userId, createdAt])
 }

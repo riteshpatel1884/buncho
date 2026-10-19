@@ -10,7 +10,7 @@ export default async function DashboardPage() {
   const user = await getOrCreateUser();
   if (!user) redirect('/login');
 
-  const [topics, progress, bookmarks, suggestions] = await Promise.all([
+  const [topics, progress, bookmarks, suggestions, savedAnswers] = await Promise.all([
     prisma.topic.findMany({
       orderBy: { order: 'asc' },
       include: { _count: { select: { problems: { where: { published: true } } } } },
@@ -31,6 +31,22 @@ export default async function DashboardPage() {
       orderBy: [{ difficulty: 'asc' }, { position: 'asc' }],
       take: 3,
       select: { slug: true, title: true, difficulty: true, topic: { select: { name: true } } },
+    }),
+    // Phase 3: community answers this user saved (hidden or unshared answers are left out)
+    prisma.answerBookmark.findMany({
+      where: { userId: user.id, answer: { status: 'PUBLISHED' } },
+      orderBy: { createdAt: 'desc' },
+      take: 6,
+      select: {
+        answer: {
+          select: {
+            id: true,
+            anonymous: true,
+            user: { select: { name: true } },
+            problem: { select: { slug: true, title: true } },
+          },
+        },
+      },
     }),
   ]);
 
@@ -108,7 +124,14 @@ export default async function DashboardPage() {
                     <Link href={`/topics/${t.slug}`} className="font-medium hover:text-accent">{t.name}</Link>
                     <span className="text-muted">{done} of {count}</span>
                   </div>
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface-2" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${t.name} completion`}>
+                  <div
+                    className="mt-2 h-2 overflow-hidden rounded-full bg-surface-2"
+                    role="progressbar"
+                    aria-valuenow={pct}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={`${t.name} completion`}
+                  >
                     <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
                   </div>
                 </li>
@@ -123,6 +146,29 @@ export default async function DashboardPage() {
             items={bookmarks.map((b) => b.problem)}
             empty="Use Save for later on any problem to collect it here."
           />
+        </section>
+
+        <section aria-labelledby="saved-answers" className="lg:col-span-2">
+          <h2 id="saved-answers" className="mb-3 font-display text-2xl font-semibold">Saved community answers</h2>
+          {savedAnswers.length ? (
+            <ul className="divide-y divide-line border-y border-line">
+              {savedAnswers.map(({ answer }) => (
+                <li key={answer.id}>
+                  <Link
+                    href={`/problems/${answer.problem.slug}#answer-${answer.id}`}
+                    className="flex items-center justify-between gap-4 py-3.5 hover:text-accent"
+                  >
+                    <span className="font-medium">{answer.problem.title}</span>
+                    <span className="text-sm text-muted">
+                      {answer.anonymous ? 'Anonymous learner' : answer.user.name?.split(' ')[0] ?? 'A learner'}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted">Use Save on a community answer to collect it here.</p>
+          )}
         </section>
       </div>
     </div>

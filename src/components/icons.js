@@ -27,3 +27,12 @@ export const Menu = (p) => (
 export const Close = (p) => (
   <svg {...base} {...p}><path d="M6 6l12 12M18 6L6 18" /></svg>
 );
+export const ThumbUp = (p) => (
+  <svg {...base} {...p}><path d="M7 11v9H4v-9zM7 11l4-8a2 2 0 0 1 2 2v4h5.5a2 2 0 0 1 2 2.3l-1.2 6.5a2 2 0 0 1-2 1.7H7" /></svg>
+);
+export const Chat = (p) => (
+  <svg {...base} {...p}><path d="M4 5h16v11H9l-5 4z" /></svg>
+);
+export const Flag = (p) => (
+  <svg {...base} {...p}><path d="M5 21V4M5 4h11l-2 4 2 4H5" /></svg>
+);

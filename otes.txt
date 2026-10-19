@@ -3,5 +3,615 @@ npx prisma generate
 npm run dev
 
 
-Buncho followers mismatch. Buncho followers mismatch
-expert profile
+# AI Engineering Practice Platform
+## Product Vision & Phase-Wise Development Roadmap
+
+### 1. Product Vision
+
+Build a structured practice platform for students and early-career developers preparing for AI Engineer, ML Engineer, and GenAI Engineer interviews.
+
+The platform will provide curated interview questions, real-world AI engineering challenges, expert-written solutions, community-submitted answers, and personalized feedback.
+
+Unlike traditional DSA platforms, the primary focus will be AI/ML concepts, LLM engineering, RAG, AI agents, ML system design, and production troubleshooting.
+
+**Core product loop:**
+
+Discover a problem → Attempt a solution → Submit an answer → Receive feedback → Compare solutions → Learn from others → Track progress.
+
+### 2. Target Audience
+
+**Primary audience**
+- Students preparing for AI Engineer internships.
+- Freshers preparing for GenAI Engineer roles.
+- Developers transitioning into AI engineering.
+- Students preparing for ML Engineer interviews.
+
+**Initial focus:** AI Engineer and GenAI Engineer interview preparation for students and freshers.
+
+### 3. Core Question Categories
+
+The initial question bank will contain approximately 200 curated questions.
+
+| Category | Target questions |
+|---|---:|
+| Machine Learning Fundamentals | 30 |
+| Deep Learning | 20 |
+| Python for AI/ML | 15 |
+| Statistics and Mathematics | 15 |
+| Generative AI and LLMs | 30 |
+| RAG and Vector Databases | 25 |
+| AI Agents and Tool Calling | 15 |
+| ML System Design | 20 |
+| Production AI Engineering | 20 |
+| AI Engineering Case Studies | 10 |
+| **Total** | **200** |
+
+These are initial planning targets, not verified counts of the most frequently asked interview questions.
+
+Every question will include:
+- Title and description.
+- Category and subcategory.
+- Difficulty: Easy, Medium, or Hard.
+- Relevant job roles.
+- Expected completion time.
+- Problem type.
+- Hints, where appropriate.
+- Expert-written reference solution.
+- Related questions.
+
+Question types will include conceptual questions, practical exercises, debugging scenarios, system design problems, and production case studies.
+
+---
+
+# PHASE 1 — Product Foundation and UI
+
+**Goal:** Establish the application structure and core user experience.
+
+### Features
+
+1. Landing page explaining the platform's value.
+2. User registration and login.
+3. User dashboard.
+4. Question library.
+5. Search and filtering.
+6. Question detail page.
+7. Category-wise navigation.
+8. Easy, Medium, and Hard difficulty filters.
+9. Responsive mobile and desktop layouts.
+
+### Main pages
+
+- `/` — Landing page
+- `/login` — Login
+- `/register` — Registration
+- `/dashboard` — User dashboard
+- `/problems` — Question library
+- `/problems/[slug]` — Individual problem
+- `/topics/[slug]` — Topic-specific questions
+- `/profile` — User profile
+
+### Deliverable
+
+A functional application where users can register, browse questions, and open individual problems.
+
+---
+
+# PHASE 2 — Question Bank and Expert Solutions
+
+**Goal:** Build the core practice experience.
+
+### Features
+
+1. Add curated AI/ML interview questions.
+2. Organize questions by topic and difficulty.
+3. Display problem descriptions and hints.
+4. Add expert-written reference solutions.
+5. Support rich-text or Markdown formatting for technical answers.
+6. Display relevant examples, equations, code snippets, and trade-offs.
+7. Add bookmarking functionality.
+8. Allow users to track attempted and completed questions.
+
+### Answer visibility
+
+Users should normally submit an attempt before accessing the complete reference solution.
+
+For appropriate question types, allow users to reveal the solution without submitting an answer, so the platform does not become unnecessarily restrictive.
+
+### Deliverable
+
+A usable interview practice platform with a curated question bank and reliable reference answers.
+
+---
+
+# PHASE 3 — User Submissions and Community Solutions
+
+**Goal:** Turn individual practice into collaborative learning.
+
+### Features
+
+1. Answer editor on each problem page.
+2. Submit and save answers.
+3. Edit previously submitted answers.
+4. Allow users to choose whether to share their answers publicly.
+5. Unlock community solutions after the user submits an attempt or explicitly reveals the solutions.
+6. Display community-submitted answers separately from expert solutions.
+7. Upvote or mark answers as helpful.
+8. Bookmark useful community solutions.
+9. Report incorrect, copied, or inappropriate answers.
+10. Add discussions and comments where useful.
+
+### Solution sections
+
+Each problem page will have three main sections:
+
+**Expert Solution**
+- Written and reviewed by the platform administrator or qualified experts.
+- Provides a reliable reference answer.
+
+**Community Solutions**
+- Contains answers voluntarily shared by other users.
+- Shows author information, submission date, and community feedback.
+- Clearly distinguishes community answers from verified expert answers.
+
+**My Submission**
+- Displays the user's answer.
+- Allows editing and revision.
+- Shows feedback and comparison with the reference answer.
+
+### Quality controls
+
+- Do not automatically publish every submitted answer.
+- Allow users to keep answers private.
+- Use reporting and moderation tools.
+- Do not treat popularity as proof of correctness.
+- Reserve expert verification for answers that have actually been reviewed.
+
+### Deliverable
+
+A collaborative practice platform where users learn from expert explanations and different approaches submitted by other learners.
+
+---
+
+# PHASE 4 — AI-Powered Answer Evaluation
+
+**Goal:** Give users personalized feedback after they attempt a question.
+
+### Features
+
+After a user submits an answer, the system evaluates it against a question-specific reference answer and scoring rubric.
+
+Feedback should identify:
+
+- Correct concepts.
+- Missing concepts.
+- Technical inaccuracies.
+- Weak reasoning.
+- Relevant examples that could improve the answer.
+- Possible follow-up interview questions.
+
+### Example
+
+Question: How would you reduce hallucinations in a RAG application?
+
+User answer:
+"I would improve chunking, retrieval, and reranking."
+
+Possible feedback:
+"Your answer identifies relevant techniques, but it does not explain how you would diagnose the failure. First inspect the retrieved documents and evaluate retrieval quality. Then investigate context construction and whether the generated answer is supported by the retrieved evidence."
+
+### Important implementation requirements
+
+- Use a server-side API route for model calls.
+- Keep API keys on the server.
+- Use question-specific evaluation rubrics.
+- Return structured feedback.
+- Validate and limit request sizes.
+- Apply rate limits to control costs.
+- Record evaluation outcomes for quality analysis.
+- Avoid claiming that an AI-generated score guarantees interview readiness.
+
+For numerical exercises and programming problems, use deterministic checks where possible rather than relying entirely on an LLM.
+
+### Deliverable
+
+An interactive learning experience that explains how users can improve their answers.
+
+---
+
+# PHASE 5 — Production AI Engineering Challenges
+
+**Goal:** Establish the platform's primary differentiator.
+
+Introduce scenario-based problems that require users to diagnose technical failures and explain their decisions.
+
+### Example challenges
+
+1. Diagnose irrelevant retrieval results in a RAG pipeline.
+2. Reduce inference costs without substantially degrading answer quality.
+3. Debug an AI agent that repeatedly calls the wrong tool.
+4. Investigate hallucinations despite relevant retrieved documents.
+5. Diagnose high latency in an LLM application.
+6. Design a reliable LLM evaluation pipeline.
+7. Investigate model performance degradation after deployment.
+8. Prevent prompt injection from compromising an AI workflow.
+9. Design monitoring for a production ML system.
+10. Choose between RAG and fine-tuning for a particular application.
+
+### Features
+
+- Detailed scenario descriptions.
+- Supporting logs or sample data where appropriate.
+- Step-by-step answer submission.
+- Technical reasoning rubrics.
+- Expert solutions.
+- Alternative approaches and trade-offs.
+- AI-powered feedback.
+- Difficulty levels.
+- Related challenges.
+
+### Deliverable
+
+A library of realistic engineering exercises that tests practical reasoning rather than memorization alone.
+
+---
+
+# PHASE 6 — Progress Tracking and Readiness Assessment
+
+**Goal:** Help users identify their strengths and weaknesses.
+
+### Features
+
+1. Total questions attempted.
+2. Questions completed.
+3. Topic-wise performance.
+4. Weak-topic identification.
+5. Learning streaks.
+6. Weekly activity.
+7. Bookmarked questions.
+8. Revision queue.
+9. Personalized practice recommendations.
+10. AI Engineering Readiness Score.
+
+### Example dashboard
+
+| Competency | Illustrative score |
+|---|---:|
+| ML Fundamentals | 82/100 |
+| Deep Learning | 65/100 |
+| LLM Engineering | 78/100 |
+| RAG Systems | 55/100 |
+| AI System Design | 40/100 |
+| Production Debugging | 35/100 |
+
+Scores should be calculated from defined assessment criteria, not arbitrary AI judgments.
+
+### Deliverable
+
+A dashboard that helps users understand their current progress and choose what to practice next.
+
+---
+
+# PHASE 7 — Daily Challenges and Retention
+
+**Goal:** Encourage users to return regularly.
+
+### Features
+
+1. Daily AI/ML challenge.
+2. Daily practice streaks.
+3. Weekly challenge collections.
+4. Spaced revision.
+5. Personal learning goals.
+6. Shareable progress cards.
+7. Optional leaderboards.
+8. Notifications and reminders, where appropriate.
+
+### Example
+
+Daily Challenge:
+
+"Your RAG system retrieves relevant documents, but the generated answer contains unsupported claims. How would you investigate the problem?"
+
+After completing the challenge, users receive feedback and a recommendation for their next exercise.
+
+### Deliverable
+
+A recurring practice experience that encourages consistent learning.
+
+---
+
+# PHASE 8 — Job Description-Based Preparation
+
+**Goal:** Connect interview practice with real job opportunities.
+
+### Features
+
+1. Paste a job description.
+2. Extract required skills.
+3. Match the skills against the curated question bank.
+4. Generate a personalized practice plan.
+5. Prioritize relevant questions.
+6. Track preparation progress for each role.
+7. Generate a final mock assessment.
+
+### Example
+
+A job description mentions:
+- Python
+- Machine learning
+- LangChain
+- RAG
+- Vector databases
+- FastAPI
+
+The platform builds a preparation plan using relevant questions and challenges already available in its reviewed question bank.
+
+### Deliverable
+
+A personalized interview preparation workflow for specific jobs and internships.
+
+---
+
+# PHASE 9 — Monetization
+
+**Goal:** Test whether users will pay for additional value.
+
+### Free tier
+
+- Access to selected questions.
+- Daily challenges.
+- Basic progress tracking.
+- Selected community solutions.
+
+### Premium tier
+
+Potential features:
+- Full question bank.
+- Advanced production challenges.
+- Detailed AI answer evaluations.
+- Personalized learning plans.
+- Mock interviews.
+- Advanced progress analytics.
+- Job description-based preparation.
+
+Test an initial subscription price of ₹99–₹199 per month with actual users. Treat pricing as an experiment rather than an established market rate.
+
+Do not add a paywall before demonstrating that users consistently find the free experience valuable.
+
+### Deliverable
+
+A tested pricing model supported by evidence of user demand and willingness to pay.
+
+---
+
+# PHASE 10 — Community and Expert Ecosystem
+
+**Goal:** Improve content quality and create a sustainable learning community.
+
+### Features
+
+1. Expert contributor profiles.
+2. Expert-reviewed solutions.
+3. Community reputation points.
+4. Answer quality ratings.
+5. Verified expert badges.
+6. Community moderation.
+7. Expert-created challenge collections.
+8. Optional paid expert assessments.
+
+Expert verification should be based on a genuine review or verification process.
+
+### Deliverable
+
+A growing community of learners and contributors who improve the quality of the platform over time.
+
+---
+
+# 4. Recommended Technology Stack
+
+## Frontend
+
+- Next.js with JavaScript.
+- React.
+- Tailwind CSS.
+- A reusable component system.
+- Markdown rendering for technical questions and answers.
+
+Use the Next.js App Router unless you have a specific reason to choose the Pages Router.
+
+## Backend
+
+Initially, use Next.js Route Handlers for server-side API functionality.
+
+Potential endpoints include:
+
+- `GET /api/problems`
+- `GET /api/problems/[slug]`
+- `POST /api/submissions`
+- `PATCH /api/submissions/[id]`
+- `POST /api/ai/evaluate`
+- `POST /api/answers/[id]/vote`
+- `POST /api/bookmarks`
+- `GET /api/progress`
+
+These are illustrative endpoint designs; the final routes should follow the application's data model.
+
+## Database
+
+Recommended: PostgreSQL.
+
+Neon PostgreSQL would be a reasonable managed option.
+
+Use Prisma ORM with JavaScript to manage database access and schema migrations.
+
+## Authentication
+
+Use Clerk or another established authentication provider.
+
+Protect user-specific operations and verify the authenticated user's identity and permissions on the server.
+
+## AI integration
+
+Use a server-side integration with an appropriate LLM provider.
+
+Keep provider credentials out of client-side code.
+
+Add request limits, timeouts, and error handling.
+
+## Deployment
+
+- Vercel for the Next.js application.
+- Neon for PostgreSQL.
+- An external object-storage service if you later need to store uploaded files or supporting datasets.
+
+For future coding challenges, use a sandboxed execution service rather than executing arbitrary user-submitted code directly inside the Next.js application server.
+
+---
+
+# 5. Core Database Models
+
+The initial database will likely need the following models.
+
+### User
+Stores user identity references, profile information, and account preferences.
+
+### Problem
+Stores questions, categories, difficulty, problem type, and reference metadata.
+
+### ExpertSolution
+Stores the authoritative solution for each problem, including explanations and technical examples.
+
+### Submission
+Stores a user's answer, submission history, and relevant evaluation metadata.
+
+### CommunityAnswer
+Stores answers that users choose to share publicly.
+
+### AnswerVote
+Tracks helpfulness votes while preventing duplicate votes by the same user on the same answer.
+
+### Bookmark
+Stores saved questions and solutions.
+
+### ProblemProgress
+Tracks each user's progress on individual problems.
+
+### Evaluation
+Stores feedback, rubric scores, and evaluation metadata for submitted answers.
+
+### Topic
+Organizes questions into categories and subcategories.
+
+### DailyChallenge
+Identifies the questions selected for daily practice.
+
+### Report
+Tracks reports against community answers or other user-generated content.
+
+Use appropriate foreign keys, indexes, and unique constraints. For example, a user should not be able to vote multiple times on the same answer.
+
+---
+
+# 6. Recommended Development Order
+
+Although the full roadmap contains ten phases, do not attempt to complete all ten before launching.
+
+### Initial MVP
+
+Build:
+
+1. Product landing page.
+2. Authentication.
+3. Question library.
+4. Question detail pages.
+5. Expert solutions.
+6. Answer submission.
+7. Community solutions.
+8. Basic progress tracking.
+
+Start with approximately 50–100 high-quality questions rather than waiting until all 200 are ready.
+
+### Second release
+
+Add:
+
+1. AI answer evaluation.
+2. Production engineering challenges.
+3. Answer voting and reporting.
+4. Bookmarks and revision.
+5. Daily challenges.
+
+### Third release
+
+Add:
+
+1. Readiness assessment.
+2. Personalized recommendations.
+3. Job description-based preparation.
+4. Mock interviews.
+5. Premium subscriptions.
+
+### Later releases
+
+Expand expert contributions, community reputation, advanced analytics, and additional learning paths based on actual user behavior.
+
+---
+
+# 7. Success Metrics
+
+Measure whether the product is solving a real problem.
+
+Track:
+
+- Number of users who complete their first question.
+- Percentage of registered users who submit an answer.
+- Percentage who return after seven days.
+- Questions completed per active user.
+- Percentage of answers shared with the community.
+- Percentage of users who return to review feedback.
+- User-reported usefulness of AI evaluations.
+- Number of users who recommend the platform.
+- Conversion from free users to paying customers.
+
+Use these measurements to decide which features deserve further investment.
+
+The exact targets should be established after collecting baseline data from your first users.
+
+---
+
+# 8. Final Product Strategy
+
+The platform should not compete by claiming to have more questions than everyone else.
+
+It should compete by helping users become better at answering technical questions and solving real AI engineering problems.
+
+The product's long-term learning cycle should be:
+
+**Practice → Submit → Evaluate → Compare → Improve → Reassess.**
+
+Start with curated AI/ML interview questions and a reliable expert solution library. Add community answers to create collaborative learning. Introduce AI evaluation and production scenarios to differentiate the experience. Finally, build personalized preparation and monetization around demonstrated user demand.
+
+The most important initial objective is not completing every phase. It is getting a small group of students to use the platform repeatedly because it genuinely improves their interview preparation.
+
+
+My recommendation for your actual development
+Given your Next.js and JavaScript stack, I would start with this implementation sequence:
+Step What to build Priority
+1 Next.js project setup, Tailwind CSS, shared layout Essential
+2 PostgreSQL + Prisma + authentication Essential
+3 Question library and filtering Essential
+4 Problem detail page and expert solutions Essential
+5 Answer submission and editing Essential
+6 Community solutions and voting Essential
+7 User dashboard and progress tracking High
+8 AI-powered answer evaluation High
+9 Production engineering challenges High
+10 Daily challenges and personalized recommendations Later
+One architectural decision matters early: keep expert-written solutions, private user submissions, and publicly shared community answers as distinct concepts in your database. They have different privacy, moderation, and quality requirements.
+Also, avoid building the entire platform around AI-generated question content. Curate the initial question bank yourself, review the answers, and use AI to assist with feedback—not to replace technical quality control.
+Your first milestone should be straightforward: a student can open an AI/ML question, submit an answer, compare it with the expert solution and community answers, and track their progress. Get that working well before expanding the scope.
+Product Name: Buncho. Do not write the Node modules and other files. I already set up my my Next.js application. Just write the code and build the feature for phase 1, 2. use clerk + neon postgres database.
+You should add a voice-to-text feature to your platform. Since users may need to submit long, detailed solutions to real-life problems, speaking their answers will be much easier than typing several paragraphs. For your first version, start with browser speech recognition if you want to validate the feature quickly...
+add theme toggle. Dark and light Mode
+
+

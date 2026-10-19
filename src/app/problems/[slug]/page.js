@@ -2,11 +2,14 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { getOrCreateUser } from '@/lib/user';
+import { getCommunityAnswers } from '@/lib/community';
 import { TYPE_LABEL } from '@/lib/constants';
 import Markdown from '@/components/Markdown';
 import Hints from '@/components/Hints';
 import DifficultyBadge from '@/components/DifficultyBadge';
 import AnswerEditor from '@/components/AnswerEditor';
+import ShareControl from '@/components/ShareControl';
+import CommunitySection from '@/components/CommunitySection';
 import BookmarkButton from '@/components/BookmarkButton';
 import { CompleteToggle, RevealButton } from '@/components/SolutionControls';
 import { Lock } from '@/components/icons';
@@ -17,8 +20,10 @@ export async function generateMetadata({ params }) {
   return { title: p?.title ?? 'Problem' };
 }
 
-export default async function ProblemPage({ params }) {
+export default async function ProblemPage({ params, searchParams }) {
   const { slug } = await params;
+  const sp = await searchParams;
+  const cpage = Math.max(1, parseInt(sp?.cpage, 10) || 1);
 
   const problem = await prisma.problem.findFirst({
     where: { slug, published: true },
@@ -32,24 +37,41 @@ export default async function ProblemPage({ params }) {
   const user = await getOrCreateUser();
   let progress = null;
   let submission = null;
+  let ownShared = null;
   let bookmarked = false;
 
   if (user) {
     const key = { userId_problemId: { userId: user.id, problemId: problem.id } };
-    const [pr, sub, bm] = await Promise.all([
+    const [pr, sub, bm, shared] = await Promise.all([
       prisma.problemProgress.findUnique({ where: key }),
       prisma.submission.findUnique({ where: key }),
       prisma.bookmark.findUnique({ where: key }),
+      prisma.communityAnswer.findUnique({ where: key, select: { status: true, anonymous: true, content: true } }),
     ]);
     progress = pr;
     submission = sub;
     bookmarked = Boolean(bm);
+    ownShared = shared;
   }
 
-  // The solution is only queried on the server once the user has earned access,
-  // so it never reaches the browser of someone who hasn't unlocked it.
+  // Expert and community content are only queried once the user has earned access,
+  // so neither reaches the browser of someone who hasn't unlocked them.
   const unlocked = Boolean(user && (submission || progress?.solutionRevealed));
-  const solution = unlocked ? await prisma.expertSolution.findUnique({ where: { problemId: problem.id } }) : null;
+  const [solution, community] = unlocked
+    ? await Promise.all([
+        prisma.expertSolution.findUnique({ where: { problemId: problem.id } }),
+        getCommunityAnswers({ problemId: problem.id, viewerId: user.id, page: cpage }),
+      ])
+    : [null, null];
+
+  const shared = ownShared
+    ? {
+        status: ownShared.status,
+        anonymous: ownShared.anonymous,
+        outOfDate: Boolean(submission) && ownShared.content !== submission.content,
+      }
+    : null;
+
   const loginHref = `/login?redirect_url=${encodeURIComponent(`/problems/${slug}`)}`;
 
   return (
@@ -82,10 +104,13 @@ export default async function ProblemPage({ params }) {
           <Hints hints={problem.hints} />
 
           <section aria-labelledby="answer-heading">
-            <h2 id="answer-heading" className="font-display text-2xl font-semibold">Your answer</h2>
-            <p className="mt-1 mb-4 text-muted">Your answer is private. Only you can see it.</p>
+            <h2 id="answer-heading" className="font-display text-2xl font-semibold">My submission</h2>
+            <p className="mt-1 mb-4 text-muted">Your answer is private unless you choose to share it below.</p>
             {user ? (
-              <AnswerEditor problemId={problem.id} initialContent={submission?.content ?? ''} hasSubmission={Boolean(submission)} />
+              <>
+                <AnswerEditor problemId={problem.id} initialContent={submission?.content ?? ''} hasSubmission={Boolean(submission)} />
+                <ShareControl problemId={problem.id} hasSubmission={Boolean(submission)} shared={shared} />
+              </>
             ) : (
               <div className="rounded-xl border border-dashed border-line px-6 py-10 text-center">
                 <p className="font-medium">Log in to write or dictate an answer and unlock the expert solution.</p>
@@ -126,6 +151,22 @@ export default async function ProblemPage({ params }) {
                 </p>
                 {user && problem.allowDirectReveal && <RevealButton problemId={problem.id} />}
               </div>
+            )}
+          </section>
+
+          <section aria-labelledby="community-heading">
+            <h2 id="community-heading" className="scroll-mt-24 font-display text-2xl font-semibold">
+              Community solutions
+            </h2>
+            {community ? (
+              <CommunitySection data={community} slug={slug} />
+            ) : (
+              <p className="mt-4 flex items-center gap-2 text-muted">
+                <Lock width={16} height={16} />
+                {user
+                  ? 'Community answers unlock after you submit an attempt or reveal the solution.'
+                  : 'Log in and attempt this problem to read how other learners answered it.'}
+              </p>
             )}
           </section>
         </div>
