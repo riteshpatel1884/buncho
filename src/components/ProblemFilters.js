@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, useTransition } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { DIFFICULTIES, DIFFICULTY_LABEL, PROBLEM_TYPES, TYPE_LABEL } from '@/lib/constants';
 
-const selectCls = 'rounded-lg border border-line bg-surface px-3 py-2.5 text-sm';
+const selectCls = 'rounded-md border border-line bg-surface-2 px-3 py-2 text-sm';
 
 export default function ProblemFilters({ topics = [], hideTopic = false }) {
   const router = useRouter();
@@ -46,7 +46,7 @@ export default function ProblemFilters({ topics = [], hideTopic = false }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search by title, concept or keyword"
-            className="w-full rounded-lg border border-line bg-surface px-4 py-2.5"
+            className="w-full rounded-md border border-line bg-surface-2 px-4 py-2 text-sm"
           />
         </div>
         {!hideTopic && (
@@ -79,7 +79,7 @@ export default function ProblemFilters({ topics = [], hideTopic = false }) {
             aria-pressed={difficulty === d}
             onClick={() => update({ difficulty: d })}
             className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors ${
-              difficulty === d ? 'border-accent bg-accent text-accent-ink' : 'border-line bg-surface hover:bg-surface-2'
+              difficulty === d ? 'border-transparent bg-ink text-bg' : 'border-transparent bg-surface-2 text-muted hover:text-ink'
             }`}
           >
             {d ? DIFFICULTY_LABEL[d] : 'All levels'}

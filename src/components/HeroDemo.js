@@ -2,7 +2,7 @@
 export default function HeroDemo() {
   const bars = [0.1, 0.35, 0.2, 0.5, 0.05, 0.4, 0.25, 0.45, 0.15, 0.3];
   return (
-    <div className="rounded-2xl border border-line bg-surface shadow-[0_24px_60px_-30px_rgba(58,75,239,0.45)]" aria-hidden="true">
+    <div className="panel" aria-hidden="true">
       <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
         <div>
           <p className="text-sm text-muted">RAG and Vector Databases</p>

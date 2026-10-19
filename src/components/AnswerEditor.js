@@ -18,7 +18,7 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
   const [savedText, setSavedText] = useState(initialContent);
   const [everSaved, setEverSaved] = useState(hasSubmission);
   const [lang, setLang] = useState('en-IN');
-  const [message, setMessage] = useState(null); 
+  const [message, setMessage] = useState(null);
   const [pending, startTransition] = useTransition();
 
   // Dictated phrases are appended to the end of the answer
@@ -44,36 +44,39 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
       if (res.ok) {
         setSavedText(text);
         setEverSaved(true);
-        setMessage({ type: 'ok', text: 'Answer saved. The expert solution is unlocked below.' });
+        setMessage({ type: 'ok', text: 'Answer saved. The Solution and Community tabs are now unlocked.' });
       } else {
         setMessage({ type: 'error', text: res.error });
       }
     });
   }
 
+  const status = dirty ? (everSaved ? 'Unsaved changes' : 'Draft') : everSaved ? 'Saved' : 'Empty';
+
   return (
-    <div className="rounded-xl border border-line bg-surface">
-      <div className="flex flex-wrap items-center gap-3 border-b border-line px-3 py-2.5">
+    <div className="flex min-h-[26rem] flex-1 flex-col">
+      {/* Toolbar, like the language / settings row above the LeetCode editor */}
+      <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-line px-3 py-2">
         {supported ? (
           <>
             <button
               type="button"
               onClick={listening ? stop : start}
               aria-pressed={listening}
-              className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors ${
-                listening ? 'bg-hard text-white' : 'bg-accent-soft text-accent hover:bg-accent hover:text-accent-ink'
+              className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                listening ? 'bg-hard text-white' : 'bg-surface-2 text-ink hover:bg-line'
               }`}
             >
-              {listening ? <Stop width={16} height={16} /> : <Mic width={16} height={16} />}
-              {listening ? 'Stop dictating' : 'Dictate answer'}
+              {listening ? <Stop width={14} height={14} /> : <Mic width={14} height={14} />}
+              {listening ? 'Stop dictating' : 'Dictate'}
             </button>
             <label className="flex items-center gap-2 text-sm text-muted">
-              <span className="sr-only sm:not-sr-only">Language</span>
+              <span className="sr-only">Language</span>
               <select
                 value={lang}
                 onChange={(e) => setLang(e.target.value)}
                 disabled={listening}
-                className="rounded-md border border-line bg-bg px-2 py-1.5 text-sm text-ink disabled:opacity-50"
+                className="rounded-md bg-surface-2 px-2 py-1.5 text-sm text-ink disabled:opacity-50"
               >
                 {LANGUAGES.map((l) => (
                   <option key={l.code} value={l.code}>
@@ -93,6 +96,7 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
         ) : (
           <p className="text-sm text-muted">Voice input isn&rsquo;t available in this browser. Chrome, Edge and Safari support it.</p>
         )}
+        <span className="ml-auto text-xs text-muted">{status}</span>
       </div>
 
       <label htmlFor="answer" className="sr-only">
@@ -102,50 +106,51 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
         id="answer"
         value={text}
         onChange={(e) => setText(e.target.value.slice(0, MAX_ANSWER_LENGTH))}
-        rows={12}
-        placeholder="Write your answer here, or press Dictate answer and speak it. Explain your reasoning, not just the conclusion."
-        className="block min-h-64 w-full resize-y bg-transparent px-4 py-3.5 text-base leading-relaxed outline-none placeholder:text-muted/70"
+        placeholder="Write your answer here, or press Dictate and speak it. Explain your reasoning, not just the conclusion."
+        spellCheck="true"
+        className="block min-h-64 w-full flex-1 resize-none bg-transparent px-4 py-3 font-mono text-[0.85rem] leading-relaxed outline-none placeholder:text-muted/70"
       />
 
-      <div aria-live="polite" className="min-h-6 px-4 text-sm italic text-muted">
+      <div aria-live="polite" className="min-h-5 shrink-0 px-4 pb-1 text-xs italic text-muted">
         {listening && (interim ? `Listening… ${interim}` : 'Listening…')}
       </div>
       {error && (
-        <p role="alert" className="px-4 pb-1 text-sm text-hard">
+        <p role="alert" className="shrink-0 px-4 pb-1 text-sm text-hard">
           {error}
         </p>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-4 py-3">
-        <p className="text-sm text-muted">
-          {text.length.toLocaleString()} / {MAX_ANSWER_LENGTH.toLocaleString()} characters
-          {dirty && everSaved ? ' (unsaved changes)' : ''}
+      {/* Bottom bar: counter on the left, Submit on the right */}
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-line px-4 py-2.5">
+        <p className="text-xs text-muted">
+          {text.length.toLocaleString()} / {MAX_ANSWER_LENGTH.toLocaleString()}
         </p>
         <button
           type="button"
           onClick={handleSave}
           disabled={pending || (!dirty && everSaved)}
-          className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-accent-ink transition-opacity disabled:opacity-50"
+          className="rounded-md bg-go px-5 py-1.5 text-sm font-semibold text-go-ink transition-opacity hover:opacity-90 disabled:opacity-50"
         >
-          {pending ? 'Saving…' : everSaved ? 'Save changes' : 'Submit answer'}
+          {pending ? 'Saving…' : everSaved ? 'Save changes' : 'Submit'}
         </button>
       </div>
 
-      {message && (
-        <p
-          role={message.type === 'error' ? 'alert' : 'status'}
-          className={`border-t border-line px-4 py-3 text-sm ${message.type === 'error' ? 'text-hard' : 'text-easy'}`}
-        >
-          {message.text}
-        </p>
-      )}
-
-      {supported && (
-        <p className="border-t border-line px-4 py-3 text-xs text-muted">
-          Voice input uses your browser&rsquo;s speech service. In Chrome and Edge your audio is processed by the
-          browser vendor, not by Buncho. Review the transcript before saving, since technical terms are sometimes misheard.
-        </p>
-      )}
+      {/* Result strip, like the Test Result panel */}
+      <div className="shrink-0 border-t border-line bg-surface-2 px-4 py-3">
+        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted">Result</p>
+        {message ? (
+          <p role={message.type === 'error' ? 'alert' : 'status'} className={`mt-1 text-sm ${message.type === 'error' ? 'text-hard' : 'text-easy'}`}>
+            {message.text}
+          </p>
+        ) : (
+          <p className="mt-1 text-sm text-muted">{everSaved ? 'Your answer is saved.' : 'You must submit your answer first.'}</p>
+        )}
+        {supported && (
+          <p className="mt-2 text-xs text-muted">
+            Voice input uses your browser&rsquo;s speech service. In Chrome and Edge your audio is processed by the browser vendor, not by Buncho. Review the transcript before saving, since technical terms are sometimes misheard.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

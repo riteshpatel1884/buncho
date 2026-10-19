@@ -14,15 +14,15 @@ export default async function Navbar() {
   ];
 
   return (
-    <header className="relative z-40 border-b border-line bg-bg/90 backdrop-blur">
-      <div className="wrap flex h-16 items-center justify-between gap-4">
+    <header className="relative z-40 border-b border-line bg-surface">
+      <div className="mx-auto flex h-14 w-full max-w-[96rem] items-center justify-between gap-4 px-4">
         <div className="flex items-center gap-8">
           <Link href="/" aria-label="Buncho home">
             <Logo />
           </Link>
           <nav aria-label="Main" className="hidden items-center gap-6 md:flex">
             {links.map((l) => (
-              <Link key={l.href} href={l.href} className="text-[0.95rem] font-medium text-muted transition-colors hover:text-ink">
+              <Link key={l.href} href={l.href} className="text-sm font-medium text-muted transition-colors hover:text-ink">
                 {l.label}
               </Link>
             ))}
@@ -35,10 +35,10 @@ export default async function Navbar() {
             <UserButton />
           ) : (
             <>
-              <Link href="/login" className="hidden px-3 py-2 text-[0.95rem] font-medium sm:block">
+              <Link href="/login" className="hidden px-3 py-2 text-sm font-medium text-muted hover:text-ink sm:block">
                 Log in
               </Link>
-              <Link href="/register" className="rounded-lg bg-accent px-4 py-2.5 text-[0.95rem] font-semibold text-accent-ink">
+              <Link href="/register" className="rounded-md bg-accent px-3.5 py-1.5 text-sm font-semibold text-accent-ink hover:opacity-90">
                 Sign up
               </Link>
             </>

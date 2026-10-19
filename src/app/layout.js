@@ -1,13 +1,13 @@
 import { ClerkProvider } from '@clerk/nextjs';
-import { Bricolage_Grotesque, Hanken_Grotesk, JetBrains_Mono } from 'next/font/google';
+import { Inter, JetBrains_Mono } from 'next/font/google';
 import 'katex/dist/katex.min.css';
 import './globals.css';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { clerkAppearance } from '@/lib/clerk-appearance';
 
-const display = Bricolage_Grotesque({ subsets: ['latin'], variable: '--f-display', display: 'swap' });
-const body = Hanken_Grotesk({ subsets: ['latin'], variable: '--f-body', display: 'swap' });
+const display = Inter({ subsets: ['latin'], variable: '--f-display', display: 'swap' });
+const body = Inter({ subsets: ['latin'], variable: '--f-body', display: 'swap' });
 const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--f-mono', display: 'swap' });
 
 export const metadata = {

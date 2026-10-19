@@ -183,7 +183,7 @@ export default function AnswerCard({ answer, children }) {
   const toggle = (name) => setPanel((p) => (p === name ? null : name));
 
   return (
-    <article id={`answer-${answer.id}`} className="scroll-mt-24 rounded-xl border border-line bg-surface">
+    <article id={`answer-${answer.id}`} className="scroll-mt-24 rounded-lg border border-line bg-surface">
       <header className="flex flex-wrap items-center gap-3 border-b border-line px-5 py-3">
         <span className="grid h-9 w-9 place-items-center rounded-full bg-accent-soft font-display font-bold text-accent" aria-hidden="true">
           {initial}

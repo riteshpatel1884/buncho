@@ -84,14 +84,14 @@ export default async function DashboardPage() {
 
   return (
     <div className="wrap py-10 lg:py-14">
-      <h1 className="font-display text-4xl font-bold tracking-tight">
+      <h1 className="text-2xl font-semibold tracking-tight">
         {firstName ? `Welcome back, ${firstName}` : 'Welcome back'}
       </h1>
 
       <dl className="mt-8 grid grid-cols-2 gap-y-6 sm:grid-cols-4">
         {stats.map((s) => (
           <div key={s.label} className="border-l-2 border-ink pl-4">
-            <dd className="font-display text-4xl font-bold">{s.value}</dd>
+            <dd className="text-2xl font-semibold">{s.value}</dd>
             <dt className="text-sm text-muted">{s.label}</dt>
           </div>
         ))}

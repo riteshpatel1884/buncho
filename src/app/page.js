@@ -31,7 +31,7 @@ export default async function LandingPage() {
     <>
       <section className="wrap grid items-center gap-12 py-14 lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:py-24">
         <div>
-          <h1 className="font-display text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl lg:text-[3.5rem]">
+          <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
             Practice answering AI engineering questions out loud or in writing.
           </h1>
           <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted">
@@ -39,12 +39,12 @@ export default async function LandingPage() {
             compare your thinking with a reference solution.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/problems" className="rounded-lg bg-accent px-6 py-3 font-semibold text-accent-ink">
+            <Link href="/problems" className="rounded-md bg-accent px-6 py-3 font-semibold text-accent-ink">
               Browse problems
             </Link>
             <Link
               href={userId ? '/dashboard' : '/register'}
-              className="rounded-lg border border-line bg-surface px-6 py-3 font-semibold hover:bg-surface-2"
+              className="rounded-md bg-surface-2 px-6 py-3 font-semibold hover:bg-line"
             >
               {userId ? 'Open dashboard' : 'Create free account'}
             </Link>
@@ -54,10 +54,10 @@ export default async function LandingPage() {
       </section>
 
       <section className="wrap py-14" aria-labelledby="how">
-        <h2 id="how" className="font-display text-3xl font-bold tracking-tight">How practice works</h2>
+        <h2 id="how" className="text-2xl font-semibold tracking-tight">How practice works</h2>
         <ol className="mt-8 grid gap-8 md:grid-cols-3">
           {steps.map((s) => (
-            <li key={s.title} className="border-t-2 border-ink pt-4">
+            <li key={s.title} className="panel p-5">
               <h3 className="font-display text-xl font-semibold">{s.title}</h3>
               <p className="mt-2 leading-relaxed text-muted">{s.body}</p>
             </li>
@@ -67,7 +67,7 @@ export default async function LandingPage() {
 
       {topics.length > 0 && (
         <section className="wrap py-14" aria-labelledby="topics">
-          <h2 id="topics" className="font-display text-3xl font-bold tracking-tight">Browse by topic</h2>
+          <h2 id="topics" className="text-2xl font-semibold tracking-tight">Browse by topic</h2>
           <ul className="mt-8 grid gap-x-10 md:grid-cols-2">
             {topics.map((t) => (
               <li key={t.id} className="border-t border-line">
@@ -85,14 +85,14 @@ export default async function LandingPage() {
       )}
 
       <section className="wrap py-14">
-        <div className="rounded-2xl bg-ink px-6 py-12 text-bg sm:px-12">
-          <h2 className="max-w-xl font-display text-3xl font-bold tracking-tight">
+        <div className="panel px-6 py-12 sm:px-12">
+          <h2 className="max-w-xl text-2xl font-semibold tracking-tight">
             Start with one question today.
           </h2>
-          <p className="mt-3 max-w-lg opacity-80">It takes about ten minutes, and your first answer unlocks the expert solution.</p>
+          <p className="mt-3 max-w-lg text-muted">It takes about ten minutes, and your first answer unlocks the expert solution.</p>
           <Link
             href={userId ? '/problems' : '/register'}
-            className="mt-6 inline-flex rounded-lg bg-mark px-6 py-3 font-semibold text-[#14183a]"
+            className="mt-6 inline-flex rounded-md bg-accent px-6 py-3 font-semibold text-accent-ink"
           >
             {userId ? 'Pick a problem' : 'Create free account'}
           </Link>

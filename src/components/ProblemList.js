@@ -6,21 +6,21 @@ import { Check } from './icons';
 function StatusMark({ status }) {
   if (status === 'COMPLETED') {
     return (
-      <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-accent text-accent-ink">
-        <Check width={14} height={14} strokeWidth={2.6} />
+      <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center text-go">
+        <Check width={18} height={18} strokeWidth={2.4} />
         <span className="sr-only">Completed</span>
       </span>
     );
   }
   if (status === 'ATTEMPTED') {
     return (
-      <span className="mt-0.5 h-6 w-6 shrink-0 rounded-full border-2 border-accent bg-accent-soft">
+      <span className="mt-0.5 h-6 w-6 shrink-0 rounded-full border-2 border-accent/60">
         <span className="sr-only">Attempted</span>
       </span>
     );
   }
   return (
-    <span className="mt-0.5 h-6 w-6 shrink-0 rounded-full border-2 border-line">
+    <span className="mt-0.5 h-6 w-6 shrink-0 rounded-full border-2 border-transparent">
       <span className="sr-only">Not started</span>
     </span>
   );
@@ -28,12 +28,12 @@ function StatusMark({ status }) {
 
 export function ProblemRow({ problem, status }) {
   return (
-    <li>
-      <Link href={`/problems/${problem.slug}`} className="group flex items-start gap-4 px-1 py-4 sm:px-2">
+    <li className="odd:bg-surface-2/60 hover:bg-surface-2">
+      <Link href={`/problems/${problem.slug}`} className="group flex items-start gap-3 px-4 py-3">
         <StatusMark status={status} />
         <div className="min-w-0 flex-1">
-          <p className="font-medium leading-snug group-hover:text-accent">{problem.title}</p>
-          <p className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
+          <p className="text-sm font-medium leading-snug group-hover:text-accent">{problem.title}</p>
+          <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
             <span>{problem.topic.name}</span>
             <span>{TYPE_LABEL[problem.type]}</span>
             <span>{problem.estimatedMinutes} min</span>
@@ -52,7 +52,7 @@ export function Pagination({ basePath, page, totalPages, params }) {
     sp.set('page', String(p));
     return `${basePath}?${sp.toString()}`;
   };
-  const linkCls = 'rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-surface-2';
+  const linkCls = 'rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-surface-2';
   return (
     <nav aria-label="Pagination" className="mt-8 flex items-center justify-between">
       {page > 1 ? <Link href={href(page - 1)} className={linkCls}>Previous</Link> : <span />}
@@ -67,7 +67,7 @@ export default function ProblemList({ result, statusMap = {}, basePath, params }
 
   if (!items.length) {
     return (
-      <div className="rounded-xl border border-dashed border-line px-6 py-14 text-center">
+      <div className="rounded-lg border border-dashed border-line px-6 py-14 text-center">
         <p className="font-display text-lg font-semibold">No problems match these filters</p>
         <p className="mt-1 text-muted">Try a different keyword, or clear the filters to see every problem.</p>
       </div>
@@ -77,7 +77,7 @@ export default function ProblemList({ result, statusMap = {}, basePath, params }
   return (
     <>
       <p className="mb-2 text-sm text-muted">{total} {total === 1 ? 'problem' : 'problems'}</p>
-      <ul className="divide-y divide-line border-y border-line">
+      <ul className="panel overflow-hidden">
         {items.map((p) => (
           <ProblemRow key={p.id} problem={p} status={statusMap[p.id]} />
         ))}

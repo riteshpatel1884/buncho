@@ -3,8 +3,8 @@
 import { useState, useTransition } from 'react';
 import { shareAnswer, unshareAnswer } from '@/app/community-actions';
 
-const primary = 'rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink disabled:opacity-50';
-const secondary = 'rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-semibold hover:bg-surface-2 disabled:opacity-50';
+const primary = 'rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-ink disabled:opacity-50';
+const secondary = 'rounded-md bg-line px-4 py-2 text-sm font-semibold hover:opacity-80 disabled:opacity-50';
 
 /**
  * shared: null | { status: 'PUBLISHED' | 'UNSHARED' | 'HIDDEN', anonymous: boolean, outOfDate: boolean }
@@ -27,8 +27,8 @@ export default function ShareControl({ problemId, hasSubmission, shared }) {
   }
 
   return (
-    <section aria-labelledby="share-heading" className="mt-4 rounded-xl border border-line bg-surface px-5 py-4">
-      <h3 id="share-heading" className="font-display text-lg font-semibold">Share with the community</h3>
+    <section aria-labelledby="share-heading" className="rounded-lg bg-surface-2 px-4 py-3">
+      <h3 id="share-heading" className="text-sm font-semibold">Share with the community</h3>
 
       {!hasSubmission ? (
         <p className="mt-1 text-sm text-muted">Save your answer first. Then you can choose to share it. Answers stay private unless you share them.</p>

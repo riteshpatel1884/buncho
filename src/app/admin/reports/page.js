@@ -36,7 +36,7 @@ export default async function ReportsPage() {
 
   return (
     <div className="wrap max-w-4xl py-10 lg:py-14">
-      <h1 className="font-display text-3xl font-bold tracking-tight">Reported answers</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Reported answers</h1>
       <p className="mt-2 text-muted">
         {answers.length
           ? `${answers.length} answer${answers.length > 1 ? 's' : ''} with open reports.`
@@ -45,7 +45,7 @@ export default async function ReportsPage() {
 
       <ul className="mt-8 space-y-8">
         {answers.map((a) => (
-          <li key={a.id} className="rounded-xl border border-line bg-surface">
+          <li key={a.id} className="rounded-lg border border-line bg-surface">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3 text-sm">
               <Link href={`/problems/${a.problem.slug}`} className="font-semibold text-accent underline underline-offset-4">
                 {a.problem.title}

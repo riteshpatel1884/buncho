@@ -12,7 +12,8 @@ import ShareControl from '@/components/ShareControl';
 import CommunitySection from '@/components/CommunitySection';
 import BookmarkButton from '@/components/BookmarkButton';
 import { CompleteToggle, RevealButton } from '@/components/SolutionControls';
-import { Lock } from '@/components/icons';
+import ProblemTabs from '@/components/ProblemTabs';
+import { Code, FileText, Flask, Lock, Users } from '@/components/icons';
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
@@ -74,132 +75,163 @@ export default async function ProblemPage({ params, searchParams }) {
 
   const loginHref = `/login?redirect_url=${encodeURIComponent(`/problems/${slug}`)}`;
 
-  return (
-    <div className="wrap py-8 lg:py-12">
-      <nav aria-label="Breadcrumb" className="text-sm text-muted">
-        <Link href="/problems" className="hover:text-ink">Problems</Link>
-        <span className="mx-2">/</span>
-        <Link href={`/topics/${problem.topic.slug}`} className="hover:text-ink">{problem.topic.name}</Link>
-      </nav>
+  const pill = 'rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-medium text-muted';
+  const sectionTitle = 'cursor-pointer list-none text-sm font-semibold marker:hidden [&::-webkit-details-marker]:hidden';
 
-      <header className="mt-4 flex flex-wrap items-start justify-between gap-4">
-        <div className="max-w-3xl">
-          <h1 className="font-display text-3xl font-bold leading-tight tracking-tight sm:text-4xl">{problem.title}</h1>
-          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
-            <DifficultyBadge difficulty={problem.difficulty} />
-            <span>{TYPE_LABEL[problem.type]}</span>
-            <span>{problem.estimatedMinutes} min</span>
-            {progress?.status === 'COMPLETED' && <span className="font-semibold text-accent">Completed</span>}
-          </div>
-        </div>
-        <BookmarkButton problemId={problem.id} slug={slug} initial={bookmarked} signedIn={Boolean(user)} />
-      </header>
+  const description = (
+    <article>
+      <h1 className="text-xl font-semibold leading-snug tracking-tight">{problem.title}</h1>
 
-      <div className="mt-10 grid gap-12 lg:grid-cols-[minmax(0,1fr)_260px]">
-        <div className="min-w-0 space-y-14">
-          <section aria-label="Problem statement">
-            <Markdown>{problem.description}</Markdown>
-          </section>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <DifficultyBadge difficulty={problem.difficulty} />
+        <Link href={`/topics/${problem.topic.slug}`} className={`${pill} hover:text-ink`}>{problem.topic.name}</Link>
+        <span className={pill}>{TYPE_LABEL[problem.type]}</span>
+        <span className={pill}>{problem.estimatedMinutes} min</span>
+        {progress?.status === 'COMPLETED' && <span className="rounded-full bg-easy/12 px-2.5 py-0.5 text-xs font-semibold text-easy">Completed</span>}
+      </div>
 
-          <Hints hints={problem.hints} />
+      <section aria-label="Problem statement" className="mt-5">
+        <Markdown>{problem.description}</Markdown>
+      </section>
 
-          <section aria-labelledby="answer-heading">
-            <h2 id="answer-heading" className="font-display text-2xl font-semibold">My submission</h2>
-            <p className="mt-1 mb-4 text-muted">Your answer is private unless you choose to share it below.</p>
-            {user ? (
-              <>
-                <AnswerEditor problemId={problem.id} initialContent={submission?.content ?? ''} hasSubmission={Boolean(submission)} />
-                <ShareControl problemId={problem.id} hasSubmission={Boolean(submission)} shared={shared} />
-              </>
-            ) : (
-              <div className="rounded-xl border border-dashed border-line px-6 py-10 text-center">
-                <p className="font-medium">Log in to write or dictate an answer and unlock the expert solution.</p>
-                <div className="mt-4 flex justify-center gap-3">
-                  <Link href={loginHref} className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-accent-ink">Log in</Link>
-                  <Link href="/register" className="rounded-lg border border-line bg-surface px-5 py-2.5 text-sm font-semibold">Create account</Link>
-                </div>
-              </div>
-            )}
-          </section>
+      <div className="mt-6">
+        <Hints hints={problem.hints} />
+      </div>
 
-          <section aria-labelledby="solution-heading">
-            <h2 id="solution-heading" className="font-display text-2xl font-semibold">Expert solution</h2>
-
-            {solution ? (
-              <div className="mt-4">
-                <p className="mb-5 text-sm text-muted">
-                  {solution.reviewedAt
-                    ? `Reviewed${solution.reviewedBy ? ` by ${solution.reviewedBy}` : ''} on ${solution.reviewedAt.toLocaleDateString('en-IN', { dateStyle: 'medium' })}.`
-                    : 'This solution has not been expert-reviewed yet. Check important details against other sources.'}
-                </p>
-                <Markdown>{solution.content}</Markdown>
-                <div className="mt-8 border-t border-line pt-6">
-                  <CompleteToggle problemId={problem.id} completed={progress?.status === 'COMPLETED'} />
-                </div>
-              </div>
-            ) : unlocked ? (
-              <p className="mt-4 text-muted">A solution for this problem hasn&rsquo;t been published yet.</p>
-            ) : (
-              <div className="mt-4 flex flex-col items-start gap-4 rounded-xl border border-line bg-surface px-6 py-7">
-                <p className="flex items-center gap-2 font-medium">
-                  <Lock width={18} height={18} /> Locked until you attempt this problem
-                </p>
-                <p className="text-muted">
-                  {user
-                    ? 'Submit your answer above to unlock the reference solution.'
-                    : 'Log in and submit an answer to unlock the reference solution.'}
-                </p>
-                {user && problem.allowDirectReveal && <RevealButton problemId={problem.id} />}
-              </div>
-            )}
-          </section>
-
-          <section aria-labelledby="community-heading">
-            <h2 id="community-heading" className="scroll-mt-24 font-display text-2xl font-semibold">
-              Community solutions
-            </h2>
-            {community ? (
-              <CommunitySection data={community} slug={slug} />
-            ) : (
-              <p className="mt-4 flex items-center gap-2 text-muted">
-                <Lock width={16} height={16} />
-                {user
-                  ? 'Community answers unlock after you submit an attempt or reveal the solution.'
-                  : 'Log in and attempt this problem to read how other learners answered it.'}
-              </p>
-            )}
-          </section>
-        </div>
-
-        <aside className="space-y-8 self-start lg:sticky lg:top-24">
-          <div>
-            <h2 className="font-display text-base font-semibold">Relevant roles</h2>
-            <ul className="mt-2 flex flex-wrap gap-2">
+      <div className="mt-6 divide-y divide-line border-y border-line">
+        {problem.roles.length > 0 && (
+          <details className="py-3">
+            <summary className={sectionTitle}>Relevant roles</summary>
+            <ul className="mt-3 flex flex-wrap gap-2">
               {problem.roles.map((r) => (
-                <li key={r} className="rounded-full bg-surface-2 px-3 py-1 text-sm">{r}</li>
+                <li key={r} className={pill}>{r}</li>
               ))}
             </ul>
-          </div>
-          {problem.subcategory && (
-            <div>
-              <h2 className="font-display text-base font-semibold">Subcategory</h2>
-              <p className="mt-2 text-muted">{problem.subcategory}</p>
-            </div>
-          )}
-          {problem.related.length > 0 && (
-            <div>
-              <h2 className="font-display text-base font-semibold">Related questions</h2>
-              <ul className="mt-2 space-y-2">
-                {problem.related.map((r) => (
-                  <li key={r.slug}>
-                    <Link href={`/problems/${r.slug}`} className="text-accent underline underline-offset-4">{r.title}</Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </aside>
+          </details>
+        )}
+        {problem.subcategory && (
+          <details className="py-3">
+            <summary className={sectionTitle}>Subcategory</summary>
+            <p className="mt-2 text-sm text-muted">{problem.subcategory}</p>
+          </details>
+        )}
+        {problem.related.length > 0 && (
+          <details className="py-3">
+            <summary className={sectionTitle}>Related questions</summary>
+            <ul className="mt-3 space-y-2 text-sm">
+              {problem.related.map((r) => (
+                <li key={r.slug} className="flex items-center justify-between gap-3">
+                  <Link href={`/problems/${r.slug}`} className="hover:text-accent">{r.title}</Link>
+                  <DifficultyBadge difficulty={r.difficulty} />
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
       </div>
+    </article>
+  );
+
+  const solutionPane = (
+    <section aria-labelledby="solution-heading">
+      <h2 id="solution-heading" className="text-lg font-semibold">Expert solution</h2>
+      {solution ? (
+        <div className="mt-4">
+          <p className="mb-5 text-sm text-muted">
+            {solution.reviewedAt
+              ? `Reviewed${solution.reviewedBy ? ` by ${solution.reviewedBy}` : ''} on ${solution.reviewedAt.toLocaleDateString('en-IN', { dateStyle: 'medium' })}.`
+              : 'This solution has not been expert-reviewed yet. Check important details against other sources.'}
+          </p>
+          <Markdown>{solution.content}</Markdown>
+          <div className="mt-8 border-t border-line pt-5">
+            <CompleteToggle problemId={problem.id} completed={progress?.status === 'COMPLETED'} />
+          </div>
+        </div>
+      ) : unlocked ? (
+        <p className="mt-4 text-muted">A solution for this problem hasn&rsquo;t been published yet.</p>
+      ) : (
+        <div className="mt-4 flex flex-col items-start gap-3 rounded-lg bg-surface-2 px-5 py-6">
+          <p className="flex items-center gap-2 font-medium">
+            <Lock width={18} height={18} /> Locked until you attempt this problem
+          </p>
+          <p className="text-sm text-muted">
+            {user
+              ? 'Submit your answer on the right to unlock the reference solution.'
+              : 'Log in and submit an answer to unlock the reference solution.'}
+          </p>
+          {user && problem.allowDirectReveal && <RevealButton problemId={problem.id} />}
+        </div>
+      )}
+    </section>
+  );
+
+  const communityPane = (
+    <section aria-labelledby="community-heading">
+      <h2 id="community-heading" className="text-lg font-semibold">Community solutions</h2>
+      {community ? (
+        <CommunitySection data={community} slug={slug} />
+      ) : (
+        <p className="mt-4 flex items-center gap-2 text-sm text-muted">
+          <Lock width={16} height={16} />
+          {user
+            ? 'Community answers unlock after you submit an attempt or reveal the solution.'
+            : 'Log in and attempt this problem to read how other learners answered it.'}
+        </p>
+      )}
+    </section>
+  );
+
+  const tabs = [
+    { id: 'description', label: 'Description', icon: <FileText width={16} height={16} />, content: description },
+    { id: 'solution', label: 'Solution', icon: unlocked ? <Flask width={16} height={16} /> : <Lock width={15} height={15} />, content: solutionPane },
+    { id: 'community', label: 'Community', icon: <Users width={16} height={16} />, content: communityPane },
+  ];
+
+  return (
+    <div data-workspace className="flex flex-col gap-2 bg-canvas p-2 lg:h-[calc(100dvh-3.5rem)] lg:flex-row">
+      {/* Left: problem, solution, community */}
+      <section aria-label="Problem" className="panel flex min-h-[70dvh] min-w-0 flex-col overflow-hidden lg:min-h-0 lg:flex-1 lg:basis-0">
+        <nav aria-label="Breadcrumb" className="sr-only">
+          <Link href="/problems">Problems</Link> / <Link href={`/topics/${problem.topic.slug}`}>{problem.topic.name}</Link>
+        </nav>
+        <ProblemTabs tabs={tabs} initial={sp?.cpage ? 'community' : 'description'} />
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-line px-3 py-1.5">
+          <Link href="/problems" className="rounded-md px-2.5 py-1.5 text-sm font-medium text-muted hover:bg-surface-2 hover:text-ink">
+            &larr; Problem list
+          </Link>
+          <BookmarkButton problemId={problem.id} slug={slug} initial={bookmarked} signedIn={Boolean(user)} />
+        </div>
+      </section>
+
+      {/* Right: answer editor, like the code editor */}
+      <section aria-label="Your answer" className="panel flex min-h-[32rem] min-w-0 flex-col overflow-hidden lg:min-h-0 lg:flex-1 lg:basis-0">
+        <div className="flex h-10 shrink-0 items-center gap-2 border-b border-line bg-surface-2 px-4 text-sm font-medium">
+          <Code width={16} height={16} className="text-go" /> Answer
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          {user ? (
+            <>
+              <AnswerEditor problemId={problem.id} initialContent={submission?.content ?? ''} hasSubmission={Boolean(submission)} />
+              <div className="shrink-0 border-t border-line p-3">
+                <ShareControl problemId={problem.id} hasSubmission={Boolean(submission)} shared={shared} />
+              </div>
+            </>
+          ) : (
+            <div className="flex min-h-[26rem] flex-1 flex-col">
+              <div className="flex-1 px-4 py-3 font-mono text-[0.85rem] text-muted/70">
+                Write your answer here. Your answer is private unless you choose to share it.
+              </div>
+              <div className="shrink-0 border-t border-line bg-surface-2 px-4 py-3 text-sm">
+                You need to{' '}
+                <Link href={loginHref} className="font-semibold text-accent hover:underline">log in</Link>
+                {' / '}
+                <Link href="/register" className="font-semibold text-accent hover:underline">sign up</Link>
+                {' '}to submit an answer and unlock the expert solution.
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

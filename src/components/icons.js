@@ -36,3 +36,18 @@ export const Chat = (p) => (
 export const Flag = (p) => (
   <svg {...base} {...p}><path d="M5 21V4M5 4h11l-2 4 2 4H5" /></svg>
 );
+export const Code = (p) => (
+  <svg {...base} {...p}><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16" /></svg>
+);
+export const FileText = (p) => (
+  <svg {...base} {...p}><path d="M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6" /></svg>
+);
+export const Flask = (p) => (
+  <svg {...base} {...p}><path d="M9 3h6M10 3v6l-5.5 9.5A1.5 1.5 0 0 0 5.8 21h12.4a1.5 1.5 0 0 0 1.3-2.5L14 9V3" /></svg>
+);
+export const Users = (p) => (
+  <svg {...base} {...p}><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14.2a6.5 6.5 0 0 1 3.5 5.8" /></svg>
+);
+export const Terminal = (p) => (
+  <svg {...base} {...p}><path d="M4 6l6 6-6 6M12 19h8" /></svg>
+);

@@ -36,7 +36,7 @@ export default async function TopicPage({ params, searchParams }) {
                 <Link
                   href={`/topics/${t.slug}`}
                   aria-current={t.slug === slug ? 'page' : undefined}
-                  className={`block rounded-md px-3 py-2 ${t.slug === slug ? 'bg-accent-soft font-semibold text-accent' : 'text-muted hover:bg-surface-2'}`}
+                  className={`block rounded-md px-3 py-2 ${t.slug === slug ? 'bg-surface-2 font-semibold text-ink' : 'text-muted hover:bg-surface-2'}`}
                 >
                   {t.name}
                 </Link>
@@ -46,7 +46,7 @@ export default async function TopicPage({ params, searchParams }) {
         </nav>
 
         <div>
-          <h1 className="font-display text-4xl font-bold tracking-tight">{topic.name}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{topic.name}</h1>
           <p className="mt-2 max-w-2xl text-muted">{topic.description}</p>
           <div className="mt-8">
             <Suspense fallback={null}>
