@@ -9,6 +9,6 @@ export const clerkAppearance = {
     colorInputText: 'var(--ink)',
     colorNeutral: 'var(--ink)',
     fontFamily: 'var(--f-body)',
-    borderRadius: '0.625rem',
+    borderRadius: '0.5rem',
   },
 };

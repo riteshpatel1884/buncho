@@ -4,7 +4,7 @@ export const metadata = { title: 'Log in' };
 
 export default function LoginPage() {
   return (
-    <div className="grid place-items-center px-4 py-14">
+    <div className="grid min-h-[calc(100dvh-3.5rem)] place-items-center bg-canvas px-4 py-10">
       <SignIn />
     </div>
   );

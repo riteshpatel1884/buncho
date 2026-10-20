@@ -1,6 +1,9 @@
 import { prisma } from './prisma';
 import { DIFFICULTIES, PROBLEM_TYPES, PAGE_SIZE } from './constants';
 
+// Same ordering everywhere a problem list or "next problem" is shown.
+const PROBLEM_ORDER = [{ difficulty: 'asc' }, { position: 'asc' }, { title: 'asc' }];
+
 /** Turns untrusted search params into a safe filter object. */
 export function parseFilters(sp = {}) {
   const str = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
@@ -40,7 +43,7 @@ export async function getProblems({ q, topic, difficulty, type, page }) {
         estimatedMinutes: true,
         topic: { select: { name: true, slug: true } },
       },
-      orderBy: [{ difficulty: 'asc' }, { position: 'asc' }, { title: 'asc' }],
+      orderBy: PROBLEM_ORDER,
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
     }),
@@ -65,4 +68,88 @@ export async function getProgressMap(userId, problemIds) {
     select: { problemId: true, status: true },
   });
   return Object.fromEntries(rows.map((r) => [r.problemId, r.status]));
+}
+
+/** Previous / next problem in the same order as the problem list. */
+export async function getProblemNeighbors(slug) {
+  const all = await prisma.problem.findMany({
+    where: { published: true },
+    select: { slug: true },
+    orderBy: PROBLEM_ORDER,
+  });
+  const i = all.findIndex((p) => p.slug === slug);
+  return {
+    prev: i > 0 ? all[i - 1].slug : null,
+    next: i >= 0 && i < all.length - 1 ? all[i + 1].slug : null,
+    index: i + 1,
+    total: all.length,
+  };
+}
+
+/** YYYY-MM-DD for a date in India time, used to group practice activity by day. */
+export function dayKey(date) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
+/**
+ * Progress numbers for the rings, bars and streak. Works signed out too
+ * (userId null): totals are filled in, everything personal stays at zero.
+ */
+export async function getUserStats(userId) {
+  const [totals, rows] = await Promise.all([
+    prisma.problem.groupBy({ by: ['difficulty'], where: { published: true }, _count: { _all: true } }),
+    userId
+      ? prisma.problemProgress.findMany({
+          where: { userId },
+          orderBy: { lastActivityAt: 'desc' },
+          select: {
+            status: true,
+            lastActivityAt: true,
+            problem: { select: { slug: true, title: true, difficulty: true, published: true } },
+          },
+        })
+      : [],
+  ]);
+
+  const byDifficulty = { EASY: { solved: 0, total: 0 }, MEDIUM: { solved: 0, total: 0 }, HARD: { solved: 0, total: 0 } };
+  totals.forEach((t) => {
+    if (byDifficulty[t.difficulty]) byDifficulty[t.difficulty].total = t._count._all;
+  });
+
+  let solved = 0;
+  let attempted = 0;
+  let last = null;
+  const activeDays = {};
+
+  rows.forEach((r) => {
+    if (r.status === 'COMPLETED' && r.problem.published) {
+      solved += 1;
+      if (byDifficulty[r.problem.difficulty]) byDifficulty[r.problem.difficulty].solved += 1;
+    }
+    if (r.status === 'ATTEMPTED') {
+      attempted += 1;
+      if (!last && r.problem.published) last = r.problem;
+    }
+    if (r.lastActivityAt) {
+      const k = dayKey(r.lastActivityAt);
+      activeDays[k] = (activeDays[k] ?? 0) + 1;
+    }
+  });
+
+  // Streak: consecutive active days up to today (yesterday still counts if today is empty)
+  let streak = 0;
+  const now = Date.now();
+  const startOffset = activeDays[dayKey(new Date(now))] ? 0 : 1;
+  for (let i = startOffset; i < 400; i += 1) {
+    if (activeDays[dayKey(new Date(now - i * 86400000))]) streak += 1;
+    else break;
+  }
+
+  const total = Object.values(byDifficulty).reduce((s, d) => s + d.total, 0);
+  return { total, solved, attempted, byDifficulty, activeDays, streak, last };
 }

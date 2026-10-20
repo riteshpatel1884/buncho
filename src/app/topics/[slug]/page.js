@@ -1,10 +1,12 @@
 import { Suspense } from 'react';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
+import LibraryLayout from '@/components/LibraryLayout';
 import ProblemFilters from '@/components/ProblemFilters';
 import ProblemList from '@/components/ProblemList';
-import { getProblems, getProgressMap, getTopics, parseFilters } from '@/lib/problems';
+import ActivityGrid from '@/components/ActivityGrid';
+import { ContinueCard, StatsCard } from '@/components/StatsCard';
+import { getProblems, getProgressMap, getTopics, getUserStats, parseFilters } from '@/lib/problems';
 import { getOrCreateUser } from '@/lib/user';
 
 export async function generateMetadata({ params }) {
@@ -19,45 +21,36 @@ export default async function TopicPage({ params, searchParams }) {
   if (!topic) notFound();
 
   const filters = { ...parseFilters(await searchParams), topic: slug };
-  const [allTopics, result, user] = await Promise.all([getTopics(), getProblems(filters), getOrCreateUser()]);
+  const user = await getOrCreateUser();
+  const [allTopics, result, stats] = await Promise.all([getTopics(), getProblems(filters), getUserStats(user?.id ?? null)]);
   const statusMap = user ? await getProgressMap(user.id, result.items.map((p) => p.id)) : {};
 
   const { page, topic: _t, ...rest } = filters;
   const queryParams = Object.fromEntries(Object.entries(rest).filter(([, v]) => v));
 
-  return (
-    <div className="wrap py-10 lg:py-14">
-      <div className="grid gap-10 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <nav aria-label="Topics" className="hidden lg:block">
-          <ul className="sticky top-24 space-y-1 text-sm">
-            <li><Link href="/problems" className="block rounded-md px-3 py-2 text-muted hover:bg-surface-2">All problems</Link></li>
-            {allTopics.map((t) => (
-              <li key={t.id}>
-                <Link
-                  href={`/topics/${t.slug}`}
-                  aria-current={t.slug === slug ? 'page' : undefined}
-                  className={`block rounded-md px-3 py-2 ${t.slug === slug ? 'bg-surface-2 font-semibold text-ink' : 'text-muted hover:bg-surface-2'}`}
-                >
-                  {t.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+  const rail = (
+    <>
+      <StatsCard stats={stats} signedIn={Boolean(user)} />
+      <ContinueCard stats={stats} />
+      {user && <ActivityGrid stats={stats} />}
+    </>
+  );
 
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{topic.name}</h1>
-          <p className="mt-2 max-w-2xl text-muted">{topic.description}</p>
-          <div className="mt-8">
-            <Suspense fallback={null}>
-              <ProblemFilters hideTopic />
-            </Suspense>
-          </div>
-          <div className="mt-8">
-            <ProblemList result={result} statusMap={statusMap} basePath={`/topics/${slug}`} params={queryParams} />
-          </div>
-        </div>
+  return (
+    <LibraryLayout topics={allTopics} rail={rail}>
+      <div className="space-y-5">
+        <header className="panel p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-accent">Topic</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">{topic.name}</h1>
+          {topic.description && <p className="mt-1 max-w-2xl text-sm text-muted">{topic.description}</p>}
+        </header>
+
+        <Suspense fallback={null}>
+          <ProblemFilters topics={allTopics} currentTopic={slug} total={result.total} />
+        </Suspense>
+
+        <ProblemList result={result} statusMap={statusMap} basePath={`/topics/${slug}`} params={queryParams} />
       </div>
-    </div>
+    </LibraryLayout>
   );
 }

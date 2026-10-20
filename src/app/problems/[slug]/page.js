@@ -13,7 +13,10 @@ import CommunitySection from '@/components/CommunitySection';
 import BookmarkButton from '@/components/BookmarkButton';
 import { CompleteToggle, RevealButton } from '@/components/SolutionControls';
 import ProblemTabs from '@/components/ProblemTabs';
-import { Code, FileText, Flask, Lock, Users } from '@/components/icons';
+import Workspace from '@/components/Workspace';
+import Timer from '@/components/Timer';
+import { getProblemNeighbors } from '@/lib/problems';
+import { ChevronLeft, ChevronRight, Code, FileText, Flask, List, Lock, Users } from '@/components/icons';
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
@@ -35,7 +38,7 @@ export default async function ProblemPage({ params, searchParams }) {
   });
   if (!problem) notFound();
 
-  const user = await getOrCreateUser();
+  const [user, neighbors] = await Promise.all([getOrCreateUser(), getProblemNeighbors(slug)]);
   let progress = null;
   let submission = null;
   let ownShared = null;
@@ -187,51 +190,86 @@ export default async function ProblemPage({ params, searchParams }) {
     { id: 'community', label: 'Community', icon: <Users width={16} height={16} />, content: communityPane },
   ];
 
-  return (
-    <div data-workspace className="flex flex-col gap-2 bg-canvas p-2 lg:h-[calc(100dvh-3.5rem)] lg:flex-row">
-      {/* Left: problem, solution, community */}
-      <section aria-label="Problem" className="panel flex min-h-[70dvh] min-w-0 flex-col overflow-hidden lg:min-h-0 lg:flex-1 lg:basis-0">
-        <nav aria-label="Breadcrumb" className="sr-only">
-          <Link href="/problems">Problems</Link> / <Link href={`/topics/${problem.topic.slug}`}>{problem.topic.name}</Link>
-        </nav>
-        <ProblemTabs tabs={tabs} initial={sp?.cpage ? 'community' : 'description'} />
-        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-line px-3 py-1.5">
-          <Link href="/problems" className="rounded-md px-2.5 py-1.5 text-sm font-medium text-muted hover:bg-surface-2 hover:text-ink">
-            &larr; Problem list
-          </Link>
-          <BookmarkButton problemId={problem.id} slug={slug} initial={bookmarked} signedIn={Boolean(user)} />
-        </div>
-      </section>
+  const arrow = 'grid h-8 w-8 place-items-center rounded-md text-ink transition-colors hover:bg-surface';
+  const arrowOff = 'grid h-8 w-8 place-items-center rounded-md text-muted opacity-40';
 
-      {/* Right: answer editor, like the code editor */}
-      <section aria-label="Your answer" className="panel flex min-h-[32rem] min-w-0 flex-col overflow-hidden lg:min-h-0 lg:flex-1 lg:basis-0">
-        <div className="flex h-10 shrink-0 items-center gap-2 border-b border-line bg-surface-2 px-4 text-sm font-medium">
-          <Code width={16} height={16} className="text-go" /> Answer
-        </div>
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          {user ? (
-            <>
-              <AnswerEditor problemId={problem.id} initialContent={submission?.content ?? ''} hasSubmission={Boolean(submission)} />
-              <div className="shrink-0 border-t border-line p-3">
-                <ShareControl problemId={problem.id} hasSubmission={Boolean(submission)} shared={shared} />
-              </div>
-            </>
+  return (
+    <div data-workspace className="flex flex-col bg-canvas px-2 pb-2 lg:h-[calc(100dvh-3.5rem)]">
+      {/* Top bar: problem list, previous / next, timer */}
+      <div className="flex h-12 shrink-0 items-center justify-between gap-2">
+        <div className="flex items-center gap-1">
+          <Link href="/problems" className="inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm font-semibold transition-colors hover:bg-surface">
+            <List width={18} height={18} /> Problem List
+          </Link>
+          {neighbors.prev ? (
+            <Link href={`/problems/${neighbors.prev}`} className={arrow} aria-label="Previous problem" title="Previous problem">
+              <ChevronLeft width={18} height={18} />
+            </Link>
           ) : (
-            <div className="flex min-h-[26rem] flex-1 flex-col">
-              <div className="flex-1 px-4 py-3 font-mono text-[0.85rem] text-muted/70">
-                Write your answer here. Your answer is private unless you choose to share it.
-              </div>
-              <div className="shrink-0 border-t border-line bg-surface-2 px-4 py-3 text-sm">
-                You need to{' '}
-                <Link href={loginHref} className="font-semibold text-accent hover:underline">log in</Link>
-                {' / '}
-                <Link href="/register" className="font-semibold text-accent hover:underline">sign up</Link>
-                {' '}to submit an answer and unlock the expert solution.
-              </div>
-            </div>
+            <span className={arrowOff} aria-hidden="true"><ChevronLeft width={18} height={18} /></span>
+          )}
+          {neighbors.next ? (
+            <Link href={`/problems/${neighbors.next}`} className={arrow} aria-label="Next problem" title="Next problem">
+              <ChevronRight width={18} height={18} />
+            </Link>
+          ) : (
+            <span className={arrowOff} aria-hidden="true"><ChevronRight width={18} height={18} /></span>
           )}
         </div>
-      </section>
+        <Timer />
+        <p className="hidden w-40 text-right text-xs text-muted sm:block">
+          {neighbors.index} of {neighbors.total}
+        </p>
+      </div>
+
+      <Workspace
+        leftLabel="Problem"
+        rightLabel="Answer"
+        left={
+          <>
+            <nav aria-label="Breadcrumb" className="sr-only">
+              <Link href="/problems">Problems</Link> / <Link href={`/topics/${problem.topic.slug}`}>{problem.topic.name}</Link>
+            </nav>
+            <ProblemTabs tabs={tabs} initial={sp?.cpage ? 'community' : 'description'} />
+            <div className="flex shrink-0 items-center justify-between gap-2 border-t border-line px-3 py-1.5">
+              <Link href={`/topics/${problem.topic.slug}`} className="rounded-md px-2.5 py-1.5 text-sm font-medium text-muted hover:bg-surface-2 hover:text-ink">
+                More in {problem.topic.name}
+              </Link>
+              <BookmarkButton problemId={problem.id} slug={slug} initial={bookmarked} signedIn={Boolean(user)} />
+            </div>
+          </>
+        }
+        right={
+          <>
+            <div className="flex h-10 shrink-0 items-center gap-2 border-b border-line bg-surface-2 pl-4 pr-20 text-sm font-medium">
+              <Code width={16} height={16} className="text-go" /> Answer
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+              {user ? (
+                <>
+                  <AnswerEditor problemId={problem.id} initialContent={submission?.content ?? ''} hasSubmission={Boolean(submission)} />
+                  <div className="shrink-0 border-t border-line p-3">
+                    <ShareControl problemId={problem.id} hasSubmission={Boolean(submission)} shared={shared} />
+                  </div>
+                </>
+              ) : (
+                <div className="flex min-h-[26rem] flex-1 flex-col">
+                  <div className="flex-1 px-4 py-3 font-mono text-[0.85rem] text-muted/70">
+                    Write your answer here. Your answer is private unless you choose to share it.
+                  </div>
+                  <div className="shrink-0 border-t border-line bg-surface-2 px-4 py-3 text-sm">
+                    You need to{' '}
+                    <Link href={loginHref} className="font-semibold text-accent hover:underline">log in</Link>
+                    {' / '}
+                    <Link href="/register" className="font-semibold text-accent hover:underline">sign up</Link>
+                    {' '}to submit an answer and unlock the expert solution.
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        }
+      />
     </div>
   );
 }

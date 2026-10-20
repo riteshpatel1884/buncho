@@ -9,7 +9,7 @@ export default function ProblemTabs({ tabs, initial }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div role="tablist" aria-label="Problem sections" className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-line bg-surface-2 px-2">
+      <div role="tablist" aria-label="Problem sections" className="no-scrollbar flex shrink-0 items-center gap-1 overflow-x-auto border-b border-line bg-surface-2 pl-2 pr-20">
         {tabs.map((t) => {
           const on = t.id === active;
           return (
