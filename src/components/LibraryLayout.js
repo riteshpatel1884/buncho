@@ -7,7 +7,7 @@ export default function LibraryLayout({ topics = [], rail, children }) {
   return (
     <div className="mx-auto flex w-full max-w-[96rem] gap-5 px-4 py-4">
       <aside className="hidden w-56 shrink-0 lg:block">
-        <div className="sticky top-4 max-h-[calc(100dvh-2rem)] space-y-4 overflow-y-auto pr-1">
+        <div className="sticky top-[4.5rem] max-h-[calc(100dvh-5.5rem)] space-y-4 overflow-y-auto pr-1">
           <nav aria-label="Library" className="panel space-y-1 p-2">
             <SideLink href="/problems" exact icon={<Book width={18} height={18} />}>Library</SideLink>
             <SideLink href="/dashboard" icon={<Grid width={18} height={18} />}>Dashboard</SideLink>
@@ -33,7 +33,7 @@ export default function LibraryLayout({ topics = [], rail, children }) {
 
       {rail && (
         <aside className="hidden w-80 shrink-0 xl:block">
-          <div className="sticky top-4 space-y-4">{rail}</div>
+          <div className="sticky top-[4.5rem] space-y-4">{rail}</div>
         </aside>
       )}
     </div>

@@ -19,12 +19,12 @@ export default function MobileMenu({ links }) {
         aria-controls="mobile-nav"
         aria-label={open ? 'Close menu' : 'Open menu'}
         onClick={() => setOpen((v) => !v)}
-        className="grid h-9 w-9 place-items-center rounded-md bg-surface-2"
+        className="grid h-9 w-9 place-items-center rounded-full bg-surface-2"
       >
         {open ? <Close /> : <Menu />}
       </button>
       {open && (
-        <nav id="mobile-nav" className="absolute inset-x-0 top-full border-b border-line bg-surface px-5 py-3 shadow-lg">
+        <nav id="mobile-nav" className="absolute inset-x-0 top-full mt-2 rounded-3xl border border-line bg-surface px-6 py-3 shadow-lg">
           <ul>
             {links.map((l) => (
               <li key={l.href}>

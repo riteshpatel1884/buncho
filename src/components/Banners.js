@@ -9,8 +9,8 @@ export default function Banners({ signedIn }) {
       title: signedIn ? 'Keep your streak going' : 'Create a free account',
       body: signedIn ? 'See your streak, progress and saved answers.' : 'Track progress, streaks and saved answers.',
       icon: <Flame width={22} height={22} />,
-      cls: 'bg-gradient-to-br from-[#ffc01e] to-[#ff9d00] text-[#1a1a1a] border-transparent',
-      sub: 'text-[#1a1a1a]/70',
+      cls: 'bg-gradient-to-br from-[#34d67b] to-[#1fae5a] text-[#04140a] border-transparent',
+      sub: 'text-[#04140a]/70',
     },
     {
       href: '/problems?difficulty=EASY',

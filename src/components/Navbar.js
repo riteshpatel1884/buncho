@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server';
 import { UserButton } from '@clerk/nextjs';
 import Logo from './Logo';
 import NavLinks from './NavLinks';
+import NavShell from './NavShell';
 import ThemeToggle from './ThemeToggle';
 import MobileMenu from './MobileMenu';
 import { Search } from './icons';
@@ -16,9 +17,13 @@ export default async function Navbar() {
   ];
 
   return (
-    <header className="relative z-40 border-b border-line bg-surface">
-      <div className="mx-auto flex h-14 w-full max-w-[96rem] items-center gap-4 px-4">
-        <Link href="/" aria-label="Buncho home">
+    <NavShell>
+      <div className="flex h-full w-full items-center gap-3 px-4 sm:gap-4 sm:px-5">
+        <Link
+          href="/"
+          aria-label="Buncho home"
+          className="origin-left transition-transform duration-300 group-data-[compact=true]/nav:scale-90"
+        >
           <Logo />
         </Link>
         <NavLinks links={links} />
@@ -32,7 +37,7 @@ export default async function Navbar() {
               name="q"
               type="search"
               placeholder="Search problems"
-              className="h-9 w-56 rounded-full bg-surface-2 pl-9 pr-3 text-sm outline-none placeholder:text-muted focus:ring-1 focus:ring-accent"
+              className="h-8 w-52 rounded-full bg-surface-2 pl-9 pr-3 text-sm outline-none transition-[width] duration-300 placeholder:text-muted focus:ring-1 focus:ring-accent group-data-[compact=true]/nav:h-7 group-data-[compact=true]/nav:w-40"
             />
           </form>
           <ThemeToggle />
@@ -43,7 +48,7 @@ export default async function Navbar() {
               <Link href="/login" className="hidden px-3 py-2 text-sm font-medium text-muted hover:text-ink sm:block">
                 Log in
               </Link>
-              <Link href="/register" className="rounded-md bg-accent px-3.5 py-1.5 text-sm font-semibold text-accent-ink hover:opacity-90">
+              <Link href="/register" className="rounded-full bg-accent px-3.5 py-1.5 text-sm font-semibold text-accent-ink hover:opacity-90">
                 Sign up
               </Link>
             </>
@@ -51,6 +56,6 @@ export default async function Navbar() {
           <MobileMenu links={links} />
         </div>
       </div>
-    </header>
+    </NavShell>
   );
 }

@@ -20,7 +20,7 @@ export default function ThemeToggle() {
       onClick={toggle}
       aria-label="Switch between light and dark theme"
       title="Switch theme"
-      className="grid h-9 w-9 place-items-center rounded-md bg-surface-2 text-ink transition-colors hover:bg-line"
+      className="grid h-9 w-9 place-items-center rounded-full text-ink transition-colors hover:text-accent"
     >
       <Sun className="hidden dark:block" />
       <Moon className="dark:hidden" />

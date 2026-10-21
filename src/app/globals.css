@@ -11,12 +11,12 @@
   --ink: #262626;
   --muted: #6b6b6b;
   --line: #e3e3e3;
-  --accent: #d97a00;
+  --accent: #158f47;
   --accent-ink: #ffffff;
-  --accent-soft: #fff1dc;
-  --go: #2cbb5d;
+  --accent-soft: #e3f8ec;
+  --go: #158f47;
   --go-ink: #ffffff;
-  --mark: #ffc01e;
+  --mark: #b7efcf;
   --easy: #00a391;
   --medium: #c98a00;
   --hard: #ef3f5f;
@@ -31,12 +31,12 @@
   --ink: #eff1f6;
   --muted: #9a9a9a;
   --line: #3e3e3e;
-  --accent: #ffa116;
-  --accent-ink: #1a1a1a;
-  --accent-soft: #3b3326;
-  --go: #2cbb5d;
-  --go-ink: #ffffff;
-  --mark: #ffc01e;
+  --accent: #34d67b;
+  --accent-ink: #04140a;
+  --accent-soft: #163322;
+  --go: #34d67b;
+  --go-ink: #04140a;
+  --mark: #34d67b;
   --easy: #00b8a3;
   --medium: #ffc01e;
   --hard: #ff375f;
@@ -67,6 +67,7 @@
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 4.5rem;
 }
 
 body {
@@ -102,7 +103,7 @@ body:has([data-workspace]) .site-footer { display: none; }
 
 ::selection {
   background: var(--mark);
-  color: #1a1a1a;
+  color: #04140a;
 }
 
 .wrap {
