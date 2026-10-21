@@ -1,4 +1,4 @@
-function Ring({ score, size = 132 }) {
+function Ring({ score, size = 136 }) {
   const stroke = 9;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
@@ -41,57 +41,51 @@ export default function ReadinessCard({ readiness, competencies }) {
   const { score, label, provisional, assessed, totalCompetencies, evaluatedProblems } = readiness;
 
   return (
-    <section aria-labelledby="readiness-h" className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+    <section aria-labelledby="readiness-h" className="card p-6 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="readiness-h" className="text-base font-semibold">AI Engineering Readiness</h2>
+        <h2 id="readiness-h" className="text-base font-semibold tracking-tight">AI Engineering Readiness</h2>
         {provisional && score !== null && (
           <span className="rounded-full bg-medium/12 px-2.5 py-0.5 text-xs font-semibold text-medium">Early estimate</span>
         )}
       </div>
 
-      <div className="mt-5 flex flex-col gap-6 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-4">
-          <Ring score={score} />
-          <div className="sm:hidden">
-            <p className="text-lg font-semibold">{label}</p>
-          </div>
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <p className="hidden text-lg font-semibold sm:block">{label}</p>
-          <p className="text-xs text-muted sm:mt-0.5">
+      <div className="mt-6 flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8">
+        <Ring score={score} />
+        <div className="min-w-0">
+          <p className="text-2xl font-semibold tracking-tight">{label}</p>
+          <p className="mt-2 max-w-md text-sm leading-relaxed text-muted">
             {score === null
               ? 'Answer a question and get AI feedback to start building your score.'
               : `Based on ${evaluatedProblems} AI-evaluated ${evaluatedProblems === 1 ? 'answer' : 'answers'} across ${assessed} of ${totalCompetencies} competencies.`}
           </p>
-
-          <ul className="mt-4 space-y-3">
-            {competencies.map((c) => (
-              <li key={c.key}>
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="font-medium">{c.name}</span>
-                  <span className="text-xs text-muted">
-                    {c.score === null ? 'Not assessed' : <span className="font-semibold text-ink">{c.score}</span>}
-                    {c.score !== null && '/100'} · {c.evaluated}/{c.total} answered
-                  </span>
-                </div>
-                <div
-                  className="mt-1.5 h-2 overflow-hidden rounded-full bg-surface-2"
-                  role="progressbar"
-                  aria-valuenow={c.score ?? 0}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label={`${c.name} score`}
-                >
-                  <div className={`h-full rounded-full ${barColor(c.score ?? 0)}`} style={{ width: `${c.score ?? 0}%` }} />
-                </div>
-              </li>
-            ))}
-          </ul>
         </div>
       </div>
 
-      <details className="mt-5 border-t border-line pt-4 text-sm">
+      <ul className="mt-8 grid gap-x-12 gap-y-6 border-t border-line pt-8 md:grid-cols-2">
+        {competencies.map((c) => (
+          <li key={c.key}>
+            <div className="flex items-baseline justify-between gap-3 text-sm">
+              <span className="font-medium">{c.name}</span>
+              <span className="shrink-0 text-xs text-muted">
+                {c.score === null ? 'Not assessed' : <><span className="font-semibold text-ink">{c.score}</span>/100</>}
+              </span>
+            </div>
+            <div
+              className="mt-2 h-2 overflow-hidden rounded-full bg-surface-2"
+              role="progressbar"
+              aria-valuenow={c.score ?? 0}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`${c.name} score`}
+            >
+              <div className={`h-full rounded-full ${barColor(c.score ?? 0)}`} style={{ width: `${c.score ?? 0}%` }} />
+            </div>
+            <p className="mt-1.5 text-xs text-muted">{c.evaluated}/{c.total} answered</p>
+          </li>
+        ))}
+      </ul>
+
+      <details className="mt-8 border-t border-line pt-5 text-sm">
         <summary className="cursor-pointer font-semibold">How is this calculated?</summary>
         <ul className="mt-3 list-disc space-y-1.5 pl-5 text-muted">
           <li>Each competency score is the average AI feedback score of your latest answers in its topics.</li>

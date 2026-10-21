@@ -39,12 +39,13 @@ const ROWS = [
   ['HARD', 'Hard', 'bg-hard'],
 ];
 
-export function StatsCard({ stats, signedIn }) {
+export function StatsCard({ stats, signedIn, roomy = false }) {
   return (
-    <section aria-label="Your progress" className="panel p-4">
-      <div className="flex items-center gap-4">
-        <Ring solved={stats.solved} total={stats.total} />
-        <ul className="min-w-0 flex-1 space-y-2.5">
+    <section aria-label="Your progress" className={roomy ? 'card p-6' : 'panel p-4'}>
+      {roomy && <h2 className="mb-5 text-base font-semibold tracking-tight">Problems solved</h2>}
+      <div className={`flex items-center ${roomy ? 'gap-6' : 'gap-4'}`}>
+        <Ring solved={stats.solved} total={stats.total} size={roomy ? 116 : 104} />
+        <ul className={`min-w-0 flex-1 ${roomy ? 'space-y-4' : 'space-y-2.5'}`}>
           {ROWS.map(([key, label, bar]) => {
             const d = stats.byDifficulty[key];
             const pct = d.total ? Math.round((d.solved / d.total) * 100) : 0;
@@ -63,7 +64,7 @@ export function StatsCard({ stats, signedIn }) {
         </ul>
       </div>
       {signedIn ? (
-        <p className="mt-3 text-xs text-muted">{stats.attempted} in progress</p>
+        <p className={`text-muted ${roomy ? 'mt-5 border-t border-line pt-4 text-sm' : 'mt-3 text-xs'}`}>{stats.attempted} in progress</p>
       ) : (
         <Link href="/register" className="mt-4 block rounded-md bg-accent px-3 py-2 text-center text-sm font-semibold text-accent-ink hover:opacity-90">
           Sign up to track your progress

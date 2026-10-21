@@ -12,7 +12,8 @@ import { getUserStats } from '@/lib/problems';
 import { getInsights } from '@/lib/insights';
 import { listJobs } from '@/lib/jobs/progress';
 import JobPrepCard from '@/components/jobs/JobPrepCard';
-import { Flame } from '@/components/icons';
+import Section, { Empty, rowClass } from '@/components/dashboard/Section';
+import StatTile from '@/components/dashboard/StatTile';
 
 export const metadata = { title: 'Dashboard' };
 
@@ -65,20 +66,14 @@ export default async function DashboardPage() {
   });
 
   const firstName = user.name?.split(' ')[0];
-
-  const Card = ({ id, title, children }) => (
-    <section aria-labelledby={id} className="panel p-5">
-      <h2 id={id} className="mb-3 text-base font-semibold">{title}</h2>
-      {children}
-    </section>
-  );
+  const resume = inProgress[0]?.problem;
 
   const List = ({ items, empty }) =>
     items.length ? (
-      <ul className="-mx-2 space-y-0.5">
+      <ul className="-mx-3 space-y-1">
         {items.map((item) => (
           <li key={item.slug}>
-            <Link href={`/problems/${item.slug}`} className="flex items-center justify-between gap-4 rounded-lg px-3 py-2.5 text-sm odd:bg-surface-2/70 hover:bg-surface-2">
+            <Link href={`/problems/${item.slug}`} className={rowClass}>
               <span className="min-w-0 truncate font-medium">{item.title}</span>
               <DifficultyBadge difficulty={item.difficulty} plain />
             </Link>
@@ -86,66 +81,69 @@ export default async function DashboardPage() {
         ))}
       </ul>
     ) : (
-      <p className="text-sm text-muted">{empty}</p>
+      <Empty>{empty}</Empty>
     );
 
   return (
-    <div className="mx-auto w-full max-w-[96rem] px-4 py-6">
-      <div className="grid gap-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
-        {/* Left column: profile, progress ring, activity */}
-        <aside className="space-y-4">
-          <section className="panel flex items-center gap-4 p-5">
-            {user.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.imageUrl} alt="" width={56} height={56} className="h-14 w-14 rounded-lg object-cover" />
-            ) : (
-              <span className="grid h-14 w-14 place-items-center rounded-lg bg-accent-soft text-xl font-semibold text-accent">
-                {(user.name ?? '?').charAt(0).toUpperCase()}
-              </span>
-            )}
-            <div className="min-w-0">
-              <h1 className="truncate text-lg font-semibold tracking-tight">{firstName ? `Welcome back, ${firstName}` : 'Welcome back'}</h1>
-              <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted">
-                <Flame width={15} height={15} className={stats.streak ? 'text-accent' : ''} />
-                {stats.streak} day streak
-              </p>
-            </div>
-          </section>
+    <div className="mx-auto w-full max-w-[80rem] px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+      {/* Header */}
+      <header className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-4">
+          {user.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={user.imageUrl} alt="" width={56} height={56} className="h-14 w-14 shrink-0 rounded-full object-cover" />
+          ) : (
+            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-accent-soft text-xl font-semibold text-accent">
+              {(user.name ?? '?').charAt(0).toUpperCase()}
+            </span>
+          )}
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">
+              {firstName ? `Welcome back, ${firstName}` : 'Welcome back'}
+            </h1>
+            <p className="mt-1 text-sm text-muted">Here&rsquo;s where your interview prep stands today.</p>
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-3">
+          <Link href="/problems" className="rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-surface-2">
+            Browse problems
+          </Link>
+          <Link
+            href={resume ? `/problems/${resume.slug}` : '/problems'}
+            className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink transition-opacity hover:opacity-90"
+          >
+            {resume ? 'Resume practice' : 'Start practicing'}
+          </Link>
+        </div>
+      </header>
 
-          <StatsCard stats={stats} signedIn />
-          <WeeklyActivity weekly={insights.weekly} />
-          <ActivityGrid stats={stats} />
+      {/* Key numbers */}
+      <dl className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-6">
+        <StatTile label="Solved" value={stats.solved} sub={`of ${stats.total} problems`} accent />
+        <StatTile label="Attempted" value={progress.length} sub={`${stats.attempted} in progress`} />
+        <StatTile label="Day streak" value={stats.streak} sub={stats.streak ? 'Keep it going' : 'Practice today to start one'} />
+        <StatTile label="Saved" value={bookmarks.length} sub="for later" />
+      </dl>
 
-          <dl className="panel grid grid-cols-3 divide-x divide-line p-0 text-center">
-            {[['Attempted', progress.length], ['Completed', completed.length], ['Saved', bookmarks.length]].map(([label, value]) => (
-              <div key={label} className="px-2 py-3">
-                <dd className="text-lg font-semibold">{value}</dd>
-                <dt className="text-xs text-muted">{label}</dt>
-              </div>
-            ))}
-          </dl>
-        </aside>
-
-        {/* Right column */}
-        <div className="space-y-4">
+      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_24rem]">
+        {/* Main column */}
+        <div className="min-w-0 space-y-8">
           <ReadinessCard readiness={insights.readiness} competencies={insights.competencies} />
 
-          <JobPrepCard jobs={jobs.slice(0, 3)} />
-
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="grid gap-8 xl:grid-cols-2">
             <Recommended items={insights.recommendations} />
             <RevisionQueue items={insights.revision} />
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="grid gap-8 xl:grid-cols-2">
             <WeakTopics items={insights.weakTopics} />
-            <Card id="continue" title="Continue where you left off">
+            <Section id="continue" title="Continue where you left off">
               <List items={inProgress.map((p) => p.problem)} empty="Nothing in progress. Pick a problem to get started." />
-            </Card>
+            </Section>
           </div>
 
-          <Card id="progress" title="Progress by topic">
-            <ul className="grid gap-x-10 gap-y-4 md:grid-cols-2">
+          <Section id="progress" title="Progress by topic" hint="Problems completed in each topic.">
+            <ul className="grid gap-x-12 gap-y-6 md:grid-cols-2">
               {topics.map((t) => {
                 const done = completedByTopic[t.id] ?? 0;
                 const count = t._count.problems;
@@ -154,10 +152,10 @@ export default async function DashboardPage() {
                   <li key={t.id}>
                     <div className="flex justify-between gap-4 text-sm">
                       <Link href={`/topics/${t.slug}`} className="font-medium hover:text-accent">{t.name}</Link>
-                      <span className="text-muted">{done} of {count}</span>
+                      <span className="shrink-0 text-muted">{done} of {count}</span>
                     </div>
                     <div
-                      className="mt-2 h-2 overflow-hidden rounded-full bg-surface-2"
+                      className="mt-2.5 h-2 overflow-hidden rounded-full bg-surface-2"
                       role="progressbar"
                       aria-valuenow={pct}
                       aria-valuemin={0}
@@ -170,21 +168,26 @@ export default async function DashboardPage() {
                 );
               })}
             </ul>
-          </Card>
+          </Section>
+        </div>
 
-          <Card id="saved" title="Saved for later">
+        {/* Sidebar */}
+        <aside className="min-w-0 space-y-8">
+          <StatsCard stats={stats} signedIn roomy />
+          <WeeklyActivity weekly={insights.weekly} />
+          <ActivityGrid stats={stats} roomy />
+          <JobPrepCard jobs={jobs.slice(0, 3)} />
+
+          <Section id="saved" title="Saved for later">
             <List items={bookmarks.map((b) => b.problem)} empty="Use Save for later on any problem to collect it here." />
-          </Card>
+          </Section>
 
-          <Card id="saved-answers" title="Saved community answers">
+          <Section id="saved-answers" title="Saved community answers">
             {savedAnswers.length ? (
-              <ul className="-mx-2 space-y-0.5">
+              <ul className="-mx-3 space-y-1">
                 {savedAnswers.map(({ answer }) => (
                   <li key={answer.id}>
-                    <Link
-                      href={`/problems/${answer.problem.slug}#answer-${answer.id}`}
-                      className="flex items-center justify-between gap-4 rounded-lg px-3 py-2.5 text-sm odd:bg-surface-2/70 hover:bg-surface-2"
-                    >
+                    <Link href={`/problems/${answer.problem.slug}#answer-${answer.id}`} className={rowClass}>
                       <span className="min-w-0 truncate font-medium">{answer.problem.title}</span>
                       <span className="shrink-0 text-xs text-muted">
                         {answer.anonymous ? 'Anonymous learner' : answer.user.name?.split(' ')[0] ?? 'A learner'}
@@ -194,10 +197,10 @@ export default async function DashboardPage() {
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-muted">Use Save on a community answer to collect it here.</p>
+              <Empty>Use Save on a community answer to collect it here.</Empty>
             )}
-          </Card>
-        </div>
+          </Section>
+        </aside>
       </div>
     </div>
   );

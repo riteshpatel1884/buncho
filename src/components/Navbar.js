@@ -18,7 +18,6 @@ export default async function Navbar() {
       ? [
           { href: '/jobs', label: 'Job prep' },
           { href: '/dashboard', label: 'Dashboard' },
-          { href: '/profile', label: 'Profile' },
         ]
       : []),
   ];
