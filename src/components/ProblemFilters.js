@@ -6,23 +6,12 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { DIFFICULTIES, DIFFICULTY_LABEL, PROBLEM_TYPES, TYPE_LABEL } from '@/lib/constants';
 import { Search } from './icons';
 
-const selectCls = 'h-9 rounded-lg bg-surface-2 px-3 text-sm text-ink outline-none';
+const selectCls =
+  'h-10 rounded-xl border border-line bg-surface px-3 text-sm text-ink outline-none transition-colors hover:border-muted focus:border-muted';
 const pillCls = (on) =>
-  `shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-    on ? 'bg-ink text-bg' : 'bg-surface-2 text-muted hover:text-ink'
+  `shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+    on ? 'border-ink bg-ink text-bg' : 'border-line bg-surface text-muted hover:border-muted hover:text-ink'
   }`;
-
-function MiniRing({ solved, total }) {
-  const r = 8;
-  const c = 2 * Math.PI * r;
-  const pct = total ? Math.min(1, solved / total) : 0;
-  return (
-    <svg width="22" height="22" viewBox="0 0 22 22" className="-rotate-90" aria-hidden="true">
-      <circle cx="11" cy="11" r={r} fill="none" stroke="var(--surface-2)" strokeWidth="3" />
-      <circle cx="11" cy="11" r={r} fill="none" stroke="var(--easy)" strokeWidth="3" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - pct)} />
-    </svg>
-  );
-}
 
 /**
  * Topic pills + search + difficulty/type selects.
@@ -61,12 +50,12 @@ export default function ProblemFilters({ topics = [], currentTopic, solved = nul
   const hasFilters = Boolean(sp.get('q') || difficulty || sp.get('type') || (!onTopicPage && sp.get('topic')));
 
   return (
-    <div className="space-y-3" aria-busy={pending}>
+    <div className="space-y-4" aria-busy={pending}>
       {/* Topic pills */}
       <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label="Topic">
         {onTopicPage ? (
           <>
-            <Link href="/problems" className={pillCls(false)}>All Topics</Link>
+            <Link href="/problems" className={pillCls(false)}>All topics</Link>
             {topics.map((t) => (
               <Link key={t.slug} href={`/topics/${t.slug}`} aria-current={t.slug === activeTopic ? 'page' : undefined} className={pillCls(t.slug === activeTopic)}>
                 {t.name}
@@ -76,7 +65,7 @@ export default function ProblemFilters({ topics = [], currentTopic, solved = nul
         ) : (
           <>
             <button type="button" aria-pressed={!activeTopic} onClick={() => update({ topic: '' })} className={pillCls(!activeTopic)}>
-              All Topics
+              All topics
             </button>
             {topics.map((t) => (
               <button key={t.slug} type="button" aria-pressed={activeTopic === t.slug} onClick={() => update({ topic: t.slug })} className={pillCls(activeTopic === t.slug)}>
@@ -87,18 +76,18 @@ export default function ProblemFilters({ topics = [], currentTopic, solved = nul
         )}
       </div>
 
-      {/* Search, selects, solved counter */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-48 flex-1 sm:max-w-xs">
+      {/* Search, selects, count */}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <div className="relative min-w-52 flex-1 sm:max-w-sm">
           <label htmlFor="search" className="sr-only">Search problems</label>
-          <Search width={16} height={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <Search width={16} height={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
           <input
             id="search"
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search questions"
-            className="h-9 w-full rounded-lg bg-surface-2 pl-9 pr-3 text-sm outline-none placeholder:text-muted"
+            className="h-10 w-full rounded-xl border border-line bg-surface pl-10 pr-3 text-sm outline-none transition-colors placeholder:text-muted hover:border-muted focus:border-muted"
           />
         </div>
 
@@ -131,14 +120,15 @@ export default function ProblemFilters({ topics = [], currentTopic, solved = nul
           </button>
         )}
 
-        <p className="ml-auto flex items-center gap-2 text-sm text-muted">
+        <p className="ml-auto text-sm text-muted">
           {solved !== null ? (
             <>
-              <MiniRing solved={solved} total={total} />
-              {solved}/{total} Solved
+              <span className="font-semibold text-ink">{solved}</span>/{total} solved
             </>
           ) : (
-            <>{total} {total === 1 ? 'problem' : 'problems'}</>
+            <>
+              <span className="font-semibold text-ink">{total}</span> {total === 1 ? 'problem' : 'problems'}
+            </>
           )}
         </p>
       </div>

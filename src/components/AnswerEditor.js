@@ -75,7 +75,7 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
   const status = dirty ? (everSaved ? 'Unsaved changes' : 'Draft') : everSaved ? 'Saved' : 'Empty';
 
   return (
-    <div className="flex min-h-[26rem] flex-1 flex-col">
+    <div className="flex min-h-[26rem] flex-[1_0_auto] flex-col">
       {/* Toolbar, like the language / settings row above the LeetCode editor */}
       <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-line px-3 py-2">
         {supported ? (
