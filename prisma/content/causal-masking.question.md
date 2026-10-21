@@ -1,3 +1,3 @@
 What is **causal masking**?
 
-Explain why it is needed, how it is implemented, and one bug it can cause if done wrongly.
+Explain why decoder-only models need it, how it is implemented, and how it differs from a padding mask.

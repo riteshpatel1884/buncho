@@ -4,8 +4,12 @@ import { prisma } from '@/lib/prisma';
 import { getOrCreateUser } from '@/lib/user';
 import DifficultyBadge from '@/components/DifficultyBadge';
 import ActivityGrid from '@/components/ActivityGrid';
+import ReadinessCard from '@/components/ReadinessCard';
+import WeeklyActivity from '@/components/WeeklyActivity';
+import { Recommended, RevisionQueue, WeakTopics } from '@/components/InsightLists';
 import { StatsCard } from '@/components/StatsCard';
 import { getUserStats } from '@/lib/problems';
+import { getInsights } from '@/lib/insights';
 import { Flame } from '@/components/icons';
 
 export const metadata = { title: 'Dashboard' };
@@ -14,7 +18,7 @@ export default async function DashboardPage() {
   const user = await getOrCreateUser();
   if (!user) redirect('/login');
 
-  const [topics, progress, bookmarks, suggestions, savedAnswers] = await Promise.all([
+  const [topics, progress, bookmarks, savedAnswers, stats, insights] = await Promise.all([
     prisma.topic.findMany({
       orderBy: { order: 'asc' },
       include: { _count: { select: { problems: { where: { published: true } } } } },
@@ -30,13 +34,7 @@ export default async function DashboardPage() {
       take: 6,
       include: { problem: { select: { slug: true, title: true, difficulty: true } } },
     }),
-    prisma.problem.findMany({
-      where: { published: true, progress: { none: { userId: user.id } } },
-      orderBy: [{ difficulty: 'asc' }, { position: 'asc' }],
-      take: 3,
-      select: { slug: true, title: true, difficulty: true, topic: { select: { name: true } } },
-    }),
-    // Phase 3: community answers this user saved (hidden or unshared answers are left out)
+    // Community answers this user saved (hidden or unshared answers are left out)
     prisma.answerBookmark.findMany({
       where: { userId: user.id, answer: { status: 'PUBLISHED' } },
       orderBy: { createdAt: 'desc' },
@@ -52,9 +50,10 @@ export default async function DashboardPage() {
         },
       },
     }),
+    getUserStats(user.id),
+    getInsights(user.id),
   ]);
 
-  const stats = await getUserStats(user.id);
   const completed = progress.filter((p) => p.status === 'COMPLETED');
   const inProgress = progress.filter((p) => p.status === 'ATTEMPTED').slice(0, 5);
   const completedByTopic = {};
@@ -111,6 +110,7 @@ export default async function DashboardPage() {
           </section>
 
           <StatsCard stats={stats} signedIn />
+          <WeeklyActivity weekly={insights.weekly} />
           <ActivityGrid stats={stats} />
 
           <dl className="panel grid grid-cols-3 divide-x divide-line p-0 text-center">
@@ -125,12 +125,17 @@ export default async function DashboardPage() {
 
         {/* Right column */}
         <div className="space-y-4">
+          <ReadinessCard readiness={insights.readiness} competencies={insights.competencies} />
+
           <div className="grid gap-4 xl:grid-cols-2">
+            <Recommended items={insights.recommendations} />
+            <RevisionQueue items={insights.revision} />
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <WeakTopics items={insights.weakTopics} />
             <Card id="continue" title="Continue where you left off">
-              <List items={inProgress.map((p) => p.problem)} empty="Nothing in progress. Pick a problem below to get started." />
-            </Card>
-            <Card id="next" title="Try next">
-              <List items={suggestions} empty="You've started every available problem. New ones are added regularly." />
+              <List items={inProgress.map((p) => p.problem)} empty="Nothing in progress. Pick a problem to get started." />
             </Card>
           </div>
 

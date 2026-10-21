@@ -1,7 +1,3 @@
-What is **tokenization** in LLMs?
+What is **tokenization** in LLMs, and why do models not just read characters or words?
 
-In your answer, cover:
-
-- Why subword units are used instead of words or characters
-- How tokenization affects cost and context limits
-- Two failure modes that come from tokenization
+Include the trade-offs of each granularity and a few practical consequences for engineers.

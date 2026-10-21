@@ -1,44 +1,45 @@
-## Short answer
+## Definition
 
-**Multi-head attention** runs several attention operations in parallel, each on its own learned lower-dimensional projection of the input, then concatenates the results and mixes them with an output projection.
+Instead of one attention operation over the full width $d$, **multi-head attention (MHA)** runs $h$ attention operations in parallel, each in a lower-dimensional subspace of size $d_k=d/h$, then combines the results.
 
-$$\text{MHA}(X)=\text{Concat}(\text{head}_1,\dots,\text{head}_h)\,W_O,\qquad \text{head}_i=\text{Attention}(XW_Q^i,\,XW_K^i,\,XW_V^i)$$
+$$\text{head}_i=\text{Attention}(XW_Q^{(i)},\,XW_K^{(i)},\,XW_V^{(i)})$$
 
-with $$d_k = d_v = d_{model}/h$$.
+$$\text{MHA}(X)=\text{Concat}(\text{head}_1,\dots,\text{head}_h)\,W_O$$
 
-## Why multiple heads
-
-- **Different relations at once.** One softmax produces one weighting per token. With several heads, the model can attend to different things in the same layer, such as a nearby token, a syntactic partner and a coreferent mention.
-- **Different subspaces.** Each head projects into its own subspace, so each can learn its own notion of similarity.
-- **Same compute.** Because each head is $$d_{model}/h$$ wide, total cost is about that of a single full-width head.
-- **Caveat:** studies find many heads are redundant and can be pruned with little loss, so "each head learns a distinct skill" is only partly true.
+In practice the per-head projections are one big matrix $W_Q\in\mathbb{R}^{d\times d}$ that is **reshaped** into $h$ heads, so it is a single efficient matmul.
 
 ## Shapes
 
-```python
-def split_heads(x, h):               # [B, T, d] -> [B, h, T, d // h]
-    B, T, d = x.shape
-    return x.reshape(B, T, h, d // h).transpose(0, 2, 1, 3)
-```
+$X:(B,T,d)\;\to\;Q,K,V:(B,h,T,d_k)\;\to\;\text{scores}:(B,h,T,T)\;\to\;\text{out}:(B,T,d)$ after concatenation and $W_O$.
 
-| Step | Shape |
-|---|---|
-| Input | $$[B, T, d]$$ |
-| After projection and split | $$[B, h, T, d/h]$$ |
-| Scores per head | $$[B, h, T, T]$$ |
-| After weighting values | $$[B, h, T, d/h]$$ |
-| After concatenation | $$[B, T, d]$$ |
-| After $$W_O$$ | $$[B, T, d]$$ |
+Example: $d=512$, $h=8$ gives $d_k=64$ (the original Transformer).
 
-## Parameter count
+## Why multiple heads?
 
-$$W_Q, W_K, W_V, W_O$$ are each $$d \times d$$ when the heads are stacked, so attention has about $$4d^2$$ parameters **regardless of $$h$$**. More heads change how the width is divided, not the parameter count. The attention-score memory does grow with $$h$$: it is $$h \times T^2$$ per sequence.
+- **Different relations at once.** One softmax produces one weighted average, so a single head must blend everything into one pattern. Separate heads can specialise: one tracks the previous token, one links verbs to subjects, one handles coreference, one does copying (induction heads).
+- **Different subspaces.** Each head projects into its own subspace, so it can match on different features of the token.
+- **Smoother optimisation and robustness.** Several moderately sized heads work better than one wide head in practice, and several heads are redundant enough that some can be pruned with little loss.
 
-## Variants
+## Cost
 
-- **Multi-query attention (MQA):** all heads share one $$K$$ and $$V$$.
-- **Grouped-query attention (GQA):** heads share $$K$$ and $$V$$ in groups. Used by many current LLMs because it shrinks the KV cache with little quality loss.
+| | Single head, width $d$ | $h$ heads, width $d/h$ each |
+|---|---|---|
+| Projection params | $3d^2$ | $3d^2$ (same) |
+| Output projection | $d^2$ | $d^2$ |
+| Total attention params | $4d^2$ | $4d^2$ |
+| Score compute | $T^2d$ | $h\cdot T^2\cdot(d/h)=T^2d$ (same) |
+| Score memory | $T^2$ | $h\,T^2$ (more) |
 
-## Interview follow-up
+So multiple heads are **free in parameters and FLOPs**, but they store $h$ attention matrices and make the KV cache larger.
 
-*"What is the downside of too many heads?"* Each head becomes very narrow (small $$d_k$$), which limits what a single head can represent.
+## Inference variants
+
+The KV cache stores $K$ and $V$ for every head, which dominates memory in long-context serving. Fixes:
+
+- **MQA (multi-query attention):** all query heads share **one** K/V head.
+- **GQA (grouped-query attention):** query heads are split into groups, each sharing one K/V head. This is the usual compromise (Llama 2 70B, Llama 3, Mistral), cutting KV cache several-fold with little quality loss.
+
+## Common misconceptions
+
+- Heads do not each see a different *part of the sequence*; every head sees all positions, but a different *projection* of the features.
+- Not every head is interpretable or useful, and some are nearly duplicates.

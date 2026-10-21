@@ -1,3 +1,3 @@
-Why is the **first token** slower than the rest in an LLM?
+**Why is the first token slower than the rest in an LLM?**
 
-Name the phases involved, say which resource limits each one, and list ways to reduce the delay.
+Explain what happens before the first token appears and why later tokens arrive faster. Then list ways to reduce it.

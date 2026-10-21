@@ -1,45 +1,37 @@
-## Short answer
+The limit is not one thing. Several constraints stack.
 
-Three costs rise with sequence length $$n$$, and each is a practical limit: **attention compute grows as $$n^2$$**, **KV-cache memory grows as $$n$$ per request**, and **the model must be trained and positioned to handle long sequences**.
+## 1. Attention compute grows quadratically
 
-## 1. Quadratic attention compute
+Self-attention compares every token with every other token: time $O(T^2d)$ per layer. Doubling the context roughly **quadruples** the attention FLOPs. Naively, the $T\times T$ score matrix is also $O(T^2)$ memory per head, which FlashAttention avoids storing but not computing.
 
-Self-attention compares every token with every other token: a $$n \times n$$ score matrix per head per layer. Doubling the length roughly quadruples that part of the compute. Naive implementations also store the matrix, so memory is $$O(n^2)$$. FlashAttention computes exact attention in tiles without storing the full matrix, which makes memory linear in $$n$$, but the number of operations is still quadratic.
+## 2. KV-cache memory grows linearly, and is large
 
-## 2. KV-cache memory
+During generation, keys and values for every past token are stored:
 
-During generation, every layer keeps the keys and values of all past tokens:
+$$\text{KV bytes}=2\times L\times n_{kv}\times d_h\times T\times \text{bytes per value}$$
 
-$$\text{KV bytes per token} = 2 \times n_{layers} \times n_{kv\_heads} \times d_{head} \times \text{bytes per value}$$
+Example, a 70B-class model with $L=80$ layers, $n_{kv}=8$ KV heads (GQA), $d_h=128$, fp16 (2 bytes):
 
-Example for a 7B-class model (32 layers, 32 KV heads of size 128, fp16):
+$$2\cdot80\cdot8\cdot128\cdot2\approx 328\text{ KB per token}$$
 
-$$2 \times 32 \times 4096 \times 2 = 524{,}288 \text{ bytes} = 0.5\text{ MiB per token}$$
+For $T=128{,}000$ tokens that is about **42 GB for one request**. The weights are about 140 GB in fp16, so long contexts quickly consume the GPUs' memory and **cut the number of concurrent users** (batch size). Without GQA the cache would be several times larger.
 
-| Context length | KV cache per sequence |
-|---|---|
-| 4,096 tokens | 2 GiB |
-| 128,000 tokens | about 62.5 GiB (64,000 MiB) |
+## 3. Positional encodings do not extrapolate for free
 
-That sits on top of the weights, and it is multiplied by the number of concurrent requests, so long contexts cut the batch size and raise cost per request.
+A model trained on sequences of length $T_{train}$ has never seen larger positions. Quality collapses beyond that length unless positions are rescaled (position interpolation, NTK scaling, YaRN) and the model is further trained on long sequences.
 
-## 3. Training and positional limits
+## 4. Training long sequences is expensive and data-limited
 
-- Models are trained on sequences up to some length. Positional encodings behave unpredictably beyond what was seen.
-- Long training sequences are expensive, and high-quality long-range data is scarce.
-- Even when a model accepts long input, retrieval quality can degrade in the middle of the context.
+Training at long length multiplies compute and activation memory, and genuinely long, coherent training documents are scarce relative to short ones. Models therefore usually pre-train at shorter length and do a **long-context extension phase** at the end.
 
-## What pushes the limit
+## 5. Using the context well is a learning problem
 
-| Technique | Helps with |
-|---|---|
-| FlashAttention | Memory and speed of exact attention |
-| Grouped-query / multi-query attention | Smaller KV cache |
-| KV-cache quantisation and paging (PagedAttention) | Memory use and fragmentation |
-| Sliding-window or sparse attention | Compute and memory, at the cost of direct long-range links |
-| RoPE scaling (interpolation, YaRN) plus long-context fine-tuning | Extending the trained length |
-| Prefix caching | Avoiding recomputation of shared prompts |
+Even when a long input fits, models can attend poorly to the middle, get distracted by irrelevant text, and lose precision for retrieval-style questions. A bigger window does not by itself guarantee better use of it.
 
-## Interview follow-up
+## 6. Serving economics
 
-*"Is it compute or memory that bites first in serving?"* Usually memory (the KV cache), because it limits how many long requests fit on a GPU at once.
+Prefill cost, time to first token and price all grow with input length, so providers cap and price long contexts.
+
+## How the limit is being pushed
+
+FlashAttention, GQA/MQA, **sliding-window** and sparse attention, KV-cache quantisation and eviction, paged KV memory, RoPE scaling, prefix caching, and state-space or hybrid architectures with linear-time sequence mixing.

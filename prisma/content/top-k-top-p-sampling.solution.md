@@ -1,58 +1,57 @@
-## Short answer
+Both methods **truncate** the next-token distribution to a "safe" set of candidates, **renormalise**, and sample from that set. This removes the long tail of unlikely tokens that pure sampling would occasionally pick and that tends to derail text.
 
-Both methods **truncate the tail** of the next-token distribution before sampling, so the model cannot pick very unlikely tokens.
+## Top-k
 
-- **Top-k:** keep the $$k$$ most probable tokens, renormalise, sample.
-- **Top-p (nucleus):** keep the smallest set of top tokens whose cumulative probability is at least $$p$$, renormalise, sample.
+Keep the $k$ highest-probability tokens, zero out the rest, renormalise, sample.
 
-## The key difference: fixed vs. adaptive
+- $k=1$ is greedy decoding. Typical values are 20 to 100.
+- The set size is **fixed**, whatever the shape of the distribution.
 
-Top-k always keeps the same number of candidates. Top-p keeps a number that depends on how confident the model is.
+## Top-p (nucleus sampling, Holtzman et al., 2020)
 
-| Situation | Top-k with $$k=50$$ | Top-p with $$p=0.9$$ |
+Sort tokens by probability and keep the **smallest set whose cumulative probability is at least $p$** (for example 0.9). Renormalise and sample.
+
+- The set size is **adaptive**: small when the model is confident, large when it is uncertain.
+
+## Example
+
+Probabilities: A 0.50, B 0.20, C 0.12, D 0.08, E 0.05, F 0.03, G 0.02.
+
+- **Top-k, $k=3$:** keep A, B, C (mass 0.82), renormalise to 0.61, 0.24, 0.15.
+- **Top-p, $p=0.9$:** cumulative 0.50, 0.70, 0.82, 0.90. Keep A, B, C, D (mass 0.90).
+
+If the model were near-certain (A = 0.97), top-p at 0.9 would keep **only A**, while top-k would still keep 3 candidates, including junk.
+
+## Key differences
+
+| | Top-k | Top-p |
 |---|---|---|
-| Model is very confident (one token has 95%) | Still allows 49 other tokens, some of them junk | Keeps just 1 token |
-| Distribution is flat (hundreds of reasonable continuations) | Cuts off valid options after 50 | Keeps as many as needed to reach 90% |
+| Rule | Fixed count | Fixed probability mass |
+| Adapts to confidence | No | Yes |
+| Failure when distribution is flat | Cuts away many valid options | Keeps many, which is correct |
+| Failure when distribution is peaked | Keeps unlikely junk tokens | Keeps one or two tokens |
+| Main knob range | 1 to 100 | 0.8 to 0.98 |
 
-Top-p therefore tends to behave better across both easy and open-ended positions. Top-k is simpler and cheaper, and the two are often combined.
+## When each fails
 
-## Code sketch
+- **Top-k:** a bad fixed $k$ is wrong somewhere. After "The capital of France is" only 1 token is sensible, yet $k=50$ allows 49 bad ones. In open-ended creative text, $k=10$ may cut off many good words.
+- **Top-p:** with a very flat distribution and high $p$ the set can still be huge and include poor tokens. With a very low $p$ it behaves like greedy and loops. It also can't enforce a minimum quality on individual tokens (that is the purpose of **min-p**, which keeps tokens above a fraction of the top token's probability).
+
+## In practice
+
+- The usual order is **temperature, then top-k and/or top-p, then sample**. Temperature changes the shape that top-p then cuts.
+- They can be combined (top-k as a hard cap, top-p as the adaptive cut).
+- Typical defaults: temperature 0.7, top-p 0.9 to 0.95.
+- For deterministic or factual tasks, use low temperature (or greedy) instead of relying on truncation.
 
 ```python
 import numpy as np
 
-def softmax(x):
-    x = x - x.max()
-    e = np.exp(x)
-    return e / e.sum()
-
-def sample(logits, temperature=1.0, top_k=0, top_p=1.0, rng=None):
-    rng = rng or np.random.default_rng()
-    probs = softmax(np.asarray(logits, dtype=np.float64) / max(temperature, 1e-8))
-    order = np.argsort(-probs)                 # most likely first
-    sorted_p = probs[order]
-
-    keep = np.ones_like(sorted_p, dtype=bool)
-    if top_k > 0:
-        keep[top_k:] = False
-    if top_p < 1.0:
-        cum = np.cumsum(sorted_p)
-        keep &= (cum - sorted_p) < top_p       # keep tokens until mass reaches p
-    sorted_p = np.where(keep, sorted_p, 0.0)
-    sorted_p /= sorted_p.sum()
-    return int(rng.choice(order, p=sorted_p))
+def top_p_sample(probs, p=0.9):
+    idx = np.argsort(probs)[::-1]
+    csum = np.cumsum(probs[idx])
+    cut = np.searchsorted(csum, p) + 1          # smallest set with mass >= p
+    keep = idx[:cut]
+    q = probs[keep] / probs[keep].sum()
+    return int(np.random.choice(keep, p=q))
 ```
-
-The condition `(cum - sorted_p) < top_p` keeps a token if the probability mass *before* it is still below $$p$$, which includes the token that crosses the threshold and always keeps the top token.
-
-## Combining with temperature
-
-A common pipeline is: **temperature, then top-k, then top-p, then sample**. Exact order and defaults vary between libraries and APIs, so check the one you use. Many providers recommend adjusting temperature **or** top-p, not both aggressively at once.
-
-## Related method
-
-**min-p** keeps tokens whose probability is at least a fraction of the top token's probability, which also adapts to confidence.
-
-## Interview follow-up
-
-*"What are good starting values?"* For open-ended text, $$p$$ around 0.9 to 0.95 with a moderate temperature is a common starting point. For extraction or code, use low temperature and little or no truncation. Tune against your own evals.

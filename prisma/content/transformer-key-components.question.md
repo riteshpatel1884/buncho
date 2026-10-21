@@ -1,3 +1,3 @@
-What are the **key components** of the Transformer architecture?
+What are the **key components of the Transformer architecture**?
 
-For each component, state its job and what would go wrong without it. Mention which components have been replaced in modern LLMs.
+For each component, explain what it does and why the model needs it.

@@ -1,39 +1,41 @@
-## Short answer
-
-Token ids become embeddings, pass through a stack of blocks (attention, then feed-forward, each with a residual connection and normalisation), and end in a linear layer that produces one logit per vocabulary entry at every position. Training uses all positions at once; inference uses the last position and loops.
+Notation: batch $B$, length $T$, width $d$, heads $h$, head size $d_h=d/h$, vocabulary $V$.
 
 ## Step by step
 
-Let $$B$$ = batch size, $$T$$ = sequence length, $$d$$ = model width, $$h$$ = number of heads, $$d_h = d/h$$, $$V$$ = vocabulary size, $$L$$ = number of layers.
+**1. Tokenise.** Text becomes integer IDs, shape $(B,T)$.
 
-1. **Embed.** ids $$[B,T]$$ become embeddings $$[B,T,d]$$ through a lookup table. With learned or sinusoidal positions, the position vector is added here. With RoPE, positions are applied later to $$Q$$ and $$K$$.
-2. **For each of the $$L$$ layers** (pre-norm form):
-    1. $$x \leftarrow x + \text{Attn}(\text{Norm}(x))$$
-    2. $$x \leftarrow x + \text{FFN}(\text{Norm}(x))$$
-3. **Final norm, then the LM head:** $$[B,T,d]\times[d,V]\rightarrow$$ logits $$[B,T,V]$$.
-4. **Loss (training).** Cross-entropy between the logits at position $$t$$ and the actual token at $$t+1$$, for every position in parallel.
-5. **Sample (inference).** Take the logits at the last position, apply softmax with temperature and top-p, pick a token, append it, repeat.
+**2. Embed.** Look up rows of $E\in\mathbb{R}^{V\times d}$: output $X\in\mathbb{R}^{B\times T\times d}$. Models with learned or sinusoidal positions add a position vector here. Models with **RoPE** apply positions later, inside attention.
 
-## Inside attention
+**3. For each of the $N$ blocks (pre-norm layout):**
 
-1. Project: $$Q=xW_Q,\; K=xW_K,\; V=xW_V$$, then split into $$h$$ heads: $$[B,h,T,d_h]$$.
-2. Scores: $$QK^\top/\sqrt{d_h}$$ gives $$[B,h,T,T]$$.
-3. Add the causal mask ($$-\infty$$ above the diagonal) and softmax over the last axis.
-4. Multiply by $$V$$ to get $$[B,h,T,d_h]$$.
-5. Concatenate heads to $$[B,T,d]$$ and apply the output projection $$W_O$$.
+*a. Attention sublayer*
+1. Normalise: $\hat X=\text{RMSNorm}(X)$.
+2. Project: $Q=\hat XW_Q,\;K=\hat XW_K,\;V=\hat XW_V$, each $(B,T,d)$. With GQA, $K$ and $V$ have fewer heads.
+3. Split into heads: $(B,h,T,d_h)$. Apply RoPE to $Q$ and $K$ if used.
+4. Scores: $S=QK^\top/\sqrt{d_h}$, shape $(B,h,T,T)$.
+5. **Causal mask:** set entries where key position > query position to $-\infty$.
+6. $A=\text{softmax}(S)$ over the key axis, then context $=AV$, shape $(B,h,T,d_h)$.
+7. Concatenate heads to $(B,T,d)$ and apply $W_O$.
+8. **Residual:** $X\leftarrow X+\text{attn\_out}$.
 
-## Inside the FFN
+*b. Feed-forward sublayer*
+1. Normalise, then expand $d\to d_{ff}$ (about $4d$; SwiGLU uses a gated variant), apply the non-linearity, project back to $d$.
+2. **Residual:** $X\leftarrow X+\text{ffn\_out}$.
 
-Expand each token from $$d$$ to a hidden size (about $$4d$$, or about $$\tfrac{8}{3}d$$ with SwiGLU), apply the non-linearity, and project back to $$d$$.
+**4. Final norm** on $X$.
 
-## Training vs. inference
+**5. LM head.** Multiply by $W_{out}\in\mathbb{R}^{d\times V}$ (often tied to $E^\top$): logits of shape $(B,T,V)$.
 
-| | Training | Inference |
-|---|---|---|
-| Positions processed | All $$T$$ in parallel | Prompt in parallel (prefill), then one new token per step |
-| Loss | Every position | None |
-| KV cache | Not used | Stores each layer's $$K,V$$ for past tokens so they are not recomputed |
+**6. Loss or sampling.**
+- *Training:* cross-entropy between logits at position $t$ and the actual token $t+1$, for **all positions in parallel**.
+- *Generation:* take only the **last position's** logits, apply temperature, top-k or top-p, sample one token.
 
-## Interview follow-up
+## Generation differs from training
 
-*"Where does the compute go?"* At normal lengths the matrix multiplications in the attention projections and the FFN dominate. The $$T\times T$$ attention term grows quadratically and dominates at long context.
+- **Prefill:** the whole prompt runs in one parallel pass exactly as above, and every layer's $K$ and $V$ are stored in the **KV cache**.
+- **Decode:** each new step feeds **one token**: $Q$ has length 1, new $K,V$ are appended to the cache, and attention reads the cached history. Cost per step is linear in context length instead of recomputing $T^2$.
+- Prefill is compute-bound; decode is memory-bandwidth-bound.
+
+## Sanity numbers
+
+Per layer, attention has about $4d^2$ weights and the FFN about $8d^2$, so total parameters are roughly $12Nd^2+Vd$. The attention score tensor is $O(T^2)$ per head, which FlashAttention avoids materialising in GPU memory.

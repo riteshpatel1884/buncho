@@ -1,36 +1,42 @@
-## Short answer
+## Definition
 
-**Generative AI** refers to models that learn the distribution of data and use it to **produce new content** (text, code, images, audio, video, molecules) rather than only labelling or scoring existing inputs.
+**Generative AI** refers to models that learn the **distribution of data** and use it to **produce new content** (text, images, audio, video, code, molecules) that resembles the training data but is not a copy of it.
 
-## Generative vs. discriminative
+## Generative vs discriminative
 
 | | Discriminative | Generative |
 |---|---|---|
-| Learns | $$p(y \mid x)$$: the label given the input | $$p(x)$$ or $$p(x \mid c)$$: the data itself, optionally given a condition $$c$$ such as a prompt |
-| Output | A class, score or number | New samples |
-| Example | Spam classifier | Chat model, image generator |
+| Learns | $P(y\mid x)$, a boundary between classes | $P(x)$ or $P(x\mid c)$, how the data itself is produced |
+| Output | Label, score, number | New sample |
+| Examples | Spam classifier, image classifier | LLM, image generator |
+
+A generative model can be conditioned on a prompt $c$ (text, image, class) to control what it produces.
 
 ## Main model families
 
-| Family | Idea | Typical use |
-|---|---|---|
-| **Autoregressive** (LLMs) | Predict the next token repeatedly | Text, code, increasingly multimodal |
-| **Diffusion** | Learn to remove noise step by step; generate by denoising from random noise | Images, video, audio |
-| **GANs** | Generator and discriminator trained against each other | Image synthesis (less common for new systems) |
-| **VAEs** | Encode to a latent space and decode samples from it | Latent representations, components of other systems |
+1. **Autoregressive models** (GPT-style LLMs): generate one token at a time, $P(x)=\prod_t P(x_t\mid x_{<t})$. Dominant for text and code, also used for audio and some image models.
+2. **Diffusion models** (Stable Diffusion, Flux, DALL-E, video models): learn to **denoise** gradually from random noise to a sample. Dominant for images, audio and video.
+3. **GANs:** a generator and a discriminator train against each other. Fast sampling, but unstable training; less common now.
+4. **VAEs:** encode to a latent space and decode back; often used as the **latent compressor** inside diffusion pipelines.
+5. **Normalising flows and others:** exact likelihoods, more niche.
 
-## How it is used in products
+## What made it practical
 
-Prompting, retrieval-augmented generation, tool use and agents, and fine-tuning, all wrapped in evaluation and guardrails.
+Transformers, large-scale self-supervised pre-training, abundant compute, and alignment techniques (instruction tuning, RLHF) that turn raw models into useful assistants.
 
-## Limitations
+## Applications
 
-- **Hallucination:** fluent output that is not grounded in fact.
-- **Bias and safety:** models reproduce patterns in their training data.
-- **Cost and latency:** large models and long outputs are expensive.
-- **Non-determinism:** the same input can give different outputs, which complicates testing.
-- **Legal and IP questions:** training data, copyright and privacy are active areas of regulation.
+Chat assistants, coding assistants, summarisation, search and RAG, content and image creation, translation, synthetic data, voice agents, drug and materials design.
 
-## Interview follow-up
+## Limitations and risks
 
-*"Is every use of an LLM generative AI?"* Using an LLM to classify a ticket is generative *technology* applied to a discriminative *task*. The distinction is about what the model learned to do, not what the product needs.
+- **Hallucination:** fluent but false output, because the objective rewards plausibility.
+- **Bias and toxicity** inherited from training data.
+- **Copyright, privacy and memorisation** of training data.
+- **Misuse:** deepfakes, spam, fraud, prompt injection in agentic systems.
+- **Cost and energy** of training and serving.
+- **Evaluation difficulty:** open-ended outputs have no single correct answer.
+
+## Engineering view
+
+Building with generative AI means controlling it (prompting, RAG, fine-tuning), evaluating it (golden sets, LLM-as-a-judge), guarding it (safety filters) and serving it efficiently.

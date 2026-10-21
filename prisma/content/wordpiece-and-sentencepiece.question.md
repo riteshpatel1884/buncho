@@ -1,3 +1,3 @@
 Explain **WordPiece** and **SentencePiece**.
 
-How do they relate to BPE, and when would the difference matter in practice?
+How does each learn its vocabulary, how does each tokenize new text, and how do they differ from BPE?

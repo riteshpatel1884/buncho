@@ -1,45 +1,50 @@
-## Short answer
+## Definition
 
-**Self-attention** lets every token in a sequence build a new representation of itself as a weighted mix of all tokens in the *same* sequence. The weights are computed from the content of the tokens, so the model decides dynamically which other tokens are relevant to each one.
+**Self-attention** lets every token in a sequence compute a new representation as a **weighted combination of all tokens in the same sequence**. "Self" means queries, keys and values all come from the **same** input $X$.
 
-## Computation
+## Step by step
 
-For input $$X \in \mathbb{R}^{T \times d}$$:
+For input $X\in\mathbb{R}^{T\times d}$:
 
-1. **Project:** $$Q = XW_Q,\ K = XW_K,\ V = XW_V$$.
-2. **Score:** $$S = QK^\top$$, a $$T \times T$$ matrix of query–key dot products.
-3. **Scale:** divide by $$\sqrt{d_k}$$ to keep the softmax well-behaved.
-4. **Mask (decoders):** set future positions to $$-\infty$$.
-5. **Normalise:** softmax along each row, so each row sums to 1.
-6. **Mix:** multiply the weights by $$V$$.
+1. **Project** to $Q=XW_Q$, $K=XW_K$, $V=XW_V$.
+2. **Score** every pair: $S=QK^\top/\sqrt{d_k}$, a $T\times T$ matrix. $S_{ij}$ measures how much token $i$ should attend to token $j$.
+3. **Mask** (decoder only): set $S_{ij}=-\infty$ for $j>i$ so a token cannot see the future.
+4. **Normalise:** $A=\text{softmax}(S)$ row-wise. Row $i$ is a probability distribution over the tokens it reads from.
+5. **Mix:** $O=AV$. Each output row is a weighted average of value vectors.
+6. **Multi-head:** do this in $h$ parallel heads, concatenate, and apply $W_O$.
 
-$$\text{SelfAttn}(X)=\text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V$$
+## What it achieves
+
+- **Contextualisation.** The vector for "bank" becomes different next to "river" than next to "loan". Meaning is resolved by the context.
+- **Direct long-range links.** Token 1 and token 1,000 interact in a single layer ($O(1)$ path length), unlike an RNN that must carry information through every intermediate step.
+- **Full parallelism.** All positions are computed at once in matrix multiplications, which is why Transformers train efficiently on GPUs.
+- **Interpretable-ish structure.** Heads often specialise (previous-token, syntax, coreference, induction heads for copying).
+
+## Complexity
+
+| | Value |
+|---|---|
+| Time per layer | $O(T^2 d)$ |
+| Memory for scores | $O(T^2)$ per head |
+| Parameters | $4d^2$ (independent of $T$) |
+
+The **quadratic cost in sequence length** is the main limitation. Mitigations: **FlashAttention** (exact, tiles the computation so the $T\times T$ matrix is never stored in GPU main memory), **sliding-window and sparse attention**, **GQA/MQA**, and **KV-cache** compression.
+
+## Caveats
+
+- Attention has **no inherent notion of order**, so positional information must be added.
+- Attention weights show where the model looked, but are not a faithful explanation of *why* it produced an output.
+
+## Minimal implementation (PyTorch)
 
 ```python
-import numpy as np
+import torch, math
 
-def softmax(x, axis=-1):
-    x = x - x.max(axis=axis, keepdims=True)
-    e = np.exp(x)
-    return e / e.sum(axis=axis, keepdims=True)
-
-def self_attention(X, Wq, Wk, Wv):
-    Q, K, V = X @ Wq, X @ Wk, X @ Wv
-    scores = Q @ K.T / np.sqrt(K.shape[-1])
-    return softmax(scores) @ V
+def self_attention(x, Wq, Wk, Wv, causal=True):
+    q, k, v = x @ Wq, x @ Wk, x @ Wv                  # (T, d)
+    scores = q @ k.T / math.sqrt(k.shape[-1])          # (T, T)
+    if causal:
+        mask = torch.triu(torch.ones_like(scores), 1).bool()
+        scores = scores.masked_fill(mask, float('-inf'))
+    return torch.softmax(scores, dim=-1) @ v
 ```
-
-## Properties
-
-- **Content-based routing:** which tokens interact depends on the data, not on fixed positions.
-- **Direct long-range links:** any two tokens interact in one layer, which helps with dependencies such as coreference.
-- **Parallel:** all positions are computed at once, which suits GPUs.
-- **Permutation-equivariant:** order is invisible without positional information.
-
-## Main limitation
-
-The score matrix is $$T \times T$$, so compute and (in the naive implementation) memory grow **quadratically** with sequence length. FlashAttention removes the quadratic memory by never materialising the full matrix, but the compute is still quadratic.
-
-## Interview follow-up
-
-*"How is it different from attention in RNN encoder–decoder models?"* Earlier attention let a decoder look at encoder states. Self-attention applies the same mechanism within one sequence and replaces the recurrence entirely.

@@ -1,33 +1,27 @@
-## Short answer
+## What it is
 
-A **large language model** is a neural network, almost always a decoder-only Transformer, trained to predict the next token given all previous tokens. After training on trillions of tokens of text and code, it can continue, summarise, translate, explain and write text, because doing those well helps predict what comes next.
+An LLM is a neural network, almost always a **decoder-only Transformer** with billions of parameters, trained to model the probability of text. Given a sequence of tokens it outputs a probability distribution over the **next token**.
 
-## How it works
+$$P(x_1,\dots,x_n)=\prod_{t=1}^{n}P(x_t\mid x_1,\dots,x_{t-1})$$
 
-Generation is a loop:
+This is the **autoregressive** factorisation: a whole sequence is generated one token at a time, each conditioned on everything before it.
 
-1. **Tokenise** the prompt into integer ids.
-2. **Embed** each id as a vector.
-3. Pass the vectors through $$N$$ Transformer blocks (self-attention plus a feed-forward network) that build a context-aware representation of every position.
-4. Project the last position to **logits** over the vocabulary and apply softmax to get a probability distribution.
-5. **Sample** a token, append it to the input, and repeat until a stop token or length limit.
+## How it is trained
 
-Training objective (cross-entropy on next-token prediction):
+1. **Pre-training (self-supervised).** Text is split into tokens. For every position the model predicts the next token and is penalised with **cross-entropy loss**, $-\log P(x_t\mid x_{<t})$. No human labels are needed because the text supplies its own targets. Training runs on trillions of tokens, which is where world knowledge and language ability come from.
+2. **Supervised fine-tuning (SFT).** The base model is trained on curated instruction and response pairs so it follows instructions instead of just continuing text.
+3. **Preference tuning (RLHF, DPO, RLAIF, RL with verifiable rewards).** The model is optimised toward answers humans (or verifiers) prefer: helpful, harmless, correct.
 
-$$\mathcal{L}(\theta) = -\sum_{t} \log p_\theta\left(x_t \mid x_{<t}\right)$$
+## How it runs (inference)
 
-## Training stages
+1. Text is tokenised into integer IDs.
+2. IDs are embedded and passed through a stack of Transformer blocks (self-attention + feed-forward).
+3. The final hidden state at the last position is projected to **logits** over the vocabulary, and softmax turns them into probabilities.
+4. A **decoding strategy** picks a token (greedy, temperature, top-k, top-p).
+5. The token is appended and the loop repeats until an end-of-sequence token or a length limit. A **KV cache** avoids recomputing earlier positions.
 
-| Stage | Data | Result |
-|---|---|---|
-| Pre-training | Trillions of tokens, self-supervised | Broad knowledge and language ability |
-| Supervised fine-tuning | Curated instruction–response pairs | Follows instructions, chat format |
-| Preference optimisation (RLHF, DPO and similar) | Human or AI preference comparisons | Helpful, safer, better-styled answers |
+## Why it works, and where it breaks
 
-## What an LLM is not
-
-It is not a database and has no built-in notion of truth: it produces *plausible* continuations, which is why it can hallucinate. Its knowledge stops at the training cutoff, it only sees what is inside its context window, and sampling makes outputs non-deterministic. Exact arithmetic, precise counting and citing sources from memory are common weak spots, so production systems add tools and retrieval for them.
-
-## Interview follow-up
-
-*"Why does next-token prediction produce reasoning-like behaviour?"* Predicting diverse text well forces the model to learn grammar, facts and the patterns of reasoning that appear in that text. This is an empirical observation, not a guarantee of correct reasoning.
+- Predicting the next token well across diverse text forces the model to learn grammar, facts, reasoning patterns and code. Scale (parameters, data, compute) improves this predictably (scaling laws).
+- **In-context learning:** the model can pick up a task from examples in the prompt without weight updates.
+- **Limits:** it optimises plausibility, not truth, so it can **hallucinate**; knowledge stops at the training cutoff; the **context window** is finite; outputs are stochastic.

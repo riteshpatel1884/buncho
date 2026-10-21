@@ -12,9 +12,10 @@ export default async function Navbar() {
   const { userId } = await auth();
 
   const links = [
-    { href: '/problems', label: 'Problems', match: ['/topics'] },
-    ...(userId ? [{ href: '/dashboard', label: 'Dashboard' }, { href: '/profile', label: 'Profile' }] : []),
-  ];
+  { href: '/problems', label: 'Problems', match: ['/topics'] },
+  { href: '/challenges', label: 'Challenges' },
+  ...(userId ? [{ href: '/dashboard', label: 'Dashboard' }, { href: '/profile', label: 'Profile' }] : []),
+];
 
   return (
     <NavShell>

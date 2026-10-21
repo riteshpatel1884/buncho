@@ -1,3 +1,3 @@
-What is **multi-head attention**? Why use multiple attention heads instead of one?
+What are **multi-head attention** mechanisms? Why use multiple attention heads?
 
-Include how the shapes work and how the parameter count depends on the number of heads.
+Cover the computation, the parameter and compute cost compared with single-head attention, and what heads learn.

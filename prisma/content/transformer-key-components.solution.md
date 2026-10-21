@@ -1,37 +1,34 @@
-## Short answer
+A Transformer block stack is built from a small set of parts. Each one solves a specific problem.
 
-A Transformer block combines a few ideas: token and positional representations, attention, a feed-forward network, residual connections, normalisation and (in decoders) masking. An output head turns the final vectors into token probabilities.
+## 1. Tokenizer and embedding layer
+Maps token IDs to dense vectors of size $d_{model}$ using a learned table $E\in\mathbb{R}^{V\times d}$. **Why:** neural networks need continuous vectors, and similar tokens should get similar representations.
 
-## Components
+## 2. Positional information
+Sinusoidal, learned, relative, or rotary (RoPE) encodings. **Why:** self-attention is permutation-invariant, so without positions "dog bites man" and "man bites dog" look identical.
 
-| Component | What it does | What breaks without it |
-|---|---|---|
-| Token embedding | Maps token ids to vectors of size $$d_{model}$$ | No continuous input for the network |
-| Positional information | Sinusoidal, learned, RoPE or ALiBi | Attention ignores token order |
-| Self-attention (Q, K, V) | Each token takes a weighted mix of other tokens' values | No information moves between positions |
-| Multi-head attention | Several attention operations in parallel subspaces, concatenated and projected | Only one relation pattern per layer |
-| Feed-forward network | Two-layer MLP applied to each token independently | Little non-linearity or capacity; holds most parameters |
-| Residual connections | $$x + f(x)$$ around each sub-layer | Gradients vanish in deep stacks |
-| Layer normalisation | Rescales activations per token | Unstable training |
-| Causal mask | Blocks attention to future tokens | Decoder would see the answer it must predict |
-| Cross-attention | Queries from the decoder, keys and values from the encoder | Decoder cannot read the source (encoder–decoder models only) |
-| LM head + softmax | Projects to vocabulary logits | No next-token distribution |
+## 3. Multi-head self-attention
+Projects the input to queries, keys and values, computes $\text{softmax}(QK^\top/\sqrt{d_k})V$ in several heads in parallel, concatenates, and applies an output projection $W_O$. **Why:** it mixes information **across positions**. Multiple heads let the model attend to different relations (syntax, coreference, position) at once.
 
-## One block, in code
+## 4. Causal mask (decoder)
+Sets scores for future positions to $-\infty$ before softmax. **Why:** during training the model must not see the token it is predicting.
 
-```python
-def block(x, attn, ffn, norm1, norm2, mask):
-    x = x + attn(norm1(x), mask)   # mix information across tokens
-    x = x + ffn(norm2(x))          # transform each token independently
-    return x
-```
+## 5. Feed-forward network (FFN / MLP)
+Two linear layers with a non-linearity (GELU, or SwiGLU in modern models), expanding to about $4d$ and projecting back. Applied to each position independently. **Why:** it adds non-linear capacity and acts as the main store of factual knowledge. Roughly **two thirds of a layer's parameters** live here.
 
-This is the **pre-norm** layout used by most modern models. The original paper used post-norm: $$\text{LayerNorm}(x + f(x))$$.
+## 6. Residual (skip) connections
+$x \leftarrow x + \text{Sublayer}(x)$. **Why:** they give gradients a direct path through depth, which makes very deep stacks trainable.
 
-## Modern substitutions
+## 7. Normalisation
+LayerNorm, or RMSNorm in modern LLMs, placed before each sublayer (**pre-norm**). **Why:** stabilises activations and gradients; pre-norm trains more reliably than post-norm at depth.
 
-RoPE for positions, RMSNorm for LayerNorm, SwiGLU for the ReLU feed-forward network, grouped-query attention for plain multi-head attention, and often tied input and output embeddings.
+## 8. Output head
+Final norm, a linear projection to vocabulary size (often **weight-tied** with the embedding matrix), then softmax. **Why:** converts the last hidden state into next-token probabilities.
 
-## Interview follow-up
+## 9. Cross-attention (encoder-decoder only)
+Queries from the decoder, keys and values from the encoder output. **Why:** lets the decoder condition on the source sequence.
 
-*"Which part holds most of the parameters?"* The feed-forward network. With a $$4\times$$ hidden size, attention has about $$4d^2$$ parameters per layer and the FFN about $$8d^2$$.
+## Putting it together
+
+$$h \leftarrow h + \text{MHA}(\text{Norm}(h)),\qquad h \leftarrow h + \text{FFN}(\text{Norm}(h))$$
+
+repeated for $N$ layers. Per layer, parameters are about $4d^2$ for attention and $8d^2$ for the FFN, so about $12\,d^2$ in total.

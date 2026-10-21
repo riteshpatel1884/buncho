@@ -1,38 +1,54 @@
-## Short answer
+## Idea
 
-**Byte Pair Encoding** builds a vocabulary by starting from single characters (or bytes) and repeatedly merging the most frequent adjacent pair of symbols into a new symbol, until the vocabulary reaches a target size. The ordered list of merges *is* the tokenizer.
+BPE builds a subword vocabulary by **repeatedly merging the most frequent adjacent pair** of symbols. Frequent words end up as single tokens; rare words decompose into smaller known pieces.
 
 ## Training algorithm
 
-1. Split every word in the corpus into characters, add an end-of-word marker, and keep word counts.
-2. Count every adjacent symbol pair, weighted by word frequency.
-3. Merge the most frequent pair everywhere and record the merge.
-4. Repeat until you have done the desired number of merges.
+1. **Pre-tokenise** the corpus into words and count word frequencies.
+2. Start with a vocabulary of **single characters** (or bytes). Represent each word as a sequence of symbols.
+3. Count all adjacent symbol pairs across the corpus, weighted by word frequency.
+4. **Merge** the most frequent pair into a new symbol, add it to the vocabulary, and record the merge rule (in order).
+5. Repeat until the vocabulary reaches the target size $V$.
+
+The output is the vocabulary plus an **ordered list of merges**.
 
 ## Worked example
 
-Corpus counts: `low` x5, `lower` x2, `newest` x6, `widest` x3 (`</w>` marks the end of a word).
+Corpus word counts: `low`×5, `lower`×2, `newest`×6, `widest`×3. Use `</w>` as an end-of-word marker.
 
-| Merge | Pair | Count | New symbol |
-|---|---|---|---|
-| 1 | e + s | 9 (tied with s+t and t+`</w>`; any tie-break is valid) | `es` |
-| 2 | es + t | 9 | `est` |
-| 3 | est + `</w>` | 9 | `est</w>` |
-| 4 | l + o | 7 (tied with o+w) | `lo` |
-| 5 | lo + w | 7 | `low` |
+Start: `l o w </w>`(5), `l o w e r </w>`(2), `n e w e s t </w>`(6), `w i d e s t </w>`(3).
 
-After five merges, `newest` is `n e w est</w>` and `widest` is `w i d est</w>`, so the shared suffix is now a single token.
+- Most frequent pairs: `(e,s)`=9, `(s,t)`=9, `(t,</w>)`=9 (a tie, broken by a fixed rule). Merge **e+s → es**.
+- Next: `(es,t)`=9, so merge **es+t → est**.
+- Next: `(est,</w>)`=9, so merge **est+</w> → est</w>**.
+- Next: `(l,o)`=7, merge **l+o → lo**.
+- Next: `(lo,w)`=7, merge **lo+w → low**.
+
+After 5 merges, `newest` is `n e w est</w>` and `low` is `low </w>`.
 
 ## Encoding new text
 
-Split into characters, then apply the learned merges **in the order they were learned**. For the unseen word `lowest`: `l o w e s t </w>` becomes `low` + `est</w>`. Unseen words are always representable because single characters are in the vocabulary.
+Split the word into base symbols, then apply the learned merges **in the same priority order** they were learned (not by re-counting). An unseen word like `lowest` becomes `low` + `est</w>`.
 
-## Code
+## Byte-level BPE (GPT-2 onward)
+
+- The base alphabet is the **256 byte values** of UTF-8, not characters.
+- **No unknown token is ever needed**: any string, any language, emoji or binary can be encoded.
+- A **pre-tokenisation regex** stops merges across categories (for example letters and punctuation), which keeps tokens clean.
+- Cost: non-Latin scripts take several bytes per character, so they can need more tokens.
+
+## Properties and trade-offs
+
+- **Deterministic** and greedy: it is a compression-like scheme, not a probabilistic model.
+- Vocabulary size is a trade-off: larger means shorter sequences but a bigger embedding and output matrix and rarer, less-trained tokens.
+- Learned only from the tokenizer training corpus, so domain text it never saw is split inefficiently.
+
+## Minimal training loop (Python)
 
 ```python
 from collections import Counter
 
-def get_pairs(words):  # words: {tuple(symbols): frequency}
+def get_pairs(words):          # words: {tuple(symbols): freq}
     pairs = Counter()
     for symbols, freq in words.items():
         for a, b in zip(symbols, symbols[1:]):
@@ -40,51 +56,25 @@ def get_pairs(words):  # words: {tuple(symbols): frequency}
     return pairs
 
 def merge(words, pair):
-    merged = {}
+    out = {}
     for symbols, freq in words.items():
-        out, i = [], 0
+        new, i = [], 0
         while i < len(symbols):
             if i < len(symbols) - 1 and (symbols[i], symbols[i + 1]) == pair:
-                out.append(symbols[i] + symbols[i + 1])
-                i += 2
+                new.append(symbols[i] + symbols[i + 1]); i += 2
             else:
-                out.append(symbols[i])
-                i += 1
-        key = tuple(out)
-        merged[key] = merged.get(key, 0) + freq
-    return merged
+                new.append(symbols[i]); i += 1
+        out[tuple(new)] = freq
+    return out
 
-def train_bpe(word_counts, num_merges):
-    words = {tuple(w) + ("</w>",): c for w, c in word_counts.items()}
+def train_bpe(words, num_merges):
     merges = []
     for _ in range(num_merges):
         pairs = get_pairs(words)
         if not pairs:
             break
         best = max(pairs, key=pairs.get)
-        merges.append(best)
         words = merge(words, best)
+        merges.append(best)
     return merges
-
-def encode(word, merges):
-    symbols = tuple(word) + ("</w>",)
-    for pair in merges:                      # apply in learned order
-        symbols = next(iter(merge({symbols: 1}, pair)))
-    return list(symbols)
-
-merges = train_bpe({"low": 5, "lower": 2, "newest": 6, "widest": 3}, 5)
-print(encode("lowest", merges))              # ['low', 'est</w>']
 ```
-
-## Byte-level BPE
-
-GPT-2 and most modern LLM tokenizers run BPE over UTF-8 **bytes** (a base vocabulary of 256), usually after a regex pre-split into words, numbers and punctuation. Any string can be encoded, so there is no unknown token.
-
-## Trade-offs
-
-- Merges are frequency-based, so they reflect the training corpus. Text unlike it (other languages, code) is split into more tokens.
-- Naive training recounts pairs on every merge; production implementations update counts incrementally.
-
-## Interview follow-up
-
-*"How is WordPiece different?"* It also merges pairs, but picks the pair that maximises a likelihood-based score rather than raw frequency.

@@ -1,39 +1,40 @@
-## Short answer
+## Definition
 
-An **embedding** is a dense vector of real numbers that represents a discrete item (a token, word, sentence, image, user, product) so that **geometric closeness reflects similarity of meaning or behaviour**. Embeddings are learned from data rather than hand-designed.
+An **embedding** maps a discrete object (a token, word, sentence, image, user, product) to a **dense vector of real numbers**, typically 256 to 4096 dimensions, such that **geometric closeness reflects semantic similarity**.
 
-## Two things people call "embeddings"
+## Why not one-hot vectors?
 
-| | Token embedding table inside an LLM | Embedding model for retrieval |
+A one-hot vector has length $V$ (tens of thousands), is almost all zeros, and every pair of words is equally distant. An embedding is compact, dense and **learned**, so "cat" ends up near "kitten" and far from "invoice".
+
+## How token embeddings work in an LLM
+
+- An embedding matrix $E\in\mathbb{R}^{V\times d}$. Looking up token ID $i$ simply returns row $i$.
+- $E$ is **trained jointly with the rest of the network** by backpropagation on the next-token loss; nothing hand-crafts the meaning.
+- Many models **tie weights**, reusing $E^\top$ as the output projection, which saves parameters.
+- After the Transformer layers, the same token gets a different, **contextual** vector depending on its neighbours ("bank" near "river" vs "loan").
+
+## Static vs contextual vs sentence embeddings
+
+| Type | Example | Property |
 |---|---|---|
-| Shape | $$[V, d]$$ lookup table, one row per token | Whole network mapping text to one vector |
-| Trained | Together with the LLM | Usually contrastively, so similar texts land close together |
-| Context | Same vector for a token regardless of context; context-awareness comes from later layers | Vector summarises the whole input |
-| Used for | First layer (and often the output head, via weight tying) | Search, RAG, clustering, deduplication, classification features |
+| Static word vectors | Word2Vec, GloVe | One vector per word, ignores context |
+| Contextual token vectors | Hidden states of BERT or an LLM | Depends on the surrounding sentence |
+| Sentence or document embeddings | Sentence-BERT, OpenAI and Cohere embedding models | One vector per passage, trained **contrastively** so similar texts are close; used for search and RAG |
+| Multimodal | CLIP | Text and images share one space |
 
 ## Measuring similarity
 
-```python
-import numpy as np
+- **Cosine similarity** $\dfrac{a\cdot b}{\|a\|\|b\|}$: compares direction, the usual default for text.
+- **Dot product:** equals cosine for normalised vectors, and is fastest.
+- **Euclidean distance:** compares magnitude as well.
 
-def cosine(a, b):
-    return float(a @ b / (np.linalg.norm(a) * np.linalg.norm(b)))
-```
+## Uses
 
-If vectors are normalised to unit length, cosine similarity equals the dot product, which is why many vector databases store normalised vectors.
+Semantic search and **RAG retrieval**, clustering, classification features, recommendations, deduplication, anomaly detection.
 
-## Static vs. contextual
+## Pitfalls
 
-word2vec and GloVe give one vector per word. Transformer models give **contextual** representations, so "bank" in "river bank" and "bank loan" get different vectors.
-
-## Production pitfalls
-
-- **Model lock-in:** vectors from different models live in different spaces and cannot be compared. Changing the embedding model means re-embedding everything.
-- **Domain mismatch:** general models may place specialised terms poorly. Evaluate on your own queries, and consider fine-tuning.
-- **Dimension trade-off:** more dimensions can capture more, but cost more storage and search time. Some models support truncating dimensions.
-- **Length limits:** inputs longer than the model's limit are truncated, so chunk before embedding.
-- **High similarity is not relevance:** a high cosine score means "similar", not "answers the question". Hybrid search and reranking close this gap.
-
-## Interview follow-up
-
-*"How do you evaluate an embedding model?"* Build a labelled set of queries with relevant documents from your domain and compare recall@k and MRR across candidate models.
+- Embeddings from different models are **not comparable**; changing the model means re-embedding everything.
+- Dimensionality trades quality against storage and search cost.
+- They encode biases present in the training data.
+- A model's input token embedding table is not the same thing as a retrieval embedding model; use a model trained for the task.

@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useState, useTransition } from 'react';
+import { useCallback, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { saveSubmission } from '@/app/actions';
 import { requestFeedback } from '@/lib/ai-client';
+import { composeSteps, parseSteps } from '@/lib/steps';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { MAX_ANSWER_LENGTH } from '@/lib/constants';
 import { Mic, Stop } from './icons';
@@ -15,42 +16,74 @@ const LANGUAGES = [
   { code: 'hi-IN', label: 'Hindi' },
 ];
 
-export default function AnswerEditor({ problemId, initialContent = '', hasSubmission = false }) {
+export default function AnswerEditor({ problemId, initialContent = '', hasSubmission = false, steps = null }) {
   const router = useRouter();
-  const [text, setText] = useState(initialContent);
-  const [savedText, setSavedText] = useState(initialContent);
+  const stepList = Array.isArray(steps) && steps.length ? steps : null;
+
+  const [text, setText] = useState(initialContent); // single-box mode
+  const [parts, setParts] = useState(() => (stepList ? parseSteps(initialContent, stepList) : [])); // step mode
+  const [savedText, setSavedText] = useState(() =>
+    stepList ? composeSteps(parseSteps(initialContent, stepList), stepList) : initialContent,
+  );
+  const [active, setActive] = useState(0); // step that receives dictated text
+  const activeRef = useRef(0);
   const [everSaved, setEverSaved] = useState(hasSubmission);
   const [lang, setLang] = useState('en-IN');
   const [message, setMessage] = useState(null);
   const [evaluating, setEvaluating] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  // Dictated phrases are appended to the end of the answer
-  const appendSpeech = useCallback((chunk) => {
-    setText((prev) => {
-      const base = prev.replace(/\s+$/, '');
-      return (base ? `${base} ${chunk}` : chunk).slice(0, MAX_ANSWER_LENGTH);
-    });
-  }, []);
+  const content = stepList ? composeSteps(parts, stepList) : text;
+
+  // Keeps the combined answer under the limit by trimming the step being edited
+  const fit = useCallback(
+    (next, i) => {
+      const over = composeSteps(next, stepList).length - MAX_ANSWER_LENGTH;
+      if (over > 0) next[i] = next[i].slice(0, Math.max(0, next[i].length - over));
+      return next;
+    },
+    [stepList],
+  );
+
+  // Dictated phrases are appended to the end of the answer (or of the focused step)
+  const appendSpeech = useCallback(
+    (chunk) => {
+      const join = (prev) => {
+        const base = prev.replace(/\s+$/, '');
+        return base ? `${base} ${chunk}` : chunk;
+      };
+      if (stepList) {
+        setParts((prev) => {
+          const i = activeRef.current;
+          const next = [...prev];
+          next[i] = join(next[i] ?? '');
+          return fit(next, i);
+        });
+      } else {
+        setText((prev) => join(prev).slice(0, MAX_ANSWER_LENGTH));
+      }
+    },
+    [stepList, fit],
+  );
 
   const { supported, listening, interim, error, start, stop } = useSpeechRecognition({
     lang,
     onFinalText: appendSpeech,
   });
 
-  const dirty = text !== savedText;
+  const dirty = content !== savedText;
 
   function handleSave() {
     if (listening) stop();
     setMessage(null);
     startTransition(async () => {
-      const res = await saveSubmission(problemId, text);
+      const res = await saveSubmission(problemId, content);
       if (!res.ok) {
         setMessage({ type: 'error', text: res.error });
         return;
       }
 
-      setSavedText(text);
+      setSavedText(content);
       setEverSaved(true);
       setMessage({ type: 'ok', text: 'Answer saved. Getting AI feedback…' });
 
@@ -73,6 +106,8 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
   }
 
   const status = dirty ? (everSaved ? 'Unsaved changes' : 'Draft') : everSaved ? 'Saved' : 'Empty';
+  const boxCls =
+    'block w-full resize-y bg-transparent font-mono text-[0.85rem] leading-relaxed outline-none placeholder:text-muted/70';
 
   return (
     <div className="flex min-h-[26rem] flex-[1_0_auto] flex-col">
@@ -120,17 +155,51 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
         <span className="ml-auto text-xs text-muted">{status}</span>
       </div>
 
-      <label htmlFor="answer" className="sr-only">
-        Your answer
-      </label>
-      <textarea
-        id="answer"
-        value={text}
-        onChange={(e) => setText(e.target.value.slice(0, MAX_ANSWER_LENGTH))}
-        placeholder="Write your answer here, or press Dictate and speak it. Explain your reasoning, not just the conclusion."
-        spellCheck="true"
-        className="block min-h-64 w-full flex-1 resize-none bg-transparent px-4 py-3 font-mono text-[0.85rem] leading-relaxed outline-none placeholder:text-muted/70"
-      />
+      {stepList ? (
+        <div className="flex-1 space-y-5 px-4 py-4">
+          {stepList.map((s, i) => (
+            <div key={i}>
+              <label htmlFor={`step-${i}`} className="flex flex-wrap items-baseline gap-x-2">
+                <span className="text-sm font-semibold">
+                  Step {i + 1} of {stepList.length}: {s.title}
+                </span>
+                {listening && active === i && <span className="text-xs font-medium text-hard">Voice goes here</span>}
+              </label>
+              <p className="mt-0.5 text-xs text-muted">{s.prompt}</p>
+              <textarea
+                id={`step-${i}`}
+                value={parts[i] ?? ''}
+                onFocus={() => {
+                  activeRef.current = i;
+                  setActive(i);
+                }}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setParts((prev) => fit(prev.map((p, j) => (j === i ? value : p)), i));
+                }}
+                rows={5}
+                spellCheck="true"
+                placeholder="Write or dictate this step…"
+                className={`${boxCls} mt-2 min-h-28 rounded-lg border border-line bg-surface-2/40 px-3 py-2`}
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <>
+          <label htmlFor="answer" className="sr-only">
+            Your answer
+          </label>
+          <textarea
+            id="answer"
+            value={text}
+            onChange={(e) => setText(e.target.value.slice(0, MAX_ANSWER_LENGTH))}
+            placeholder="Write your answer here, or press Dictate and speak it. Explain your reasoning, not just the conclusion."
+            spellCheck="true"
+            className={`${boxCls} min-h-64 flex-1 resize-none px-4 py-3`}
+          />
+        </>
+      )}
 
       <div aria-live="polite" className="min-h-5 shrink-0 px-4 pb-1 text-xs italic text-muted">
         {listening && (interim ? `Listening… ${interim}` : 'Listening…')}
@@ -144,7 +213,7 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
       {/* Bottom bar: counter on the left, Submit on the right */}
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-line px-4 py-2.5">
         <p className="text-xs text-muted">
-          {text.length.toLocaleString()} / {MAX_ANSWER_LENGTH.toLocaleString()}
+          {content.length.toLocaleString()} / {MAX_ANSWER_LENGTH.toLocaleString()}
         </p>
         <button
           type="button"

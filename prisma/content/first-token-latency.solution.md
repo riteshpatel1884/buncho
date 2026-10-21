@@ -1,41 +1,46 @@
-## Short answer
+## The short answer
 
-Time to first token (TTFT) includes **queueing and prefill**: the model must process the *entire prompt* before it can emit anything. After that, each new token needs only one cheap step that reuses cached state, so tokens arrive at a steady pace.
+The first token requires the model to **read the entire prompt** (the **prefill** phase). Every later token only needs **one new token's** worth of computation, because earlier work is stored in the **KV cache** (the **decode** phase).
 
-## The two phases
+## What is in the time to first token (TTFT)
+
+1. **Network, auth and queueing.** The request may wait for a GPU slot behind others.
+2. **Tokenisation and prompt assembly.**
+3. **Prefill.** All $n$ prompt tokens go through every layer **in parallel**. This computes and stores $K$ and $V$ for each token. Cost grows with prompt length, and attention cost with $n^2$. Prefill is **compute-bound**: it keeps the GPU's matrix units busy.
+4. **Sampling the first token** from the last position's logits.
+
+## Why later tokens are faster
+
+Each decode step processes **one** new token. It computes that token's $Q,K,V$, appends $K,V$ to the cache and attends over the cached keys. Per-step work is small. The step is **memory-bandwidth-bound**: the GPU must stream the weights and the KV cache from memory for a single token, so the speed is set by memory bandwidth rather than FLOPs.
 
 | | Prefill | Decode |
 |---|---|---|
-| Work | Process all $$n$$ prompt tokens in parallel; build the KV cache | Process 1 new token per step; append to the cache |
-| Limited by | **Compute** (large matrix multiplications keep the GPU busy) | **Memory bandwidth** (each step reads all the weights and the KV cache for a tiny amount of math) |
-| Scales with | Prompt length | Number of output tokens |
-| Visible as | TTFT | Time per output token (TPOT) |
+| Tokens per step | Whole prompt | 1 |
+| Bound by | Compute | Memory bandwidth |
+| Determines | TTFT | Inter-token latency (TPOT) |
+| Scales with | Prompt length | Context length and batch |
 
-Rough prefill cost: about $$2 \times P \times n$$ floating-point operations for $$P$$ parameters and $$n$$ prompt tokens, plus the attention term that grows with $$n^2$$. For a 7B model and a 2,000-token prompt that is about $$2.8\times10^{13}$$ operations, a noticeable fraction of a second even on a fast GPU.
+Total time is roughly:
 
-Rough decode cost: every step streams the weights from GPU memory. A 7B model in fp16 is about 14 GB, so at about 2 TB/s of bandwidth one step takes on the order of 7 ms for a single request. Each step is far cheaper than prefill, but there are many of them.
+$$\text{latency}\approx\text{TTFT}+(\text{output tokens}-1)\times\text{TPOT}$$
 
-## Other contributors to TTFT
+A 10,000-token prompt can take seconds to prefill, while each decode token may take 20 to 50 ms.
 
-- Waiting in the request queue or for a batch slot
-- Cold starts and model loading on autoscaled or serverless deployments
-- Network round trip and gateway processing
-- Retrieval, tool calls and safety checks before generation starts
+## Extra causes of a slow first token
+
+- **Cold start:** model weights not yet loaded, or a serverless container starting up.
+- **Long system prompts, many tool definitions or large retrieved context.**
+- **Queueing** under load; a long prefill from another user can block short requests unless the scheduler uses chunked prefill.
+- **Reasoning models** produce hidden thinking tokens first, delaying the first *visible* token.
 
 ## How to reduce it
 
-| Technique | Effect |
-|---|---|
-| Shorter prompts, less retrieved context | Less prefill work |
-| **Prompt / prefix caching** | Reuse the KV cache of a shared prefix (system prompt, documents) |
-| Chunked prefill | Stops long prompts from blocking other requests |
-| Prefill–decode disaggregation | Separate GPU pools tuned for each phase |
-| Quantisation, faster hardware, tensor parallelism | Faster prefill |
-| Warm replicas, smarter autoscaling | Removes cold-start and queueing delay |
-| Streaming | Does not reduce TTFT, but makes the wait feel shorter once tokens start |
+- **Shorten the prompt**: trim context, retrieve fewer chunks, compress history.
+- **Prompt (prefix) caching**: reuse the KV cache of a repeated system prompt or document.
+- **Chunked prefill** and good scheduling to avoid head-of-line blocking.
+- **Prefill-decode disaggregation**: separate GPU pools for each phase.
+- **Smaller or quantised models**, faster hardware, tensor parallelism.
+- **Streaming**: does not change TTFT, but makes the wait feel shorter once tokens start.
+- Keep instances warm and place them near users.
 
-Speculative decoding speeds up the **decode** phase, not TTFT.
-
-## Interview follow-up
-
-*"Which metric would you watch for a chat UI and which for batch jobs?"* Chat: TTFT and TPOT. Batch: total throughput (tokens per second per GPU) and cost per token.
+Note that **speculative decoding** speeds up the decode phase, not the first token.

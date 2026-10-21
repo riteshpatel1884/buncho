@@ -1,28 +1,32 @@
-## Short answer
+## Definition
 
-Tokenisation converts raw text into a sequence of integer ids drawn from a fixed vocabulary of **subword units**. The model never sees characters or words directly, only these ids.
+Tokenization converts raw text into a sequence of **integer IDs** drawn from a fixed vocabulary (typically 32k to 256k entries). The model only ever sees these IDs, which are mapped to embedding vectors. Decoding converts IDs back to text.
 
-## Why subwords
+## Why not words or characters?
 
-| Unit | Vocabulary | Sequence length | Problem |
-|---|---|---|---|
-| Characters / bytes | Tiny | Very long | Expensive attention, weak meaning per token |
-| Words | Huge | Short | Out-of-vocabulary words; inflections explode the vocabulary |
-| **Subwords** | 32k to 256k typical | Moderate | Compromise: common words are one token, rare words split into pieces |
+| Granularity | Pros | Cons |
+|---|---|---|
+| **Word** | Short sequences, meaningful units | Huge vocabulary, **out-of-vocabulary** words, poor for rare words, typos, code, morphology |
+| **Character / byte** | Tiny vocabulary, no unknowns | Very long sequences, so attention cost grows quadratically; model must learn spelling-to-meaning from scratch |
+| **Subword** | Bounded vocabulary, no unknowns, common words are single tokens, rare words split into reusable pieces | Splits can be unintuitive; language-dependent efficiency |
 
-Illustration (real splits depend on the tokenizer): "tokenization" might become `token` + `ization`.
+Modern LLMs use **subword** tokenizers: BPE (GPT family, Llama 3), WordPiece (BERT), Unigram via SentencePiece (T5, Gemma-style models). Many use **byte-level** fallback so any string can be encoded.
 
-## How it is built
+Example (illustrative): "unbelievably" might become `un` + `believ` + `ably`; a common word like "the" is one token; a rare name might be 4 to 5 tokens.
 
-A tokenizer is trained separately from the model on a text sample, using BPE, WordPiece or Unigram. It includes **special tokens** such as beginning and end of sequence and chat-role markers. Byte-level BPE can encode any string, so there is no unknown token.
+## Pipeline
 
-## Why you should care as an engineer
+1. **Normalise** (Unicode normalisation, sometimes lowercasing).
+2. **Pre-tokenise** (split on whitespace and punctuation using a regex).
+3. **Apply the learned subword model** (merges or segmentation).
+4. **Add special tokens**: BOS, EOS, role markers for chat templates.
 
-- **Cost and limits are in tokens.** Count with the model's own tokenizer, not word counts. English averages roughly 0.75 words per token, while code, numbers and many non-English languages need more tokens for the same content.
-- **Characteristic failures:** counting letters, reversing strings, digit-level arithmetic, and sensitivity to whitespace and casing all come from the model seeing chunks rather than characters.
-- **Domain terms** (drug names, product codes) may split into many pieces, hurting quality and cost.
-- **Consistency:** the tokenizer at inference must match training, and prompts must follow the chat template exactly.
+## Practical consequences
 
-## Interview follow-up
-
-*"Why not just use bytes?"* It works (byte-level models exist), but sequences become several times longer, so attention cost and latency rise sharply.
+- **Cost and limits are measured in tokens**, not words. English averages roughly 0.75 words per token; **non-English languages and code often need more tokens**, so they cost more and fit less context.
+- **Spelling and character-level tasks** (count the letters in "strawberry", reversing strings) are hard because the model sees chunks, not letters.
+- **Arithmetic** suffers when numbers are split inconsistently; some tokenizers split digits individually.
+- **Whitespace and casing matter:** `" hello"` and `"hello"` can be different tokens.
+- **Domain terms** can fragment into meaningless pieces; fixes include training a domain tokenizer or adding tokens and fine-tuning embeddings.
+- **Glitch tokens:** tokens that were rare or absent in training can cause odd behaviour.
+- A tokenizer is **part of the model**: you must use the exact tokenizer a model was trained with.

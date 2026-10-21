@@ -1,41 +1,42 @@
-## Short answer
+## WordPiece (BERT, DistilBERT, ELECTRA)
 
-They sit at different levels. **WordPiece** is a subword algorithm (used by BERT). **SentencePiece** is a tokenizer *library* that implements BPE or Unigram directly on raw text, without relying on whitespace pre-splitting.
+**Training.** Like BPE it starts from characters and merges pairs, but it picks the merge that maximises the **likelihood of the training data**, which works out to the pair with the highest score:
 
-## WordPiece
+$$\text{score}(a,b)=\frac{\text{freq}(ab)}{\text{freq}(a)\cdot\text{freq}(b)}$$
 
-- Starts from characters and merges pairs like BPE, but chooses the pair with the highest score:
+BPE merges the most *frequent* pair. WordPiece merges the pair that is most *surprisingly associated*, so it avoids merging a pair just because both parts are common on their own.
 
-$$\text{score}(a,b)=\frac{\text{count}(ab)}{\text{count}(a)\times\text{count}(b)}$$
+**Marking.** Pieces that continue a word carry a `##` prefix: `playing` becomes `play`, `##ing`.
 
-  This favours pairs whose parts rarely appear apart, rather than just frequent pairs.
-- Marks word-internal pieces with a prefix: `playing` becomes `play` + `##ing`.
-- Encodes with greedy **longest-match-first** against the vocabulary.
-- Needs pre-tokenisation on whitespace and punctuation.
+**Encoding.** **Greedy longest-match-first** against the vocabulary: take the longest prefix that is in the vocabulary, then continue on the remainder. If no piece matches, the whole word becomes `[UNK]`.
 
-## SentencePiece
+**Pipeline.** Pre-tokenises on whitespace and punctuation first, often lowercases and strips accents (BERT uncased).
 
-- Treats the input as a raw character stream and represents spaces with the symbol `▁`, so text is **losslessly reversible**: `detokenize(tokenize(x)) == x`.
-- No language-specific pre-tokenisation, which suits languages without spaces (Japanese, Chinese).
-- Supports two algorithms: **BPE** and the **Unigram language model**.
-- **Unigram:** start with a large candidate vocabulary and repeatedly remove the tokens whose removal reduces corpus likelihood the least. It can output several segmentations with probabilities, enabling *subword regularisation* (random segmentations as training augmentation).
+## SentencePiece (T5, Llama 1/2, Gemma, many multilingual models)
+
+SentencePiece is a **library and framework**, not a single algorithm.
+
+- It treats text as a **raw character stream**, with no need for language-specific pre-tokenisation. Whitespace is turned into an ordinary symbol `▁`. This is essential for languages without spaces (Chinese, Japanese, Thai).
+- It is **lossless and reversible**: concatenate the pieces and replace `▁` with a space to recover the exact original string.
+- It supports two training algorithms:
+  - **BPE** (merge-based, as above).
+  - **Unigram language model:** start with a large candidate vocabulary, assign each piece a probability, and **iteratively prune** the pieces whose removal hurts the corpus likelihood least (EM-style training). Encoding uses the **Viterbi algorithm** to find the most probable segmentation.
+- Unigram can also **sample multiple segmentations** of the same text (**subword regularisation**), which acts as data augmentation for robustness.
+- Offers **byte fallback** so unknown characters never become `<unk>`.
 
 ## Comparison
 
-| | WordPiece | SentencePiece (BPE or Unigram) |
-|---|---|---|
-| Kind | Algorithm | Library / framework |
-| Needs whitespace pre-split | Yes | No |
-| Selection rule | Likelihood-style score | Frequency (BPE) or likelihood pruning (Unigram) |
-| Reversible without extra rules | Not exactly | Yes |
-| Examples | BERT family | T5 (Unigram), Llama 2 (BPE) |
+| | BPE | WordPiece | SentencePiece |
+|---|---|---|---|
+| What it is | Algorithm | Algorithm | Toolkit (BPE or Unigram inside) |
+| Merge / prune rule | Highest pair frequency | Highest likelihood-based score | BPE rule or Unigram likelihood pruning |
+| Encoding | Apply merges in order | Greedy longest match | Merges, or Viterbi (Unigram) |
+| Word boundaries | Pre-tokenised | Pre-tokenised, `##` marker | None needed, `▁` marker |
+| Unknown handling | Byte-level removes `<unk>` | `[UNK]` | Byte fallback optional |
+| Typical models | GPT-2/3/4, Llama 3 | BERT | T5, Llama 2, Gemma |
 
-## When the difference matters
+## When to choose which
 
-- **Multilingual or no-space languages:** SentencePiece avoids language-specific word splitting.
-- **Exact round trips** (code, whitespace-sensitive text, detokenisation): SentencePiece's reversibility helps.
-- **Reusing a pretrained model:** you must use the tokenizer it was trained with, whatever its algorithm.
-
-## Interview follow-up
-
-*"Is SentencePiece an alternative to BPE?"* Not exactly, because it can *run* BPE. The distinction is the input handling (raw text, `▁` for spaces), not the merge rule.
+- Multilingual or no-whitespace languages: **SentencePiece**.
+- Following an existing pre-trained model: **use its tokenizer exactly**; mismatched tokenizers break the model.
+- Byte-level BPE is the common default for new decoder-only LLMs because it never fails on any input.

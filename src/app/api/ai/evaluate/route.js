@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { getOrCreateUser } from '@/lib/user';
 import { evaluateAnswer, hashContent } from '@/lib/ai/evaluate';
@@ -34,6 +35,9 @@ export async function POST(req) {
           type: true,
           difficulty: true,
           published: true,
+          steps: true,
+          rubric: true,
+          scenarioData: true,
           topic: { select: { name: true } },
           expertSolution: { select: { content: true } },
         },
@@ -60,10 +64,7 @@ export async function POST(req) {
   });
   const lastHour = recent.filter((r) => r.createdAt.getTime() > now - 3600 * 1000).length;
   if (lastHour >= AI_EVAL_LIMIT_PER_HOUR || recent.length >= AI_EVAL_LIMIT_PER_DAY) {
-    return reply(
-      { ok: false, error: 'you have reached the AI feedback limit for now. Try again later.' },
-      429,
-    );
+    return reply({ ok: false, error: 'you have reached the AI feedback limit for now. Try again later.' }, 429);
   }
 
   try {
@@ -88,6 +89,8 @@ export async function POST(req) {
         fallbacks: result.fallbacks,
       },
     });
+
+    revalidatePath('/dashboard'); // readiness, weak topics and revision queue depend on evaluations
     return reply({ ok: true });
   } catch (err) {
     console.error('[ai] evaluation failed', err instanceof AiUnavailableError ? err.failures : err);

@@ -1,3 +1,3 @@
 What is **positional encoding**, and why is it needed in Transformers?
 
-Name at least three approaches and one practical consequence of the choice (for example, for long contexts).
+Explain the problem, the original sinusoidal solution with its formula, and how modern models (learned, relative, RoPE, ALiBi) handle position.

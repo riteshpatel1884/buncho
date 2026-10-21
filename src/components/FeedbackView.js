@@ -8,6 +8,12 @@ const BANDS = [
   { min: 0, label: 'Needs work', cls: 'text-hard' },
 ];
 
+const RESULT = {
+  met: { mark: '✓', label: 'Met', cls: 'text-easy' },
+  partial: { mark: '◐', label: 'Partly met', cls: 'text-medium' },
+  missed: { mark: '✕', label: 'Missed', cls: 'text-hard' },
+};
+
 function Section({ title, children }) {
   return (
     <section className="mt-6">
@@ -32,7 +38,7 @@ function Bullets({ items }) {
   );
 }
 
-export default function FeedbackView({ evaluation }) {
+export default function FeedbackView({ evaluation, rubric = [] }) {
   const { score, scores, feedback: f = {}, model, createdAt } = evaluation;
   const band = BANDS.find((b) => score >= b.min);
   const strengths = f.strengths ?? [];
@@ -40,6 +46,8 @@ export default function FeedbackView({ evaluation }) {
   const inaccuracies = f.inaccuracies ?? [];
   const howToImprove = f.howToImprove ?? [];
   const followUps = f.followUps ?? [];
+  const results = new Map((f.rubricResults ?? []).map((r) => [r.id, r]));
+  const checklist = rubric.filter((r) => results.has(r.id));
 
   return (
     <div>
@@ -72,6 +80,31 @@ export default function FeedbackView({ evaluation }) {
         <div className="mt-5 text-sm">
           <Markdown>{f.summary}</Markdown>
         </div>
+      )}
+
+      {checklist.length > 0 && (
+        <Section title="Rubric checklist">
+          <ul className="space-y-2">
+            {checklist.map((r) => {
+              const res = results.get(r.id);
+              const v = RESULT[res.result];
+              return (
+                <li key={r.id} className="flex gap-3 rounded-lg border border-line p-3 text-sm">
+                  <span className={`mt-0.5 w-4 shrink-0 text-center font-semibold ${v.cls}`} aria-hidden="true">
+                    {v.mark}
+                  </span>
+                  <div className="min-w-0">
+                    <p>
+                      <span className="sr-only">{v.label}: </span>
+                      {r.criterion}
+                    </p>
+                    {res.note && <p className="mt-1 text-xs text-muted">{res.note}</p>}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </Section>
       )}
 
       {strengths.length > 0 && (
@@ -126,7 +159,7 @@ export default function FeedbackView({ evaluation }) {
       )}
 
       <p className="mt-8 text-xs text-muted">
-        AI-generated feedback, 
+        AI-generated feedback{model ? ` (${model})` : ''}
         {createdAt ? `, ${new Date(createdAt).toLocaleDateString('en-IN', { dateStyle: 'medium' })}` : ''}. It can make
         mistakes and is not a prediction of interview results. Compare it with the reference answer below.
       </p>

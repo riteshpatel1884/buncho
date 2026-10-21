@@ -1,3 +1,3 @@
-Explain **top-p (nucleus) sampling** and **top-k sampling**. How do they differ?
+Explain **Top-p (nucleus) sampling** and **Top-k sampling**. How do they differ?
 
-Include a short code sketch and say how they combine with temperature.
+Use a small example and say when each one behaves badly.

@@ -70,7 +70,9 @@ model User {
   answerBookmarks  AnswerBookmark[]
   reports          Report[]
   comments         AnswerComment[]
-  evaluations Evaluation[]
+  // Phase 4
+  evaluations      Evaluation[]
+
   @@index([email])
 }
 
@@ -103,6 +105,12 @@ model Problem {
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
+  // Phase 5: production challenges
+  isChallenge  Boolean @default(false)
+  scenarioData Json? // [{ title, kind, content }] logs, configs, sample data
+  steps        Json? // [{ title, prompt }] step-by-step answer
+  rubric       Json? // [{ id, criterion, weight }] used by the AI, shown after feedback
+
   expertSolution   ExpertSolution?
   related          Problem[]         @relation("RelatedProblems")
   relatedBy        Problem[]         @relation("RelatedProblems")
@@ -111,23 +119,27 @@ model Problem {
   progress         ProblemProgress[]
   // Phase 3
   communityAnswers CommunityAnswer[]
-  evaluations Evaluation[]
+  // Phase 4
+  evaluations      Evaluation[]
 
   @@index([topicId, difficulty])
   @@index([published, difficulty])
+  @@index([isChallenge, published])
 }
 
 // Authoritative, admin-curated. Kept separate from user content on purpose.
 model ExpertSolution {
-  id         String    @id @default(cuid())
-  problemId  String    @unique
-  problem    Problem   @relation(fields: [problemId], references: [id], onDelete: Cascade)
-  content    String    @db.Text // Markdown
+  id           String    @id @default(cuid())
+  problemId    String    @unique
+  problem      Problem   @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  content      String    @db.Text // Markdown
+  // Phase 5: alternative approaches and trade-offs (Markdown)
+  alternatives String?   @db.Text
   // Only set these after a real human review
-  reviewedBy String?
-  reviewedAt DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  reviewedBy   String?
+  reviewedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
 // Private to the user. Public sharing creates a separate CommunityAnswer copy.
@@ -140,7 +152,10 @@ model Submission {
   content   String   @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Phase 4
   evaluations Evaluation[]
+
   @@unique([userId, problemId])
   @@index([problemId])
 }
@@ -255,7 +270,9 @@ model AnswerComment {
   @@index([userId, createdAt])
 }
 
-// Phase 4: AI feedback. One row per evaluation run; the newest row for a submission is shown.
+/* ---------- AI feedback (Phase 4) ---------- */
+
+// One row per evaluation run; the newest row for a submission is shown.
 model Evaluation {
   id           String     @id @default(cuid())
   submissionId String
@@ -267,7 +284,7 @@ model Evaluation {
   contentHash  String // sha256 of the answer that was evaluated
   score        Int // 0-100, summed from the rubric
   scores       Json // { coverage, accuracy, reasoning, clarity }
-  feedback     Json // { summary, strengths, missing, inaccuracies, ... }
+  feedback     Json // { summary, strengths, missing, inaccuracies, rubricResults, ... }
   provider     String
   model        String
   latencyMs    Int

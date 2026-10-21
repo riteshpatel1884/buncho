@@ -16,9 +16,10 @@ export function parseFilters(sp = {}) {
   };
 }
 
-export async function getProblems({ q, topic, difficulty, type, page }) {
+export async function getProblems({ q, topic, difficulty, type, page, challenge }) {
   const where = {
     published: true,
+    ...(challenge && { isChallenge: true }),
     ...(topic && { topic: { slug: topic } }),
     ...(difficulty && { difficulty }),
     ...(type && { type }),

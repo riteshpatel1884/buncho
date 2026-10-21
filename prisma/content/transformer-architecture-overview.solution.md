@@ -1,39 +1,36 @@
-## Short answer
+## The idea
 
-The Transformer (Vaswani et al., 2017, *Attention Is All You Need*) is a sequence model built from **attention** and feed-forward layers instead of recurrence or convolution. Every token can look directly at every other token, and all positions are processed in parallel during training.
+The Transformer (Vaswani et al., 2017, *Attention Is All You Need*) processes a sequence with **self-attention** instead of recurrence. Every token can look directly at every other token, and all positions are computed **in parallel**.
 
-## Architecture
+## Original design (encoder-decoder, for translation)
 
-The original model is an encoder–decoder:
+- **Encoder** (N = 6 identical layers). Each layer: multi-head self-attention, then a position-wise feed-forward network, each wrapped in a residual connection and layer norm. It turns the source sentence into contextual vectors.
+- **Decoder** (N = 6 layers). Each layer: **masked** self-attention over the tokens generated so far, **cross-attention** to the encoder output, then a feed-forward network.
+- **Input:** token embeddings plus **positional encodings**, because attention itself has no notion of order.
+- **Output:** linear layer to vocabulary size, then softmax for next-token probabilities.
+- Base sizes: $d_{model}=512$, 8 heads, $d_{ff}=2048$.
 
-- **Input:** token embeddings plus positional information.
-- **Encoder** ($$N$$ identical layers): multi-head self-attention, then a feed-forward network, each wrapped in a residual connection and layer normalisation.
-- **Decoder** ($$N$$ identical layers): masked self-attention, then cross-attention over the encoder output, then a feed-forward network, with the same residual and normalisation wrapping.
-- **Output:** a linear layer over the vocabulary followed by softmax.
-
-The core operation:
+Core operation:
 
 $$\text{Attention}(Q,K,V)=\text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V$$
 
-The base model in the paper used $$d_{model}=512$$, 8 heads, $$d_{ff}=2048$$ and 6 layers per stack.
+## Why it beat RNNs and LSTMs
 
-## Why it replaced RNNs
-
-| Property | RNN / LSTM | Transformer |
+| | RNN/LSTM | Transformer |
 |---|---|---|
-| Parallelism across the sequence in training | No (sequential) | Yes |
-| Path between two distant tokens | $$O(n)$$ steps | $$O(1)$$ |
-| Compute per layer | $$O(n \cdot d^2)$$ | $$O(n^2 \cdot d)$$ |
-| Attention memory | none | $$O(n^2)$$ per head (naive) |
+| Parallelism over sequence | None (step by step) | Full during training |
+| Path between distant tokens | $O(n)$ steps | $O(1)$ |
+| Long-range dependencies | Vanishing gradients, forgetting | Direct connections |
+| Cost per layer | $O(n\,d^2)$ | $O(n^2 d)$ |
 
-The price is quadratic cost in sequence length, which drives most long-context engineering.
+The price is **quadratic cost in sequence length**, which motivates FlashAttention, sliding-window attention, GQA and KV-cache management.
 
-## Variants
+## Three families
 
-- **Encoder-only** (BERT): bidirectional, good for understanding and embeddings.
-- **Decoder-only** (GPT, Llama and most current chat LLMs): causal, good for generation.
-- **Encoder–decoder** (T5, the original translation model): good for input-to-output transformation.
+- **Encoder-only** (BERT): bidirectional, for understanding tasks such as classification and embeddings.
+- **Decoder-only** (GPT, Llama, Claude-style LLMs): causal masked attention, next-token prediction. This is the dominant LLM design.
+- **Encoder-decoder** (T5, original Transformer, Whisper): sequence-to-sequence tasks such as translation and speech recognition.
 
-## Interview follow-up
+## What modern LLMs changed
 
-*"What changed in modern LLM Transformers?"* Pre-norm placement, RMSNorm, RoPE positions, SwiGLU feed-forward layers, grouped-query attention and FlashAttention are the common upgrades.
+Pre-norm with **RMSNorm**, **RoPE** positions, **SwiGLU** feed-forward layers, **grouped-query attention**, and sometimes **Mixture of Experts**. The overall structure (attention, feed-forward, residuals, stacked layers) is unchanged.

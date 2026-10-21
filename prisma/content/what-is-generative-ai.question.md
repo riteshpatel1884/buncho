@@ -1,3 +1,3 @@
 What is **Generative AI**?
 
-How does it differ from discriminative models, which model families does it include, and what are its main limitations?
+Define it, contrast it with discriminative models, list the main model families, and mention typical applications and risks.

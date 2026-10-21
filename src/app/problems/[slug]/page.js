@@ -28,6 +28,10 @@ export async function generateMetadata({ params }) {
   return { title: p?.title ?? 'Problem' };
 }
 
+const asArray = (v) => (Array.isArray(v) ? v : []);
+// Four backticks so a log that contains ``` can't break out of the code block
+const fence = (a) => `\`\`\`\`${a.kind === 'json' ? 'json' : 'text'}\n${a.content}\n\`\`\`\``;
+
 export default async function ProblemPage({ params, searchParams }) {
   const { slug } = await params;
   const sp = await searchParams;
@@ -41,6 +45,10 @@ export default async function ProblemPage({ params, searchParams }) {
     },
   });
   if (!problem) notFound();
+
+  const steps = asArray(problem.steps);
+  const rubric = asArray(problem.rubric);
+  const scenarioData = asArray(problem.scenarioData);
 
   const [user, neighbors] = await Promise.all([getOrCreateUser(), getProblemNeighbors(slug)]);
   const upNext = await getUpNext({ userId: user?.id ?? null, currentSlug: slug });
@@ -105,6 +113,9 @@ export default async function ProblemPage({ params, searchParams }) {
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <DifficultyBadge difficulty={problem.difficulty} />
+        {problem.isChallenge && (
+          <span className="rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-accent">Production challenge</span>
+        )}
         <Link href={`/topics/${problem.topic.slug}`} className={`${pill} hover:text-ink`}>{problem.topic.name}</Link>
         <span className={pill}>{TYPE_LABEL[problem.type]}</span>
         <span className={pill}>{problem.estimatedMinutes} min</span>
@@ -114,6 +125,40 @@ export default async function ProblemPage({ params, searchParams }) {
       <section aria-label="Problem statement" className="mt-5">
         <Markdown>{problem.description}</Markdown>
       </section>
+
+      {scenarioData.length > 0 && (
+        <section aria-label="Scenario data" className="mt-6">
+          <h2 className="text-sm font-semibold">Scenario data</h2>
+          <p className="mt-1 text-xs text-muted">Logs and configuration from the incident. Use them as evidence in your answer.</p>
+          <div className="mt-3 space-y-3">
+            {scenarioData.map((a, i) => (
+              <details key={i} open={i === 0} className="rounded-lg border border-line bg-surface">
+                <summary className="cursor-pointer px-4 py-2.5 text-sm font-medium">{a.title}</summary>
+                <div className="overflow-x-auto border-t border-line px-1 py-1">
+                  <Markdown>{fence(a)}</Markdown>
+                </div>
+              </details>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {steps.length > 0 && (
+        <section aria-label="How to answer" className="mt-6">
+          <h2 className="text-sm font-semibold">How to answer</h2>
+          <p className="mt-1 text-xs text-muted">Write your answer in {steps.length} steps in the editor on the right.</p>
+          <ol className="mt-3 space-y-2 text-sm">
+            {steps.map((s, i) => (
+              <li key={i} className="flex gap-3">
+                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-surface-2 text-xs font-semibold">{i + 1}</span>
+                <span>
+                  <span className="font-medium">{s.title}.</span> <span className="text-muted">{s.prompt}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
 
       <div className="mt-6">
         <Hints hints={problem.hints} />
@@ -138,7 +183,7 @@ export default async function ProblemPage({ params, searchParams }) {
         )}
         {problem.related.length > 0 && (
           <details className="py-3">
-            <summary className={sectionTitle}>Related questions</summary>
+            <summary className={sectionTitle}>{problem.isChallenge ? 'Related challenges' : 'Related questions'}</summary>
             <ul className="mt-3 space-y-2 text-sm">
               {problem.related.map((r) => (
                 <li key={r.slug} className="flex items-center justify-between gap-3">
@@ -183,6 +228,7 @@ export default async function ProblemPage({ params, searchParams }) {
                   </div>
                 )}
                 <FeedbackView
+                  rubric={rubric}
                   evaluation={{
                     score: evaluation.score,
                     scores: evaluation.scores,
@@ -214,6 +260,14 @@ export default async function ProblemPage({ params, searchParams }) {
                   The AI uses this as a guide. It has not been reviewed by a human expert, so check important details against other sources.
                 </p>
                 <Markdown>{solution.content}</Markdown>
+                {solution.alternatives && (
+                  <div className="mt-6 border-t border-line pt-4">
+                    <h3 className="text-sm font-semibold">Alternative approaches and trade-offs</h3>
+                    <div className="mt-3">
+                      <Markdown>{solution.alternatives}</Markdown>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <p className="mt-3 text-sm text-muted">No reference answer has been added for this problem yet.</p>
@@ -305,13 +359,18 @@ export default async function ProblemPage({ params, searchParams }) {
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
               {user ? (
                 <>
-                  <AnswerEditor problemId={problem.id} initialContent={submission?.content ?? ''} hasSubmission={Boolean(submission)} />
+                  <AnswerEditor
+                    problemId={problem.id}
+                    initialContent={submission?.content ?? ''}
+                    hasSubmission={Boolean(submission)}
+                    steps={steps.length ? steps : null}
+                  />
                   <div className="shrink-0 border-t border-line p-3">
                     <ShareControl problemId={problem.id} hasSubmission={Boolean(submission)} shared={shared} />
                   </div>
                 </>
               ) : (
-                <div className="flex min-h-[26rem] flex-1 flex-col">
+                <div className="flex min-h-[26rem] flex-[1_0_auto] flex-col">
                   <div className="flex-1 px-4 py-3 font-mono text-[0.85rem] text-muted/70">
                     Write your answer here. Your answer is private unless you choose to share it.
                   </div>
