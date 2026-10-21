@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { DIFFICULTIES, DIFFICULTY_LABEL, PROBLEM_TYPES, TYPE_LABEL } from '@/lib/constants';
 import { Search } from './icons';
 
-const selectCls = 'h-9 rounded-lg bg-surface-2 px-3 text-sm text-ink outline-none focus:ring-1 focus:ring-accent';
+const selectCls = 'h-9 rounded-lg bg-surface-2 px-3 text-sm text-ink outline-none';
 const pillCls = (on) =>
   `shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
     on ? 'bg-ink text-bg' : 'bg-surface-2 text-muted hover:text-ink'
@@ -98,7 +98,7 @@ export default function ProblemFilters({ topics = [], currentTopic, solved = nul
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search questions"
-            className="h-9 w-full rounded-lg bg-surface-2 pl-9 pr-3 text-sm outline-none placeholder:text-muted focus:ring-1 focus:ring-accent"
+            className="h-9 w-full rounded-lg bg-surface-2 pl-9 pr-3 text-sm outline-none placeholder:text-muted"
           />
         </div>
 

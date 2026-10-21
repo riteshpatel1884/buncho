@@ -189,7 +189,12 @@ export default function AnswerCard({ answer, children }) {
           {initial}
         </span>
         <div className="min-w-0">
-          <p className="font-semibold">{answer.author}</p>
+          <p className="font-semibold">
+            {answer.author}
+            {answer.own && (
+              <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-semibold text-accent">Your answer</span>
+            )}
+          </p>
           <p className="text-sm text-muted">Shared {answer.dateLabel}</p>
         </div>
         <span className="ml-auto rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-semibold text-muted">
@@ -200,22 +205,28 @@ export default function AnswerCard({ answer, children }) {
       <div className="px-5 py-5">{children}</div>
 
       <footer className="flex flex-wrap items-center gap-2 border-t border-line px-5 py-3">
-        <button type="button" onClick={onHelpful} disabled={pending} aria-pressed={helpful.on} className={`${btn} ${helpful.on ? 'text-accent' : ''}`}>
-          <ThumbUp width={16} height={16} /> Helpful · {helpful.count}
-        </button>
-        <button type="button" onClick={onSave} disabled={pending} aria-pressed={saved} className={`${btn} ${saved ? 'text-accent' : ''}`}>
-          <Bookmark width={16} height={16} filled={saved} /> {saved ? 'Saved' : 'Save'}
-        </button>
+        {!answer.own && (
+          <>
+            <button type="button" onClick={onHelpful} disabled={pending} aria-pressed={helpful.on} className={`${btn} ${helpful.on ? 'text-accent' : ''}`}>
+              <ThumbUp width={16} height={16} /> Helpful · {helpful.count}
+            </button>
+            <button type="button" onClick={onSave} disabled={pending} aria-pressed={saved} className={`${btn} ${saved ? 'text-accent' : ''}`}>
+              <Bookmark width={16} height={16} filled={saved} /> {saved ? 'Saved' : 'Save'}
+            </button>
+          </>
+        )}
+        {answer.own && <span className="text-sm text-muted">Helpful votes: {helpful.count}</span>}
         <button type="button" onClick={() => toggle('discuss')} aria-expanded={panel === 'discuss'} className={btn}>
           <Chat width={16} height={16} /> Discuss · {commentCount}
         </button>
-        {reported ? (
-          <span className="ml-auto text-sm text-muted">Reported. Thank you.</span>
-        ) : (
-          <button type="button" onClick={() => toggle('report')} aria-expanded={panel === 'report'} className={`${btn} ml-auto`}>
-            <Flag width={16} height={16} /> Report
-          </button>
-        )}
+        {!answer.own &&
+          (reported ? (
+            <span className="ml-auto text-sm text-muted">Reported. Thank you.</span>
+          ) : (
+            <button type="button" onClick={() => toggle('report')} aria-expanded={panel === 'report'} className={`${btn} ml-auto`}>
+              <Flag width={16} height={16} /> Report
+            </button>
+          ))}
       </footer>
 
       {error && <p role="alert" className="border-t border-line px-5 py-3 text-sm text-hard">{error}</p>}
@@ -223,7 +234,7 @@ export default function AnswerCard({ answer, children }) {
       {panel === 'discuss' && (
         <CommentThread answerId={answer.id} onCountChange={(d) => setCommentCount((n) => Math.max(0, n + d))} />
       )}
-      {panel === 'report' && !reported && (
+      {panel === 'report' && !reported && !answer.own && (
         <ReportForm
           answerId={answer.id}
           onDone={() => {

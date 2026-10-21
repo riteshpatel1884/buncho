@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { getOrCreateUser } from '@/lib/user';
 import { getCommunityAnswers } from '@/lib/community';
+import { hashContent } from '@/lib/ai/evaluate';
 import { TYPE_LABEL } from '@/lib/constants';
 import Markdown from '@/components/Markdown';
 import Hints from '@/components/Hints';
@@ -11,12 +12,15 @@ import AnswerEditor from '@/components/AnswerEditor';
 import ShareControl from '@/components/ShareControl';
 import CommunitySection from '@/components/CommunitySection';
 import BookmarkButton from '@/components/BookmarkButton';
+import FeedbackView from '@/components/FeedbackView';
+import FeedbackControls from '@/components/FeedbackControls';
+import ProblemListPopup from '@/components/ProblemListPopup';
 import { CompleteToggle, RevealButton } from '@/components/SolutionControls';
 import ProblemTabs from '@/components/ProblemTabs';
 import Workspace from '@/components/Workspace';
 import Timer from '@/components/Timer';
-import { getProblemNeighbors } from '@/lib/problems';
-import { ChevronLeft, ChevronRight, Code, FileText, Flask, List, Lock, Users } from '@/components/icons';
+import { getProblemNeighbors, getUpNext } from '@/lib/problems';
+import { ChevronLeft, ChevronRight, Code, FileText, Flask, Lock, Users } from '@/components/icons';
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
@@ -39,8 +43,11 @@ export default async function ProblemPage({ params, searchParams }) {
   if (!problem) notFound();
 
   const [user, neighbors] = await Promise.all([getOrCreateUser(), getProblemNeighbors(slug)]);
+  const upNext = await getUpNext({ userId: user?.id ?? null, currentSlug: slug });
+
   let progress = null;
   let submission = null;
+  let evaluation = null;
   let ownShared = null;
   let bookmarked = false;
 
@@ -56,9 +63,17 @@ export default async function ProblemPage({ params, searchParams }) {
     submission = sub;
     bookmarked = Boolean(bm);
     ownShared = shared;
+
+    // Latest AI feedback for this user's answer
+    if (sub) {
+      evaluation = await prisma.evaluation.findFirst({
+        where: { submissionId: sub.id },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
   }
 
-  // Expert and community content are only queried once the user has earned access,
+  // The reference answer and community content are only queried once the user has earned access,
   // so neither reaches the browser of someone who hasn't unlocked them.
   const unlocked = Boolean(user && (submission || progress?.solutionRevealed));
   const [solution, community] = unlocked
@@ -75,6 +90,9 @@ export default async function ProblemPage({ params, searchParams }) {
         outOfDate: Boolean(submission) && ownShared.content !== submission.content,
       }
     : null;
+
+  // True when the user edited their answer after the feedback was generated
+  const stale = Boolean(evaluation && submission && evaluation.contentHash !== hashContent(submission.content));
 
   const loginHref = `/login?redirect_url=${encodeURIComponent(`/problems/${slug}`)}`;
 
@@ -135,34 +153,76 @@ export default async function ProblemPage({ params, searchParams }) {
     </article>
   );
 
-  const solutionPane = (
-    <section aria-labelledby="solution-heading">
-      <h2 id="solution-heading" className="text-lg font-semibold">Expert solution</h2>
-      {solution ? (
-        <div className="mt-4">
-          <p className="mb-5 text-sm text-muted">
-            {solution.reviewedAt
-              ? `Reviewed${solution.reviewedBy ? ` by ${solution.reviewedBy}` : ''} on ${solution.reviewedAt.toLocaleDateString('en-IN', { dateStyle: 'medium' })}.`
-              : 'This solution has not been expert-reviewed yet. Check important details against other sources.'}
-          </p>
-          <Markdown>{solution.content}</Markdown>
-          <div className="mt-8 border-t border-line pt-5">
-            <CompleteToggle problemId={problem.id} completed={progress?.status === 'COMPLETED'} />
-          </div>
-        </div>
-      ) : unlocked ? (
-        <p className="mt-4 text-muted">A solution for this problem hasn&rsquo;t been published yet.</p>
-      ) : (
+  const feedbackPane = (
+    <section aria-labelledby="feedback-heading">
+      <h2 id="feedback-heading" className="text-lg font-semibold">AI feedback</h2>
+
+      {!unlocked ? (
         <div className="mt-4 flex flex-col items-start gap-3 rounded-lg bg-surface-2 px-5 py-6">
           <p className="flex items-center gap-2 font-medium">
             <Lock width={18} height={18} /> Locked until you attempt this problem
           </p>
           <p className="text-sm text-muted">
             {user
-              ? 'Submit your answer on the right to unlock the reference solution.'
-              : 'Log in and submit an answer to unlock the reference solution.'}
+              ? 'Submit your answer on the right to get personalised AI feedback.'
+              : 'Log in and submit an answer to get personalised AI feedback.'}
           </p>
           {user && problem.allowDirectReveal && <RevealButton problemId={problem.id} />}
+        </div>
+      ) : (
+        <div className="mt-4">
+          {submission ? (
+            evaluation ? (
+              <>
+                {stale && (
+                  <div className="mb-4 rounded-lg bg-surface-2 px-4 py-3 text-sm">
+                    <p>You changed your answer after this feedback was generated.</p>
+                    <div className="mt-2">
+                      <FeedbackControls problemId={problem.id} label="Re-evaluate my answer" />
+                    </div>
+                  </div>
+                )}
+                <FeedbackView
+                  evaluation={{
+                    score: evaluation.score,
+                    scores: evaluation.scores,
+                    feedback: evaluation.feedback,
+                    model: evaluation.model,
+                    createdAt: evaluation.createdAt.toISOString(),
+                  }}
+                />
+              </>
+            ) : (
+              <div className="rounded-lg bg-surface-2 px-5 py-5">
+                <p className="text-sm">Your answer is saved but has no AI feedback yet.</p>
+                <div className="mt-3">
+                  <FeedbackControls problemId={problem.id} label="Get AI feedback" />
+                </div>
+              </div>
+            )
+          ) : (
+            <p className="text-sm text-muted">
+              You opened the reference answer without submitting. Submit your own answer to get personalised AI feedback.
+            </p>
+          )}
+
+          <details className="mt-8 border-t border-line pt-4" open={!submission}>
+            <summary className={sectionTitle}>Reference answer</summary>
+            {solution ? (
+              <div className="mt-4">
+                <p className="mb-4 text-sm text-muted">
+                  The AI uses this as a guide. It has not been reviewed by a human expert, so check important details against other sources.
+                </p>
+                <Markdown>{solution.content}</Markdown>
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-muted">No reference answer has been added for this problem yet.</p>
+            )}
+          </details>
+
+          <div className="mt-6 border-t border-line pt-5">
+            <CompleteToggle problemId={problem.id} completed={progress?.status === 'COMPLETED'} />
+          </div>
         </div>
       )}
     </section>
@@ -186,7 +246,7 @@ export default async function ProblemPage({ params, searchParams }) {
 
   const tabs = [
     { id: 'description', label: 'Description', icon: <FileText width={16} height={16} />, content: description },
-    { id: 'solution', label: 'Solution', icon: unlocked ? <Flask width={16} height={16} /> : <Lock width={15} height={15} />, content: solutionPane },
+    { id: 'feedback', label: 'AI Feedback', icon: unlocked ? <Flask width={16} height={16} /> : <Lock width={15} height={15} />, content: feedbackPane },
     { id: 'community', label: 'Community', icon: <Users width={16} height={16} />, content: communityPane },
   ];
 
@@ -195,12 +255,10 @@ export default async function ProblemPage({ params, searchParams }) {
 
   return (
     <div data-workspace className="flex flex-col bg-canvas px-2 pb-2 lg:h-[calc(100dvh-3.5rem)]">
-      {/* Top bar: problem list, previous / next, timer */}
+      {/* Top bar: problem list popup, previous / next, timer */}
       <div className="flex h-12 shrink-0 items-center justify-between gap-2">
         <div className="flex items-center gap-1">
-          <Link href="/problems" className="inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm font-semibold transition-colors hover:bg-surface">
-            <List width={18} height={18} /> Problem List
-          </Link>
+          <ProblemListPopup items={upNext.items} remaining={upNext.remaining} signedIn={Boolean(user)} />
           {neighbors.prev ? (
             <Link href={`/problems/${neighbors.prev}`} className={arrow} aria-label="Previous problem" title="Previous problem">
               <ChevronLeft width={18} height={18} />
@@ -262,7 +320,7 @@ export default async function ProblemPage({ params, searchParams }) {
                     <Link href={loginHref} className="font-semibold text-accent hover:underline">log in</Link>
                     {' / '}
                     <Link href="/register" className="font-semibold text-accent hover:underline">sign up</Link>
-                    {' '}to submit an answer and unlock the expert solution.
+                    {' '}to submit an answer and get AI feedback.
                   </div>
                 </div>
               )}

@@ -153,3 +153,32 @@ export async function getUserStats(userId) {
   const total = Object.values(byDifficulty).reduce((s, d) => s + d.total, 0);
   return { total, solved, attempted, byDifficulty, activeDays, streak, last };
 }
+
+
+
+/**
+ * Next unsolved problems after the current one (wrapping around), for the Problem List popup.
+ * Signed-out visitors just get the next problems in order.
+ */
+export async function getUpNext({ userId, currentSlug, limit = 20 }) {
+  const all = await prisma.problem.findMany({
+    where: { published: true },
+    select: { id: true, slug: true, title: true, difficulty: true },
+    orderBy: PROBLEM_ORDER,
+  });
+  const status = userId ? await getProgressMap(userId, all.map((p) => p.id)) : {};
+
+  const i = all.findIndex((p) => p.slug === currentSlug);
+  const rotated = i >= 0 ? [...all.slice(i + 1), ...all.slice(0, i)] : all;
+  const unsolved = rotated.filter((p) => status[p.id] !== 'COMPLETED');
+
+  return {
+    items: unsolved.slice(0, limit).map((p) => ({
+      slug: p.slug,
+      title: p.title,
+      difficulty: p.difficulty,
+      attempted: status[p.id] === 'ATTEMPTED',
+    })),
+    remaining: unsolved.length,
+  };
+}

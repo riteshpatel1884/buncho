@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { saveSubmission } from '@/app/actions';
+import { requestFeedback } from '@/lib/ai-client';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { MAX_ANSWER_LENGTH } from '@/lib/constants';
 import { Mic, Stop } from './icons';
@@ -14,11 +16,13 @@ const LANGUAGES = [
 ];
 
 export default function AnswerEditor({ problemId, initialContent = '', hasSubmission = false }) {
+  const router = useRouter();
   const [text, setText] = useState(initialContent);
   const [savedText, setSavedText] = useState(initialContent);
   const [everSaved, setEverSaved] = useState(hasSubmission);
   const [lang, setLang] = useState('en-IN');
   const [message, setMessage] = useState(null);
+  const [evaluating, setEvaluating] = useState(false);
   const [pending, startTransition] = useTransition();
 
   // Dictated phrases are appended to the end of the answer
@@ -41,13 +45,30 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
     setMessage(null);
     startTransition(async () => {
       const res = await saveSubmission(problemId, text);
-      if (res.ok) {
-        setSavedText(text);
-        setEverSaved(true);
-        setMessage({ type: 'ok', text: 'Answer saved. The Solution and Community tabs are now unlocked.' });
-      } else {
+      if (!res.ok) {
         setMessage({ type: 'error', text: res.error });
+        return;
       }
+
+      setSavedText(text);
+      setEverSaved(true);
+      setMessage({ type: 'ok', text: 'Answer saved. Getting AI feedback…' });
+
+      // Ask the server for AI feedback on the answer that was just saved
+      setEvaluating(true);
+      const fb = await requestFeedback(problemId);
+      setEvaluating(false);
+
+      if (fb.ok) {
+        setMessage({ type: 'ok', text: 'Feedback is ready in the AI Feedback tab.' });
+        window.dispatchEvent(new CustomEvent('buncho:open-tab', { detail: 'feedback' }));
+      } else {
+        setMessage({
+          type: 'error',
+          text: `Your answer is saved, but AI feedback failed: ${fb.error} You can retry from the AI Feedback tab.`,
+        });
+      }
+      router.refresh();
     });
   }
 
@@ -131,7 +152,7 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
           disabled={pending || (!dirty && everSaved)}
           className="rounded-md bg-go px-5 py-1.5 text-sm font-semibold text-go-ink transition-opacity hover:opacity-90 disabled:opacity-50"
         >
-          {pending ? 'Saving…' : everSaved ? 'Save changes' : 'Submit'}
+          {pending ? (evaluating ? 'Getting feedback…' : 'Saving…') : everSaved ? 'Save & re-evaluate' : 'Submit'}
         </button>
       </div>
 

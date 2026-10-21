@@ -100,6 +100,11 @@ body:has([data-workspace]) .site-footer { display: none; }
   outline-offset: 2px;
   border-radius: 4px;
 }
+/* Text fields already show a caret; the global ring around the whole box looks heavy */
+textarea:focus-visible,
+input:not([type='checkbox']):not([type='radio']):not([type='range']):focus-visible {
+  outline: none;
+}
 
 ::selection {
   background: var(--mark);

@@ -70,7 +70,7 @@ model User {
   answerBookmarks  AnswerBookmark[]
   reports          Report[]
   comments         AnswerComment[]
-
+  evaluations Evaluation[]
   @@index([email])
 }
 
@@ -111,6 +111,7 @@ model Problem {
   progress         ProblemProgress[]
   // Phase 3
   communityAnswers CommunityAnswer[]
+  evaluations Evaluation[]
 
   @@index([topicId, difficulty])
   @@index([published, difficulty])
@@ -139,7 +140,7 @@ model Submission {
   content   String   @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  evaluations Evaluation[]
   @@unique([userId, problemId])
   @@index([problemId])
 }
@@ -251,5 +252,28 @@ model AnswerComment {
   createdAt DateTime        @default(now())
 
   @@index([answerId, createdAt])
+  @@index([userId, createdAt])
+}
+
+// Phase 4: AI feedback. One row per evaluation run; the newest row for a submission is shown.
+model Evaluation {
+  id           String     @id @default(cuid())
+  submissionId String
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problemId    String
+  problem      Problem    @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  contentHash  String // sha256 of the answer that was evaluated
+  score        Int // 0-100, summed from the rubric
+  scores       Json // { coverage, accuracy, reasoning, clarity }
+  feedback     Json // { summary, strengths, missing, inaccuracies, ... }
+  provider     String
+  model        String
+  latencyMs    Int
+  fallbacks    Int        @default(0) // providers that failed before this one answered
+  createdAt    DateTime   @default(now())
+
+  @@index([submissionId, createdAt])
   @@index([userId, createdAt])
 }

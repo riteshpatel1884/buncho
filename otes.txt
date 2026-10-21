@@ -218,44 +218,7 @@ An interactive learning experience that explains how users can improve their ans
 
 ---
 
-# PHASE 5 — Production AI Engineering Challenges
-
-**Goal:** Establish the platform's primary differentiator.
-
-Introduce scenario-based problems that require users to diagnose technical failures and explain their decisions.
-
-### Example challenges
-
-1. Diagnose irrelevant retrieval results in a RAG pipeline.
-2. Reduce inference costs without substantially degrading answer quality.
-3. Debug an AI agent that repeatedly calls the wrong tool.
-4. Investigate hallucinations despite relevant retrieved documents.
-5. Diagnose high latency in an LLM application.
-6. Design a reliable LLM evaluation pipeline.
-7. Investigate model performance degradation after deployment.
-8. Prevent prompt injection from compromising an AI workflow.
-9. Design monitoring for a production ML system.
-10. Choose between RAG and fine-tuning for a particular application.
-
-### Features
-
-- Detailed scenario descriptions.
-- Supporting logs or sample data where appropriate.
-- Step-by-step answer submission.
-- Technical reasoning rubrics.
-- Expert solutions.
-- Alternative approaches and trade-offs.
-- AI-powered feedback.
-- Difficulty levels.
-- Related challenges.
-
-### Deliverable
-
-A library of realistic engineering exercises that tests practical reasoning rather than memorization alone.
-
----
-
-# PHASE 6 — Progress Tracking and Readiness Assessment
+# PHASE 5 — Progress Tracking and Readiness Assessment
 
 **Goal:** Help users identify their strengths and weaknesses.
 
@@ -291,7 +254,7 @@ A dashboard that helps users understand their current progress and choose what t
 
 ---
 
-# PHASE 7 — Daily Challenges and Retention
+# PHASE 6 — Daily Challenges and Retention
 
 **Goal:** Encourage users to return regularly.
 
@@ -320,7 +283,7 @@ A recurring practice experience that encourages consistent learning.
 
 ---
 
-# PHASE 8 — Job Description-Based Preparation
+# PHASE 7 — Job Description-Based Preparation
 
 **Goal:** Connect interview practice with real job opportunities.
 
@@ -352,7 +315,7 @@ A personalized interview preparation workflow for specific jobs and internships.
 
 ---
 
-# PHASE 9 — Monetization
+# PHASE 8 — Monetization
 
 **Goal:** Test whether users will pay for additional value.
 
@@ -382,30 +345,7 @@ Do not add a paywall before demonstrating that users consistently find the free 
 
 A tested pricing model supported by evidence of user demand and willingness to pay.
 
----
 
-# PHASE 10 — Community and Expert Ecosystem
-
-**Goal:** Improve content quality and create a sustainable learning community.
-
-### Features
-
-1. Expert contributor profiles.
-2. Expert-reviewed solutions.
-3. Community reputation points.
-4. Answer quality ratings.
-5. Verified expert badges.
-6. Community moderation.
-7. Expert-created challenge collections.
-8. Optional paid expert assessments.
-
-Expert verification should be based on a genuine review or verification process.
-
-### Deliverable
-
-A growing community of learners and contributors who improve the quality of the platform over time.
-
----
 
 # 4. Recommended Technology Stack
 

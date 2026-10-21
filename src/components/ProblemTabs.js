@@ -1,11 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 // Tab bar + panes for the left side of the problem workspace.
 // Every pane is rendered on the server and passed in, so switching tabs never refetches anything.
 export default function ProblemTabs({ tabs, initial }) {
   const [active, setActive] = useState(initial ?? tabs[0].id);
+  const ids = tabs.map((t) => t.id).join(',');
+
+  // Lets other components (the answer editor) open a tab: window.dispatchEvent(new CustomEvent('buncho:open-tab', { detail: 'feedback' }))
+  useEffect(() => {
+    const open = (e) => {
+      if (ids.split(',').includes(e.detail)) setActive(e.detail);
+    };
+    window.addEventListener('buncho:open-tab', open);
+    return () => window.removeEventListener('buncho:open-tab', open);
+  }, [ids]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">

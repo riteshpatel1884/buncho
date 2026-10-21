@@ -23,32 +23,39 @@ export async function hasUnlocked(userId, problemId) {
   return Boolean(submission || progress?.solutionRevealed);
 }
 
-/** Published answers by other users, most helpful first. The viewer's own answer is excluded. */
+/**
+ * Published answers, most helpful first. The viewer's own published answer is pinned
+ * to the top of page 1 (marked `own`) so they can see what they shared.
+ */
 export async function getCommunityAnswers({ problemId, viewerId, page = 1 }) {
-  const where = { problemId, status: 'PUBLISHED', userId: { not: viewerId } };
+  const base = { problemId, status: 'PUBLISHED' };
+  const othersWhere = { ...base, userId: { not: viewerId } };
 
-  const [rows, total] = await Promise.all([
+  const select = {
+    id: true,
+    content: true,
+    anonymous: true,
+    createdAt: true,
+    user: { select: { name: true } },
+    _count: { select: { votes: true, comments: true } },
+    votes: { where: { userId: viewerId }, select: { id: true } },
+    bookmarks: { where: { userId: viewerId }, select: { id: true } },
+    reports: { where: { reporterId: viewerId }, select: { id: true } },
+  };
+
+  const [rows, othersTotal, mine] = await Promise.all([
     prisma.communityAnswer.findMany({
-      where,
+      where: othersWhere,
       orderBy: [{ votes: { _count: 'desc' } }, { createdAt: 'desc' }, { id: 'asc' }],
       skip: (page - 1) * COMMUNITY_PAGE_SIZE,
       take: COMMUNITY_PAGE_SIZE,
-      select: {
-        id: true,
-        content: true,
-        anonymous: true,
-        createdAt: true,
-        user: { select: { name: true } },
-        _count: { select: { votes: true, comments: true } },
-        votes: { where: { userId: viewerId }, select: { id: true } },
-        bookmarks: { where: { userId: viewerId }, select: { id: true } },
-        reports: { where: { reporterId: viewerId }, select: { id: true } },
-      },
+      select,
     }),
-    prisma.communityAnswer.count({ where }),
+    prisma.communityAnswer.count({ where: othersWhere }),
+    prisma.communityAnswer.findFirst({ where: { ...base, userId: viewerId }, select }),
   ]);
 
-  const items = rows.map((r) => ({
+  const toItem = (r, own) => ({
     id: r.id,
     content: r.content,
     author: r.anonymous ? 'Anonymous learner' : displayName(r.user.name),
@@ -58,7 +65,16 @@ export async function getCommunityAnswers({ problemId, viewerId, page = 1 }) {
     voted: r.votes.length > 0,
     saved: r.bookmarks.length > 0,
     reported: r.reports.length > 0,
-  }));
+    own,
+  });
 
-  return { items, total, page, totalPages: Math.max(1, Math.ceil(total / COMMUNITY_PAGE_SIZE)) };
+  const items = rows.map((r) => toItem(r, false));
+  if (mine && page === 1) items.unshift(toItem(mine, true));
+
+  return {
+    items,
+    total: othersTotal + (mine ? 1 : 0),
+    page,
+    totalPages: Math.max(1, Math.ceil(othersTotal / COMMUNITY_PAGE_SIZE)),
+  };
 }

@@ -32,3 +32,18 @@ export const REPORT_AUTOHIDE_THRESHOLD = 3;
 export const MAX_COMMENT_LENGTH = 1000;
 export const MAX_REPORT_DETAILS = 500;
 export const COMMUNITY_PAGE_SIZE = 10;
+
+
+/* ---------- Phase 4: AI feedback ---------- */
+
+export const AI_EVAL_LIMIT_PER_HOUR = 10;
+export const AI_EVAL_LIMIT_PER_DAY = 30;
+
+// Max points per rubric dimension. The total is 100.
+export const AI_RUBRIC = { coverage: 40, accuracy: 30, reasoning: 20, clarity: 10 };
+export const AI_RUBRIC_LABEL = {
+  coverage: 'Coverage',
+  accuracy: 'Technical accuracy',
+  reasoning: 'Reasoning depth',
+  clarity: 'Clarity',
+};
