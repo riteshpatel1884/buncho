@@ -10,6 +10,8 @@ import { Recommended, RevisionQueue, WeakTopics } from '@/components/InsightList
 import { StatsCard } from '@/components/StatsCard';
 import { getUserStats } from '@/lib/problems';
 import { getInsights } from '@/lib/insights';
+import { listJobs } from '@/lib/jobs/progress';
+import JobPrepCard from '@/components/jobs/JobPrepCard';
 import { Flame } from '@/components/icons';
 
 export const metadata = { title: 'Dashboard' };
@@ -18,7 +20,7 @@ export default async function DashboardPage() {
   const user = await getOrCreateUser();
   if (!user) redirect('/login');
 
-  const [topics, progress, bookmarks, savedAnswers, stats, insights] = await Promise.all([
+  const [topics, progress, bookmarks, savedAnswers, stats, insights, jobs] = await Promise.all([
     prisma.topic.findMany({
       orderBy: { order: 'asc' },
       include: { _count: { select: { problems: { where: { published: true } } } } },
@@ -52,6 +54,7 @@ export default async function DashboardPage() {
     }),
     getUserStats(user.id),
     getInsights(user.id),
+    listJobs(user.id),
   ]);
 
   const completed = progress.filter((p) => p.status === 'COMPLETED');
@@ -126,6 +129,8 @@ export default async function DashboardPage() {
         {/* Right column */}
         <div className="space-y-4">
           <ReadinessCard readiness={insights.readiness} competencies={insights.competencies} />
+
+          <JobPrepCard jobs={jobs.slice(0, 3)} />
 
           <div className="grid gap-4 xl:grid-cols-2">
             <Recommended items={insights.recommendations} />

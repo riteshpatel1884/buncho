@@ -50,6 +50,12 @@ enum ReportStatus {
   DISMISSED
 }
 
+// Phase 7
+enum MockStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
 /* ---------- Core models (Phase 1-2) ---------- */
 
 model User {
@@ -72,6 +78,9 @@ model User {
   comments         AnswerComment[]
   // Phase 4
   evaluations      Evaluation[]
+  // Phase 7
+  jobTargets       JobTarget[]
+  mockAssessments  MockAssessment[]
 
   @@index([email])
 }
@@ -121,6 +130,8 @@ model Problem {
   communityAnswers CommunityAnswer[]
   // Phase 4
   evaluations      Evaluation[]
+  // Phase 7
+  jobPlanItems     JobPlanItem[]
 
   @@index([topicId, difficulty])
   @@index([published, difficulty])
@@ -293,4 +304,58 @@ model Evaluation {
 
   @@index([submissionId, createdAt])
   @@index([userId, createdAt])
+}
+
+/* ---------- Job description preparation (Phase 7) ---------- */
+
+// A role the user is preparing for. The JD text is private to the user.
+model JobTarget {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  company   String?
+  jdText    String   @db.Text
+  skills    Json // [{ key, label, importance, weight, mentions, evidence[] }]
+  coverage  Json // { [skillKey]: number of matching questions in the bank when the plan was built }
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  planItems JobPlanItem[]
+  mocks     MockAssessment[]
+
+  @@index([userId, createdAt])
+}
+
+// One question in a role's practice plan. Progress is read from ProblemProgress and Evaluation, not stored here.
+model JobPlanItem {
+  id        String    @id @default(cuid())
+  jobId     String
+  job       JobTarget @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  problemId String
+  problem   Problem   @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  skillKeys String[]
+  priority  Int
+  reason    String
+
+  @@unique([jobId, problemId])
+  @@index([jobId, priority])
+}
+
+model MockAssessment {
+  id              String     @id @default(cuid())
+  jobId           String
+  job             JobTarget  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problemIds      String[]
+  durationMinutes Int
+  status          MockStatus @default(IN_PROGRESS)
+  startedAt       DateTime   @default(now())
+  completedAt     DateTime?
+  score           Int?
+  results         Json? // { questions: [{ problemId, title, skillKeys, score|null, state }], partial }
+
+  @@index([jobId, startedAt])
+  @@index([userId, status])
 }

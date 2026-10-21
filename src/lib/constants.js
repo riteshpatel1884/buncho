@@ -73,3 +73,22 @@ export const REVISION_INTERVAL_DAYS = [
   [85, 10],
   [101, 21],
 ];
+
+/* ---------- Phase 7: job description preparation ---------- */
+
+export const JD_MIN_LENGTH = 120;
+export const JD_MAX_LENGTH = 8000;
+export const MAX_JOB_TARGETS = 10;
+export const MIN_SKILLS_REQUIRED = 2; // fewer matched skills means the text is probably not an AI/ML job description
+
+// Practice plan size and how many questions one skill may take
+export const PLAN_SIZE = 16;
+export const PLAN_MAX_PER_SKILL = 5;
+// A question must reach this relevance to count as covering a skill (see lib/jobs/plan.js)
+export const RELEVANCE_THRESHOLD = 3;
+
+// Mock assessment
+export const MOCK_QUESTIONS = 5;
+export const MOCK_MIN_QUESTIONS = 3;
+export const MOCK_MIN_MINUTES = 20;
+export const MOCK_MAX_MINUTES = 60;
