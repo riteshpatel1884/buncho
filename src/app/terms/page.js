@@ -128,7 +128,7 @@ export default function TermsPage() {
       <h2>11. Contact</h2>
       <p>
         Questions about these Terms? Email us at{" "}
-        <a href="mailto:support@buncho.in">support@buncho.in</a>.
+        <a href="mailto:bunchohq@gmail.com">bunchohq@gmail.com</a>.
       </p>
     </LegalPage>
   );

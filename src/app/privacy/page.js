@@ -169,7 +169,7 @@ export default function PrivacyPage() {
       <h2>12. Contact</h2>
       <p>
         Questions or requests? Email{" "}
-        <a href="mailto:support@buncho.in">support@buncho.in</a>.
+        <a href="mailto:bunchohq@gmail.com">bunchohq@gmail.com</a>.
       </p>
     </LegalPage>
   );
