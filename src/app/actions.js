@@ -24,7 +24,7 @@ function refresh(slug) {
   revalidatePath('/dashboard');
 }
 
-/** Saves (or edits) the user's private answer and unlocks the expert solution. */
+/** Saves (or edits) the user's private answer, unlocks the expert solution and marks the problem solved. */
 export async function saveSubmission(problemId, content) {
   const user = await requireUser();
   const problem = await getProblemStub(problemId);
@@ -45,11 +45,11 @@ export async function saveSubmission(problemId, content) {
       update: { content: text },
       create: { userId: user.id, problemId: problem.id, content: text },
     }),
+    // Submitting an answer is what counts as solving a problem. There is no "in progress" state.
     prisma.problemProgress.upsert({
       where: key,
-      // Never downgrade a COMPLETED problem
-      update: { lastActivityAt: new Date() },
-      create: { userId: user.id, problemId: problem.id, status: 'ATTEMPTED' },
+      update: { status: 'COMPLETED', completedAt: new Date(), lastActivityAt: new Date() },
+      create: { userId: user.id, problemId: problem.id, status: 'COMPLETED', completedAt: new Date() },
     }),
   ]);
 
@@ -57,7 +57,11 @@ export async function saveSubmission(problemId, content) {
   return { ok: true };
 }
 
-/** Reveals the expert solution. Allowed after an attempt, or directly when the problem permits it. */
+/**
+ * Reveals the expert solution. Allowed after a submission, or directly when the problem permits it.
+ * A row created here only remembers that the solution was viewed. It is stored as ATTEMPTED, but ATTEMPTED
+ * is never shown to the user (only COMPLETED counts), so viewing a solution does not make a problem "in progress".
+ */
 export async function revealSolution(problemId) {
   const user = await requireUser();
   const problem = await getProblemStub(problemId);
@@ -79,7 +83,7 @@ export async function revealSolution(problemId) {
   return { ok: true };
 }
 
-/** Marks a problem completed (or moves it back to attempted). Requires an unlocked solution. */
+/** Marks a problem solved, or clears the solved mark. Requires a submission or a revealed solution. */
 export async function setCompleted(problemId, completed) {
   const user = await requireUser();
   const problem = await getProblemStub(problemId);

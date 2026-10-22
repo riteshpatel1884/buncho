@@ -4,6 +4,37 @@ import HeroDemo from '@/components/HeroDemo';
 import Logo from '@/components/Logo';
 import { Check, ChevronRight, Flame, Flask, Mic, Tag, Users } from '@/components/icons';
 import { getTopics } from '@/lib/problems';
+import JsonLd from '@/components/JsonLd';
+import { SITE_NAME, SITE_TAGLINE, SITE_DESCRIPTION, buildMetadata, graph, organizationJsonLd, websiteJsonLd } from '@/lib/seo';
+
+export const metadata = buildMetadata({
+  absoluteTitle: `${SITE_NAME}: ${SITE_TAGLINE}`,
+  description: SITE_DESCRIPTION,
+  path: '/',
+});
+
+const FAQ = [
+  {
+    q: 'What is Buncho?',
+    a: 'Buncho is an interview practice platform for AI, machine learning and generative AI engineers. You answer real interview questions by speaking or typing, then compare your answer with a reference solution and AI feedback.',
+  },
+  {
+    q: 'Which topics and question types are covered?',
+    a: 'Topics include machine learning fundamentals, deep learning, generative AI and LLMs, RAG and vector databases, Python for AI and ML, and production AI engineering. Questions range from conceptual and practical exercises to debugging, system design and case studies.',
+  },
+  {
+    q: 'Can I answer out loud instead of typing?',
+    a: 'Yes. Use the microphone to dictate your answer, or type it. Explaining a long scenario out loud is closer to a real interview.',
+  },
+  {
+    q: 'How does the AI feedback work?',
+    a: 'After you submit an answer, it is scored against a rubric covering coverage, technical accuracy, reasoning depth and clarity. The reference solution unlocks at the same time so you can compare approaches.',
+  },
+  {
+    q: 'Is Buncho free?',
+    a: 'You can start practicing for free. Create a free account to save answers, track your streak and progress, and read community answers.',
+  },
+];
 
 const STEPS = [
   { n: '01', title: 'Pick a problem', body: 'Browse by topic, difficulty or type from the problem list, or search for a concept.', time: 'About 1 min' },
@@ -49,8 +80,15 @@ export default async function LandingPage() {
   }
   const totalProblems = topics.reduce((sum, t) => sum + t._count.problems, 0);
 
+  const faqJsonLd = {
+    '@type': 'FAQPage',
+    mainEntity: FAQ.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+  };
+
   return (
     <>
+      <JsonLd data={graph(organizationJsonLd(), websiteJsonLd(), faqJsonLd)} />
+
       {/* Hero */}
       <section className="mx-auto grid w-full max-w-[96rem] items-center gap-10 px-4 py-12 lg:grid-cols-[1fr_1.15fr] lg:gap-14 lg:py-20">
         <div>
@@ -262,6 +300,27 @@ export default async function LandingPage() {
           </ul>
         </section>
       )}
+
+      {/* FAQ */}
+      <section className="mx-auto w-full max-w-[96rem] px-4 pb-20" aria-labelledby="faq">
+        <SectionHeader
+          eyebrow="FAQ"
+          title={<span id="faq">Questions about AI interview practice</span>}
+        />
+        <div className="mt-8 max-w-3xl divide-y divide-line border-y border-line">
+          {FAQ.map((f) => (
+            <details key={f.q} className="group py-4">
+              <summary className="cursor-pointer list-none font-semibold marker:hidden [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center justify-between gap-4">
+                  {f.q}
+                  <ChevronRight width={16} height={16} className="shrink-0 text-muted transition-transform duration-200 group-open:rotate-90" />
+                </span>
+              </summary>
+              <p className="mt-3 text-sm leading-relaxed text-muted">{f.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
 
       {/* CTA */}
       <section className="mx-auto w-full max-w-[96rem] px-4 pb-20 pt-4">

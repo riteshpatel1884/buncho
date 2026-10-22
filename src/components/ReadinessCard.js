@@ -56,7 +56,7 @@ export default function ReadinessCard({ readiness, competencies }) {
           <p className="mt-2 max-w-md text-sm leading-relaxed text-muted">
             {score === null
               ? 'Answer a question and get AI feedback to start building your score.'
-              : `Based on ${evaluatedProblems} AI-evaluated ${evaluatedProblems === 1 ? 'answer' : 'answers'} across ${assessed} of ${totalCompetencies} competencies.`}
+              : `Based on ${evaluatedProblems} AI-evaluated ${evaluatedProblems === 1 ? 'answer' : 'answers'} across ${assessed} of ${totalCompetencies} topics.`}
           </p>
         </div>
       </div>
@@ -88,11 +88,11 @@ export default function ReadinessCard({ readiness, competencies }) {
       <details className="mt-8 border-t border-line pt-5 text-sm">
         <summary className="cursor-pointer font-semibold">How is this calculated?</summary>
         <ul className="mt-3 list-disc space-y-1.5 pl-5 text-muted">
-          <li>Each competency score is the average AI feedback score of your latest answers in its topics.</li>
-          <li>It is scaled down until you have answered at least 3 questions in that competency, so one lucky answer does not count in full.</li>
+          <li>Each topic score is the average AI feedback score of your latest answers in that topic.</li>
+          <li>It is scaled down until you have answered at least 3 questions in that topic, so one lucky answer does not count in full.</li>
           <li>
-            The readiness score is the weighted average of the competencies (
-            {competencies.map((c) => `${c.name} ${c.weight}%`).join(', ')}). Competencies you haven&rsquo;t answered count as 0.
+            The readiness score is the weighted average of the topic scores (
+            {competencies.map((c) => `${c.name} ${c.weight}%`).join(', ')}). Topics you haven&rsquo;t answered count as 0.
           </li>
           <li>It is an early estimate until you have several answers evaluated. It is a practice indicator, not a prediction or guarantee of interview results.</li>
         </ul>

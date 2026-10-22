@@ -1,24 +1,76 @@
 import { Suspense } from 'react';
 import { ClerkProvider } from '@clerk/nextjs';
 import { Inter, JetBrains_Mono } from 'next/font/google';
-import 'katex/dist/katex.min.css';
 import './globals.css';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import RouteProgress from '@/components/RouteProgress';
 import { clerkAppearance } from '@/lib/clerk-appearance';
+import { SITE_NAME, SITE_TAGLINE, SITE_DESCRIPTION, SITE_URL, X_HANDLE, DEFAULT_OG_IMAGE } from '@/lib/seo';
 
 const display = Inter({ subsets: ['latin'], variable: '--f-display', display: 'swap' });
 const body = Inter({ subsets: ['latin'], variable: '--f-body', display: 'swap' });
 const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--f-mono', display: 'swap' });
 
+const HOME_TITLE = `${SITE_NAME}: ${SITE_TAGLINE}`;
+
 export const metadata = {
+  metadataBase: new URL(SITE_URL),
+  applicationName: SITE_NAME,
   title: {
-    default: 'Buncho: AI engineering interview practice',
-    template: '%s | Buncho',
+    default: HOME_TITLE,
+    template: `%s | ${SITE_NAME}`,
   },
-  description:
-    'Practice AI, ML and GenAI engineer interview questions. Write or speak your answer, then compare it with a reference solution.',
+  description: SITE_DESCRIPTION,
+  keywords: [
+    'AI interview questions',
+    'machine learning interview questions',
+    'generative AI interview questions',
+    'LLM interview questions',
+    'RAG interview questions',
+    'AI engineer interview preparation',
+    'ML engineer interview practice',
+    'mock interview AI feedback',
+  ],
+  authors: [{ name: SITE_NAME }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  category: 'education',
+  // Pages that define their own openGraph/twitter replace these, so each page sets its own url and image.
+  openGraph: {
+    type: 'website',
+    siteName: SITE_NAME,
+    locale: 'en_US',
+    title: HOME_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [{ url: DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: HOME_TITLE }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: HOME_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [DEFAULT_OG_IMAGE],
+    ...(X_HANDLE && { site: X_HANDLE, creator: X_HANDLE }),
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1 },
+  },
+  // Set these in your environment after adding the site in Search Console / Bing Webmaster Tools.
+  verification: {
+    ...(process.env.GOOGLE_SITE_VERIFICATION && { google: process.env.GOOGLE_SITE_VERIFICATION }),
+    ...(process.env.BING_SITE_VERIFICATION && { other: { 'msvalidate.01': process.env.BING_SITE_VERIFICATION } }),
+  },
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f0f0f0' },
+    { media: '(prefers-color-scheme: dark)', color: '#1a1a1a' },
+  ],
 };
 
 // Runs before first paint so the page never flashes the wrong theme.

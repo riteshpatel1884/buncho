@@ -61,11 +61,11 @@ export function getTopics() {
   });
 }
 
-/** Map of problemId -> status for one user. */
+/** Map of problemId -> 'COMPLETED' for the problems this user has solved (submitted an answer for). */
 export async function getProgressMap(userId, problemIds) {
   if (!problemIds.length) return {};
   const rows = await prisma.problemProgress.findMany({
-    where: { userId, problemId: { in: problemIds } },
+    where: { userId, status: 'COMPLETED', problemId: { in: problemIds } },
     select: { problemId: true, status: true },
   });
   return Object.fromEntries(rows.map((r) => [r.problemId, r.status]));
@@ -111,7 +111,7 @@ export async function getUserStats(userId) {
           select: {
             status: true,
             lastActivityAt: true,
-            problem: { select: { slug: true, title: true, difficulty: true, published: true } },
+            problem: { select: { difficulty: true, published: true } },
           },
         })
       : [],
@@ -123,18 +123,12 @@ export async function getUserStats(userId) {
   });
 
   let solved = 0;
-  let attempted = 0;
-  let last = null;
   const activeDays = {};
 
   rows.forEach((r) => {
     if (r.status === 'COMPLETED' && r.problem.published) {
       solved += 1;
       if (byDifficulty[r.problem.difficulty]) byDifficulty[r.problem.difficulty].solved += 1;
-    }
-    if (r.status === 'ATTEMPTED') {
-      attempted += 1;
-      if (!last && r.problem.published) last = r.problem;
     }
     if (r.lastActivityAt) {
       const k = dayKey(r.lastActivityAt);
@@ -152,10 +146,8 @@ export async function getUserStats(userId) {
   }
 
   const total = Object.values(byDifficulty).reduce((s, d) => s + d.total, 0);
-  return { total, solved, attempted, byDifficulty, activeDays, streak, last };
+  return { total, solved, byDifficulty, activeDays, streak };
 }
-
-
 
 /**
  * Next unsolved problems after the current one (wrapping around), for the Problem List popup.
@@ -178,7 +170,6 @@ export async function getUpNext({ userId, currentSlug, limit = 20 }) {
       slug: p.slug,
       title: p.title,
       difficulty: p.difficulty,
-      attempted: status[p.id] === 'ATTEMPTED',
     })),
     remaining: unsolved.length,
   };

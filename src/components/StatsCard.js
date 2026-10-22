@@ -64,7 +64,9 @@ export function StatsCard({ stats, signedIn, roomy = false }) {
         </ul>
       </div>
       {signedIn ? (
-        <p className={`text-muted ${roomy ? 'mt-5 border-t border-line pt-4 text-sm' : 'mt-3 text-xs'}`}>{stats.attempted} in progress</p>
+        <p className={`text-muted ${roomy ? 'mt-5 border-t border-line pt-4 text-sm' : 'mt-3 text-xs'}`}>
+          {Math.max(0, stats.total - stats.solved)} left to solve
+        </p>
       ) : (
         <Link href="/register" className="mt-4 block rounded-md bg-accent px-3 py-2 text-center text-sm font-semibold text-accent-ink hover:opacity-90">
           Sign up to track your progress

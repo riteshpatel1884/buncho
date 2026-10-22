@@ -158,7 +158,7 @@ export async function startMock(jobId) {
   return { ok: true, id: mock.id };
 }
 
-/** Saves the mock answers as the user's submissions. Feedback is requested afterwards, one question at a time. */
+/** Saves the mock answers as the user's submissions (each answered question counts as solved). Feedback is requested afterwards, one question at a time. */
 export async function submitMock(mockId, answers) {
   const user = await requireUser();
   const mock = await prisma.mockAssessment.findFirst({ where: { id: String(mockId), userId: user.id }, select: { id: true, status: true, problemIds: true } });
@@ -174,8 +174,8 @@ export async function submitMock(mockId, answers) {
       prisma.submission.upsert({ where: key, update: { content: text }, create: { userId: user.id, problemId, content: text } }),
       prisma.problemProgress.upsert({
         where: key,
-        update: { lastActivityAt: new Date() }, // never downgrades a completed problem
-        create: { userId: user.id, problemId, status: 'ATTEMPTED' },
+        update: { status: 'COMPLETED', completedAt: new Date(), lastActivityAt: new Date() },
+        create: { userId: user.id, problemId, status: 'COMPLETED', completedAt: new Date() },
       }),
     ]);
     saved.push(problemId);

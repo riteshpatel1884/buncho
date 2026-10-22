@@ -25,7 +25,7 @@ export async function getJobDetail(userId, jobId) {
   const ids = items.map((i) => i.problemId);
 
   const [progress, evals] = await Promise.all([
-    ids.length ? prisma.problemProgress.findMany({ where: { userId, problemId: { in: ids } }, select: { problemId: true, status: true } }) : [],
+    ids.length ? prisma.problemProgress.findMany({ where: { userId, status: 'COMPLETED', problemId: { in: ids } }, select: { problemId: true, status: true } }) : [],
     ids.length
       ? prisma.evaluation.findMany({ where: { userId, problemId: { in: ids } }, orderBy: { createdAt: 'desc' }, select: { problemId: true, score: true, createdAt: true } })
       : [],

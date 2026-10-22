@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { getOrCreateUser } from '@/lib/user';
 import { getCommunityAnswers } from '@/lib/community';
 import { hashContent } from '@/lib/ai/evaluate';
-import { TYPE_LABEL } from '@/lib/constants';
+import { DIFFICULTY_LABEL, TYPE_LABEL } from '@/lib/constants';
 import Markdown from '@/components/Markdown';
 import Hints from '@/components/Hints';
 import DifficultyBadge from '@/components/DifficultyBadge';
@@ -20,12 +20,32 @@ import ProblemTabs from '@/components/ProblemTabs';
 import Workspace from '@/components/Workspace';
 import Timer from '@/components/Timer';
 import { getProblemNeighbors, getUpNext } from '@/lib/problems';
+import JsonLd from '@/components/JsonLd';
+import { buildMetadata, breadcrumbJsonLd, fitTitle, graph, plainText, problemJsonLd, truncate } from '@/lib/seo';
+
 import { ChevronLeft, ChevronRight, Code, FileText, Flask, Lock, Users } from '@/components/icons';
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
-  const p = await prisma.problem.findFirst({ where: { slug, published: true }, select: { title: true } });
-  return { title: p?.title ?? 'Problem' };
+  const p = await prisma.problem.findFirst({
+    where: { slug, published: true },
+    select: { title: true, description: true, difficulty: true, isChallenge: true, estimatedMinutes: true, topic: { select: { name: true } } },
+  });
+  if (!p) return { title: 'Problem not found', robots: { index: false, follow: false } };
+
+  const kind = p.isChallenge ? 'production challenge' : `${p.topic.name} interview question`;
+  const tail = ` Practice this ${DIFFICULTY_LABEL[p.difficulty].toLowerCase()} ${kind} with AI feedback.`;
+  const body = plainText(p.description);
+  const description = truncate(body, Math.max(60, 158 - tail.length)).replace(/([^.!?\u2026])$/, '$1.') + tail;
+
+  return buildMetadata({
+    title: fitTitle(p.title, p.isChallenge ? 'Production challenge' : `${p.topic.name} interview question`),
+    description,
+    path: `/problems/${slug}`,
+    image: `/problems/${slug}/opengraph-image`,
+    imageAlt: `${p.title} | Buncho`,
+    type: 'article',
+  });
 }
 
 const asArray = (v) => (Array.isArray(v) ? v : []);
@@ -307,8 +327,19 @@ export default async function ProblemPage({ params, searchParams }) {
   const arrow = 'grid h-8 w-8 place-items-center rounded-md text-ink transition-colors hover:bg-surface';
   const arrowOff = 'grid h-8 w-8 place-items-center rounded-md text-muted opacity-40';
 
+  const jsonLd = graph(
+    breadcrumbJsonLd([
+      { name: 'Home', path: '/' },
+      { name: 'Problems', path: '/problems' },
+      { name: problem.topic.name, path: `/topics/${problem.topic.slug}` },
+      { name: problem.title, path: `/problems/${slug}` },
+    ]),
+    problemJsonLd(problem),
+  );
+
   return (
     <div data-workspace className="flex flex-col bg-canvas px-2 pb-2 lg:h-[calc(100dvh-3.5rem)]">
+      <JsonLd data={jsonLd} />
       {/* Top bar: problem list popup, previous / next, timer */}
       <div className="flex h-12 shrink-0 items-center justify-between gap-2">
         <div className="flex items-center gap-1">

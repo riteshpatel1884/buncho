@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import DifficultyBadge from './DifficultyBadge';
 import { Flame } from './icons';
 
 const ROWS = [
@@ -83,7 +82,7 @@ export function ProgressCard({ stats, signedIn }) {
 
       {signedIn ? (
         <p className="mt-5 flex items-center gap-2 text-xs text-muted">
-          <span className="h-2 w-2 rounded-full bg-accent" /> {stats.attempted} in progress
+          <span className="h-2 w-2 rounded-full bg-accent" /> {Math.max(0, stats.total - stats.solved)} left to solve
         </p>
       ) : (
         <Link
@@ -119,12 +118,14 @@ export function NextUpCard({ stats, signedIn }) {
     );
   }
 
+  const started = stats.solved > 0;
+
   return (
-    <section aria-label="Continue" className={card}>
+    <section aria-label="Next problem" className={card}>
       <div>
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs font-semibold uppercase tracking-widest text-accent">
-            {stats.last ? 'Pick up where you left off' : 'Start practising'}
+            {started ? 'Keep going' : 'Start practising'}
           </p>
           {stats.streak > 0 && (
             <span className="inline-flex items-center gap-1 text-xs font-semibold text-medium">
@@ -133,29 +134,18 @@ export function NextUpCard({ stats, signedIn }) {
           )}
         </div>
 
-        {stats.last ? (
-          <>
-            <Link href={`/problems/${stats.last.slug}`} className="mt-2 block text-lg font-semibold leading-snug hover:text-accent">
-              {stats.last.title}
-            </Link>
-            <div className="mt-2">
-              <DifficultyBadge difficulty={stats.last.difficulty} />
-            </div>
-          </>
-        ) : (
-          <>
-            <h2 className="mt-2 text-lg font-semibold leading-snug">Try your first problem</h2>
-            <p className="mt-1 text-sm text-muted">Short Easy questions are a good warm-up, and you can dictate your answer.</p>
-          </>
-        )}
+        <h2 className="mt-2 text-lg font-semibold leading-snug">{started ? 'Pick your next problem' : 'Try your first problem'}</h2>
+        <p className="mt-1 text-sm text-muted">
+          {started
+            ? 'Submit an answer to get AI feedback and mark the problem solved.'
+            : 'Short Easy questions are a good warm-up, and you can dictate your answer.'}
+        </p>
       </div>
 
       <div className="mt-5">
-        {stats.last ? (
-          <Link href={`/problems/${stats.last.slug}`} className={primary}>Continue</Link>
-        ) : (
-          <Link href="/problems?difficulty=EASY" className={primary}>Browse Easy problems</Link>
-        )}
+        <Link href={started ? '/problems' : '/problems?difficulty=EASY'} className={primary}>
+          {started ? 'Browse problems' : 'Browse Easy problems'}
+        </Link>
       </div>
     </section>
   );

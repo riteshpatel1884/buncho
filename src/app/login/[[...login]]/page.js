@@ -1,6 +1,11 @@
 import { SignIn } from '@clerk/nextjs';
 
-export const metadata = { title: 'Log in' };
+// Auth screens have no search value; keep them out of the index but let crawlers follow links.
+export const metadata = {
+  title: 'Log in',
+  description: 'Log in to Buncho to save your answers, track your streak and unlock AI feedback.',
+  robots: { index: false, follow: true, googleBot: { index: false, follow: true } },
+};
 
 export default function LoginPage() {
   return (

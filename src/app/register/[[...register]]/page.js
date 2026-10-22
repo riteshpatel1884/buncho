@@ -1,6 +1,11 @@
 import { SignUp } from '@clerk/nextjs';
 
-export const metadata = { title: 'Create account' };
+// Auth screens have no search value; keep them out of the index but let crawlers follow links.
+export const metadata = {
+  title: 'Create account',
+  description: 'Create a free Buncho account to practice AI, ML and GenAI interview questions and get AI feedback.',
+  robots: { index: false, follow: true, googleBot: { index: false, follow: true } },
+};
 
 export default function RegisterPage() {
   return (

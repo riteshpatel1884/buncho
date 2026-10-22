@@ -68,7 +68,7 @@ export async function getInsights(userId) {
       weight: weightOfTopic(s.topic.slug),
     }));
 
-  /* ---- Competencies and readiness ---- */
+  /* ---- Topic scores and readiness (each competency is one topic) ---- */
   const bySlug = new Map(topicRows.map((t) => [t.slug, { ...t, sum: topicStats.get(t.id).sum }]));
   const competencies = COMPETENCIES.map((c) => {
     let total = 0;
@@ -93,11 +93,11 @@ export async function getInsights(userId) {
       // Average of the latest scores, scaled down until enough answers back it up
       score: evaluated ? Math.round((sum / evaluated) * Math.min(1, evaluated / need)) : null,
     };
-  });
+  }).filter((c) => c.total > 0); // a topic without published questions can't be answered, so it is not scored
 
   const evaluatedProblems = topicRows.reduce((a, t) => a + t.evaluated, 0);
   const weightSum = competencies.reduce((a, c) => a + c.weight, 0);
-  // Competencies with no evaluated answers count as 0, so gaps lower the score
+  // Topics with no evaluated answers count as 0, so gaps lower the score
   const score = evaluatedProblems
     ? Math.round(competencies.reduce((a, c) => a + c.weight * (c.score ?? 0), 0) / weightSum)
     : null;

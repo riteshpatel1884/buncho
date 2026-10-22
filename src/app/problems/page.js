@@ -6,8 +6,25 @@ import { NextUpCard, ProgressCard } from '@/components/ProblemStats';
 import { getProblems, getProgressMap, getTopics, getUserStats, parseFilters } from '@/lib/problems';
 import { getOrCreateUser } from '@/lib/user';
 import { Bookmark } from '@/components/icons';
+import JsonLd from '@/components/JsonLd';
+import { buildMetadata, collectionPageJsonLd, breadcrumbJsonLd, graph, hasActiveFilters } from '@/lib/seo';
 
-export const metadata = { title: 'Problems' };
+const DESCRIPTION =
+  'Curated AI, ML and GenAI interview questions on LLMs, RAG, deep learning, MLOps and system design. Answer in your own words, then get AI feedback and a reference solution.';
+
+export async function generateMetadata({ searchParams }) {
+  const filters = parseFilters(await searchParams);
+  if (hasActiveFilters(filters)) {
+    // Search and filter combinations are thin duplicates of the main list
+    return buildMetadata({ title: 'AI & ML Interview Questions', description: DESCRIPTION, path: '/problems', noindex: true });
+  }
+  const page = filters.page;
+  return buildMetadata({
+    title: page > 1 ? `AI, ML & GenAI Interview Questions (Page ${page})` : 'AI, ML & GenAI Interview Questions',
+    description: DESCRIPTION,
+    path: page > 1 ? `/problems?page=${page}` : '/problems',
+  });
+}
 
 export default async function ProblemsPage({ searchParams }) {
   const filters = parseFilters(await searchParams);
@@ -18,12 +35,24 @@ export default async function ProblemsPage({ searchParams }) {
   const { page, ...rest } = filters;
   const params = Object.fromEntries(Object.entries(rest).filter(([, v]) => v));
 
+  const jsonLd = graph(
+    breadcrumbJsonLd([{ name: 'Home', path: '/' }, { name: 'Problems', path: '/problems' }]),
+    collectionPageJsonLd({
+      name: 'AI, ML and GenAI interview questions',
+      description: DESCRIPTION,
+      path: '/problems',
+      problems: result.items,
+      startAt: (result.page - 1) * result.items.length + 1,
+    }),
+  );
+
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pb-16 pt-8 sm:px-6">
+      <JsonLd data={jsonLd} />
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-accent">Practice library</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">Problems</h1>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">AI, ML and GenAI interview questions</h1>
           <p className="mt-2 max-w-xl text-sm text-muted">
             Curated AI, ML and GenAI interview questions. Answer in your own words, then get instant AI feedback.
           </p>

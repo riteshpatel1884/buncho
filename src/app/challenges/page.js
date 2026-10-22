@@ -3,8 +3,23 @@ import ProblemFilters from '@/components/ProblemFilters';
 import ProblemList from '@/components/ProblemList';
 import { getProblems, getProgressMap, getTopics, parseFilters } from '@/lib/problems';
 import { getOrCreateUser } from '@/lib/user';
+import JsonLd from '@/components/JsonLd';
+import { buildMetadata, collectionPageJsonLd, breadcrumbJsonLd, graph, hasActiveFilters } from '@/lib/seo';
 
-export const metadata = { title: 'Production challenges' };
+const DESCRIPTION =
+  'Realistic production AI incidents with logs and data. Diagnose the failure, explain your decisions step by step and get feedback checked against a rubric.';
+
+export async function generateMetadata({ searchParams }) {
+  const filters = parseFilters(await searchParams);
+  if (hasActiveFilters(filters)) {
+    return buildMetadata({ title: 'Production AI Engineering Challenges', description: DESCRIPTION, path: '/challenges', noindex: true });
+  }
+  return buildMetadata({
+    title: filters.page > 1 ? `Production AI Engineering Challenges (Page ${filters.page})` : 'Production AI Engineering Challenges',
+    description: DESCRIPTION,
+    path: filters.page > 1 ? `/challenges?page=${filters.page}` : '/challenges',
+  });
+}
 
 export default async function ChallengesPage({ searchParams }) {
   const filters = { ...parseFilters(await searchParams), challenge: true };
@@ -15,11 +30,23 @@ export default async function ChallengesPage({ searchParams }) {
   const { page, challenge, ...rest } = filters;
   const params = Object.fromEntries(Object.entries(rest).filter(([, v]) => v));
 
+  const jsonLd = graph(
+    breadcrumbJsonLd([{ name: 'Home', path: '/' }, { name: 'Challenges', path: '/challenges' }]),
+    collectionPageJsonLd({
+      name: 'Production AI engineering challenges',
+      description: DESCRIPTION,
+      path: '/challenges',
+      problems: result.items,
+      startAt: (result.page - 1) * result.items.length + 1,
+    }),
+  );
+
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pb-16 pt-8 sm:px-6">
+      <JsonLd data={jsonLd} />
       <header>
         <p className="text-xs font-semibold uppercase tracking-widest text-accent">Production AI engineering</p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">Challenges</h1>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">Production AI engineering challenges</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted">
           Realistic incidents with logs and data. Diagnose the failure, explain your decisions step by step, and get feedback
           checked against a rubric. These test practical reasoning, not memorisation.

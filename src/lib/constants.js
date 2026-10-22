@@ -50,17 +50,22 @@ export const AI_RUBRIC_LABEL = {
 
 /* ---------- Phase 6: readiness ---------- */
 
-// Competencies group topics. Weights add up to 100 and favour LLM and RAG work for AI/GenAI engineer roles.
+// One entry per topic, in the order shown on the dashboard. Weights add up to 100 and favour LLM and RAG work
+// for AI/GenAI engineer roles. A topic with no published questions is left out of the score until it has some.
 export const COMPETENCIES = [
-  { key: 'ml', name: 'ML Fundamentals', weight: 15, topics: ['ml-fundamentals', 'statistics-and-mathematics', 'python-for-ai-ml'] },
+  { key: 'ml', name: 'Machine Learning Fundamentals', weight: 8, topics: ['ml-fundamentals'] },
   { key: 'dl', name: 'Deep Learning', weight: 10, topics: ['deep-learning'] },
-  { key: 'llm', name: 'LLM Engineering', weight: 25, topics: ['generative-ai-and-llms', 'ai-agents-and-tool-calling'] },
-  { key: 'rag', name: 'RAG Systems', weight: 20, topics: ['rag-and-vector-databases'] },
-  { key: 'design', name: 'AI System Design', weight: 15, topics: ['ml-system-design', 'ai-engineering-case-studies'] },
-  { key: 'prod', name: 'Production Debugging', weight: 15, topics: ['production-ai-engineering'] },
+  { key: 'python', name: 'Python for AI/ML', weight: 4, topics: ['python-for-ai-ml'] },
+  { key: 'stats', name: 'Statistics and Mathematics', weight: 3, topics: ['statistics-and-mathematics'] },
+  { key: 'genai', name: 'Generative AI and LLMs', weight: 15, topics: ['generative-ai-and-llms'] },
+  { key: 'rag', name: 'RAG and Vector Databases', weight: 20, topics: ['rag-and-vector-databases'] },
+  { key: 'agents', name: 'AI Agents and Tool Calling', weight: 10, topics: ['ai-agents-and-tool-calling'] },
+  { key: 'design', name: 'ML System Design', weight: 8, topics: ['ml-system-design'] },
+  { key: 'prod', name: 'Production AI Engineering', weight: 15, topics: ['production-ai-engineering'] },
+  { key: 'cases', name: 'AI Engineering Case Studies', weight: 7, topics: ['ai-engineering-case-studies'] },
 ];
 
-// A competency counts in full once you have this many AI-evaluated answers in it (fewer = scaled down)
+// A topic counts in full once you have this many AI-evaluated answers in it (fewer = scaled down)
 export const READINESS_FULL_CONFIDENCE = 3;
 // Below this many evaluated answers overall, the score is labelled an early estimate
 export const READINESS_PROVISIONAL_BELOW = 8;
