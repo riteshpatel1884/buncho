@@ -8,6 +8,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import RouteProgress from '@/components/RouteProgress';
 import { clerkAppearance } from '@/lib/clerk-appearance';
+import { GoogleAnalytics } from '@next/third-parties/google'
 import {
   SITE_NAME,
   SITE_TAGLINE,
@@ -157,6 +158,8 @@ export default function RootLayout({ children }) {
 
           {/* Real-user performance monitoring */}
           <SpeedInsights />
+
+          <GoogleAnalytics gaId="G-F8NQXVD35Z" />
         </body>
       </html>
     </ClerkProvider>
