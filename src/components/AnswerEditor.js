@@ -1,56 +1,147 @@
 'use client';
 
-import { useCallback, useRef, useState, useTransition } from 'react';
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { saveSubmission } from '@/app/actions';
 import { requestFeedback } from '@/lib/ai-client';
 import { composeSteps, parseSteps } from '@/lib/steps';
+import {
+  CODE_LANGUAGES,
+  DEFAULT_LANGUAGE,
+  LANGUAGE_KEY,
+  commentPrefix,
+  isLanguage,
+  unwrapCode,
+  wrapCode,
+} from '@/lib/code-answer';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { MAX_ANSWER_LENGTH } from '@/lib/constants';
 import { Mic, Stop } from './icons';
+import Spinner from './Spinner';
+import { Skeleton } from './Skeletons';
 
-const LANGUAGES = [
+// The editor is browser-only, so it loads on demand with a placeholder
+const CodeEditor = dynamic(() => import('./CodeEditor'), {
+  ssr: false,
+  loading: () => (
+    <div className="space-y-2 px-4 py-4" role="status">
+      <Skeleton className="h-4 w-2/3" />
+      <Skeleton className="h-4 w-1/2" />
+      <Skeleton className="h-4 w-3/4" />
+      <span className="sr-only">Loading editor…</span>
+    </div>
+  ),
+});
+
+const VOICE_LANGUAGES = [
   { code: 'en-IN', label: 'English (India)' },
   { code: 'en-US', label: 'English (US)' },
   { code: 'en-GB', label: 'English (UK)' },
   { code: 'hi-IN', label: 'Hindi' },
 ];
 
+const PLACEHOLDER = {
+  python: '# Write your code here or explain your approach…',
+  javascript: '// Write your code here or explain your approach…',
+  sql: '-- Write your code here or explain your approach…',
+  markdown: 'explain your approach here…',
+};
+
+const HINT = {
+  python: 'Write code and explain your reasoning in # comments or """docstrings""". Dictated text is added as a # comment.',
+  javascript: 'Write code and explain your reasoning in // comments. Dictated text is added as a // comment.',
+  sql: 'Write your query and explain your reasoning in -- comments. Dictated text is added as a -- comment.',
+  markdown: 'Write your explanation as text. Wrap code in ```python fenced blocks to get syntax colours.',
+};
+
+// Works out the language and editor text from a saved answer
+function buildInitial(content, stepList) {
+  if (stepList) {
+    const raw = parseSteps(content, stepList);
+    const unwrapped = raw.map(unwrapCode);
+    const first = unwrapped.find(Boolean);
+    const hasText = raw.some((p) => p.trim());
+    return {
+      lang: first ? first.lang : hasText ? 'markdown' : DEFAULT_LANGUAGE,
+      text: '',
+      parts: raw.map((p, i) => (unwrapped[i] ? unwrapped[i].code : p)),
+      hasContent: hasText,
+    };
+  }
+  const text = String(content ?? '');
+  const unwrapped = unwrapCode(text);
+  if (unwrapped) return { lang: unwrapped.lang, text: unwrapped.code, parts: [], hasContent: true };
+  // Answers saved before the code editor existed are plain text, so they open as Text / Markdown
+  return { lang: text.trim() ? 'markdown' : DEFAULT_LANGUAGE, text, parts: [], hasContent: Boolean(text.trim()) };
+}
+
 export default function AnswerEditor({ problemId, initialContent = '', hasSubmission = false, steps = null }) {
   const router = useRouter();
   const stepList = Array.isArray(steps) && steps.length ? steps : null;
 
-  const [text, setText] = useState(initialContent); // single-box mode
-  const [parts, setParts] = useState(() => (stepList ? parseSteps(initialContent, stepList) : [])); // step mode
-  const [savedText, setSavedText] = useState(() =>
-    stepList ? composeSteps(parseSteps(initialContent, stepList), stepList) : initialContent,
+  const [init] = useState(() => buildInitial(initialContent, stepList));
+  const [codeLang, setCodeLang] = useState(init.lang);
+  const [text, setText] = useState(init.text); // single-editor mode
+  const [parts, setParts] = useState(init.parts); // step mode
+
+  const compose = useCallback(
+    (lang, t, p) => (stepList ? composeSteps(p.map((x) => wrapCode(x, lang)), stepList) : wrapCode(t, lang)),
+    [stepList],
   );
+
+  const [savedText, setSavedText] = useState(() => compose(init.lang, init.text, init.parts));
   const [active, setActive] = useState(0); // step that receives dictated text
   const activeRef = useRef(0);
+  const langRef = useRef(codeLang);
+  langRef.current = codeLang;
   const [everSaved, setEverSaved] = useState(hasSubmission);
-  const [lang, setLang] = useState('en-IN');
+  const [voiceLang, setVoiceLang] = useState('en-IN');
   const [message, setMessage] = useState(null);
   const [evaluating, setEvaluating] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  const content = stepList ? composeSteps(parts, stepList) : text;
+  // A fresh answer starts in the language the learner used last time
+  useEffect(() => {
+    if (init.hasContent) return;
+    try {
+      const stored = localStorage.getItem(LANGUAGE_KEY);
+      if (stored && isLanguage(stored)) setCodeLang(stored);
+    } catch {}
+  }, [init.hasContent]);
 
-  // Keeps the combined answer under the limit by trimming the step being edited
+  function changeLanguage(next) {
+    setCodeLang(next);
+    try {
+      localStorage.setItem(LANGUAGE_KEY, next);
+    } catch {}
+  }
+
+  const content = compose(codeLang, text, parts);
+
+  // Trims the text being edited so the stored answer (including code fences) stays under the limit
+  const limitText = useCallback((value, lang) => {
+    const over = wrapCode(value, lang).length - MAX_ANSWER_LENGTH;
+    return over > 0 ? value.slice(0, Math.max(0, value.length - over)) : value;
+  }, []);
+
   const fit = useCallback(
     (next, i) => {
-      const over = composeSteps(next, stepList).length - MAX_ANSWER_LENGTH;
+      const over = compose(langRef.current, '', next).length - MAX_ANSWER_LENGTH;
       if (over > 0) next[i] = next[i].slice(0, Math.max(0, next[i].length - over));
       return next;
     },
-    [stepList],
+    [compose],
   );
 
-  // Dictated phrases are appended to the end of the answer (or of the focused step)
+  // Dictated phrases go to the end of the answer (or of the focused step), as a comment in code languages
   const appendSpeech = useCallback(
     (chunk) => {
+      const prefix = commentPrefix(langRef.current);
       const join = (prev) => {
         const base = prev.replace(/\s+$/, '');
-        return base ? `${base} ${chunk}` : chunk;
+        if (!prefix) return base ? `${base} ${chunk}` : chunk;
+        return `${base ? `${base}\n` : ''}${prefix}${chunk}`;
       };
       if (stepList) {
         setParts((prev) => {
@@ -60,14 +151,14 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
           return fit(next, i);
         });
       } else {
-        setText((prev) => join(prev).slice(0, MAX_ANSWER_LENGTH));
+        setText((prev) => limitText(join(prev), langRef.current));
       }
     },
-    [stepList, fit],
+    [stepList, fit, limitText],
   );
 
   const { supported, listening, interim, error, start, stop } = useSpeechRecognition({
-    lang,
+    lang: voiceLang,
     onFinalText: appendSpeech,
   });
 
@@ -106,12 +197,11 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
   }
 
   const status = dirty ? (everSaved ? 'Unsaved changes' : 'Draft') : everSaved ? 'Saved' : 'Empty';
-  const boxCls =
-    'block w-full resize-y bg-transparent font-mono text-[0.85rem] leading-relaxed outline-none placeholder:text-muted/70';
+  const selectCls = 'rounded-md bg-surface-2 px-2 py-1.5 text-sm text-ink disabled:opacity-50';
 
   return (
     <div className="flex min-h-[26rem] flex-[1_0_auto] flex-col">
-      {/* Toolbar, like the language / settings row above the LeetCode editor */}
+      {/* Toolbar: dictation, voice language and code language */}
       <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-line px-3 py-2">
         {supported ? (
           <>
@@ -127,14 +217,9 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
               {listening ? 'Stop dictating' : 'Dictate'}
             </button>
             <label className="flex items-center gap-2 text-sm text-muted">
-              <span className="sr-only">Language</span>
-              <select
-                value={lang}
-                onChange={(e) => setLang(e.target.value)}
-                disabled={listening}
-                className="rounded-md bg-surface-2 px-2 py-1.5 text-sm text-ink disabled:opacity-50"
-              >
-                {LANGUAGES.map((l) => (
+              <span className="text-xs">Voice</span>
+              <select value={voiceLang} onChange={(e) => setVoiceLang(e.target.value)} disabled={listening} className={selectCls}>
+                {VOICE_LANGUAGES.map((l) => (
                   <option key={l.code} value={l.code}>
                     {l.label}
                   </option>
@@ -152,6 +237,18 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
         ) : (
           <p className="text-sm text-muted">Voice input isn&rsquo;t available in this browser. Chrome, Edge and Safari support it.</p>
         )}
+
+        <label className="flex items-center gap-2 text-sm text-muted">
+          <span className="text-xs">Language</span>
+          <select value={codeLang} onChange={(e) => changeLanguage(e.target.value)} className={selectCls}>
+            {CODE_LANGUAGES.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <span className="ml-auto text-xs text-muted">{status}</span>
       </div>
 
@@ -159,47 +256,44 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
         <div className="flex-1 space-y-5 px-4 py-4">
           {stepList.map((s, i) => (
             <div key={i}>
-              <label htmlFor={`step-${i}`} className="flex flex-wrap items-baseline gap-x-2">
+              <p className="flex flex-wrap items-baseline gap-x-2">
                 <span className="text-sm font-semibold">
                   Step {i + 1} of {stepList.length}: {s.title}
                 </span>
                 {listening && active === i && <span className="text-xs font-medium text-hard">Voice goes here</span>}
-              </label>
+              </p>
               <p className="mt-0.5 text-xs text-muted">{s.prompt}</p>
-              <textarea
-                id={`step-${i}`}
-                value={parts[i] ?? ''}
-                onFocus={() => {
-                  activeRef.current = i;
-                  setActive(i);
-                }}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setParts((prev) => fit(prev.map((p, j) => (j === i ? value : p)), i));
-                }}
-                rows={5}
-                spellCheck="true"
-                placeholder="Write or dictate this step…"
-                className={`${boxCls} mt-2 min-h-28 rounded-lg border border-line bg-surface-2/40 px-3 py-2`}
-              />
+              <div className="mt-2 overflow-hidden rounded-lg border border-line">
+                <CodeEditor
+                  value={parts[i] ?? ''}
+                  language={codeLang}
+                  label={`Step ${i + 1}: ${s.title}`}
+                  placeholder={PLACEHOLDER[codeLang]}
+                  minHeight="7rem"
+                  onFocus={() => {
+                    activeRef.current = i;
+                    setActive(i);
+                  }}
+                  onChange={(value) => setParts((prev) => fit(prev.map((p, j) => (j === i ? value : p)), i))}
+                />
+              </div>
             </div>
           ))}
         </div>
       ) : (
-        <>
-          <label htmlFor="answer" className="sr-only">
-            Your answer
-          </label>
-          <textarea
-            id="answer"
+        <div className="min-h-64 flex-1">
+          <CodeEditor
             value={text}
-            onChange={(e) => setText(e.target.value.slice(0, MAX_ANSWER_LENGTH))}
-            placeholder="Write your answer here, or press Dictate and speak it. Explain your reasoning, not just the conclusion."
-            spellCheck="true"
-            className={`${boxCls} min-h-64 flex-1 resize-none px-4 py-3`}
+            language={codeLang}
+            label="Your answer"
+            placeholder={PLACEHOLDER[codeLang]}
+            minHeight="16rem"
+            onChange={(value) => setText(limitText(value, codeLang))}
           />
-        </>
+        </div>
       )}
+
+      <p className="shrink-0 border-t border-line px-4 py-2 text-xs text-muted">{HINT[codeLang]} Press Esc then Tab to leave the editor.</p>
 
       <div aria-live="polite" className="min-h-5 shrink-0 px-4 pb-1 text-xs italic text-muted">
         {listening && (interim ? `Listening… ${interim}` : 'Listening…')}
@@ -219,8 +313,10 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
           type="button"
           onClick={handleSave}
           disabled={pending || (!dirty && everSaved)}
-          className="rounded-md bg-go px-5 py-1.5 text-sm font-semibold text-go-ink transition-opacity hover:opacity-90 disabled:opacity-50"
+          aria-busy={pending}
+          className="inline-flex items-center gap-2 rounded-md bg-go px-5 py-1.5 text-sm font-semibold text-go-ink transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-50"
         >
+          {pending && <Spinner size={14} />}
           {pending ? (evaluating ? 'Getting feedback…' : 'Saving…') : everSaved ? 'Save & re-evaluate' : 'Submit'}
         </button>
       </div>
