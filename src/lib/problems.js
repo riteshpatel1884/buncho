@@ -54,10 +54,10 @@ export async function getProblems({ q, topic, difficulty, type, page, challenge 
   return { items, total, page, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)) };
 }
 
-export function getTopics() {
+export function getTopics({ challenge = false } = {}) {
   return prisma.topic.findMany({
     orderBy: { order: 'asc' },
-    include: { _count: { select: { problems: { where: { published: true } } } } },
+    include: { _count: { select: { problems: { where: { published: true, ...(challenge && { isChallenge: true }) } } } } },
   });
 }
 

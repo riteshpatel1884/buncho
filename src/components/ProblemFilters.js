@@ -8,6 +8,8 @@ import { Search } from './icons';
 
 const selectCls =
   'h-10 rounded-xl border border-line bg-surface px-3 text-sm text-ink outline-none transition-colors hover:border-muted focus:border-muted';
+const countCls = (on) =>
+  `ml-2 rounded-full px-2 py-0.5 text-xs font-semibold ${on ? 'bg-bg/20 text-bg' : 'bg-surface-2 text-accent'}`;
 const pillCls = (on) =>
   `shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
     on ? 'border-ink bg-ink text-bg' : 'border-line bg-surface text-muted hover:border-muted hover:text-ink'
@@ -25,6 +27,7 @@ export default function ProblemFilters({ topics = [], currentTopic, solved = nul
   const [pending, startTransition] = useTransition();
   const [q, setQ] = useState(sp.get('q') ?? '');
   const onTopicPage = currentTopic !== undefined;
+  const allCount = topics.reduce((sum, t) => sum + (t._count?.problems ?? 0), 0);
 
   const update = useCallback(
     (patch) => {
@@ -55,21 +58,25 @@ export default function ProblemFilters({ topics = [], currentTopic, solved = nul
       <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label="Topic">
         {onTopicPage ? (
           <>
-            <Link href="/problems" className={pillCls(false)}>All topics</Link>
+            <Link href="/problems" className={pillCls(false)}>
+              All topics<span className={countCls(false)}>{allCount}</span>
+            </Link>
             {topics.map((t) => (
               <Link key={t.slug} href={`/topics/${t.slug}`} aria-current={t.slug === activeTopic ? 'page' : undefined} className={pillCls(t.slug === activeTopic)}>
                 {t.name}
+                <span className={countCls(t.slug === activeTopic)}>{t._count?.problems ?? 0}</span>
               </Link>
             ))}
           </>
         ) : (
           <>
             <button type="button" aria-pressed={!activeTopic} onClick={() => update({ topic: '' })} className={pillCls(!activeTopic)}>
-              All topics
+              All topics<span className={countCls(!activeTopic)}>{allCount}</span>
             </button>
             {topics.map((t) => (
               <button key={t.slug} type="button" aria-pressed={activeTopic === t.slug} onClick={() => update({ topic: t.slug })} className={pillCls(activeTopic === t.slug)}>
                 {t.name}
+                <span className={countCls(activeTopic === t.slug)}>{t._count?.problems ?? 0}</span>
               </button>
             ))}
           </>

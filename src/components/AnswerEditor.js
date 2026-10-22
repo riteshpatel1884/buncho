@@ -34,25 +34,12 @@ const CodeEditor = dynamic(() => import('./CodeEditor'), {
   ),
 });
 
-const VOICE_LANGUAGES = [
-  { code: 'en-IN', label: 'English (India)' },
-  { code: 'en-US', label: 'English (US)' },
-  { code: 'en-GB', label: 'English (UK)' },
-  { code: 'hi-IN', label: 'Hindi' },
-];
-
 const PLACEHOLDER = {
   python: '# Write your code here or explain your approach…',
-  javascript: '// Write your code here or explain your approach…',
-  sql: '-- Write your code here or explain your approach…',
-  markdown: 'explain your approach here…',
 };
 
 const HINT = {
   python: 'Write code and explain your reasoning in # comments or """docstrings""". Dictated text is added as a # comment.',
-  javascript: 'Write code and explain your reasoning in // comments. Dictated text is added as a // comment.',
-  sql: 'Write your query and explain your reasoning in -- comments. Dictated text is added as a -- comment.',
-  markdown: 'Write your explanation as text. Wrap code in ```python fenced blocks to get syntax colours.',
 };
 
 // Works out the language and editor text from a saved answer
@@ -60,10 +47,9 @@ function buildInitial(content, stepList) {
   if (stepList) {
     const raw = parseSteps(content, stepList);
     const unwrapped = raw.map(unwrapCode);
-    const first = unwrapped.find(Boolean);
     const hasText = raw.some((p) => p.trim());
     return {
-      lang: first ? first.lang : hasText ? 'markdown' : DEFAULT_LANGUAGE,
+      lang: DEFAULT_LANGUAGE,
       text: '',
       parts: raw.map((p, i) => (unwrapped[i] ? unwrapped[i].code : p)),
       hasContent: hasText,
@@ -71,9 +57,9 @@ function buildInitial(content, stepList) {
   }
   const text = String(content ?? '');
   const unwrapped = unwrapCode(text);
-  if (unwrapped) return { lang: unwrapped.lang, text: unwrapped.code, parts: [], hasContent: true };
-  // Answers saved before the code editor existed are plain text, so they open as Text / Markdown
-  return { lang: text.trim() ? 'markdown' : DEFAULT_LANGUAGE, text, parts: [], hasContent: Boolean(text.trim()) };
+  if (unwrapped) return { lang: DEFAULT_LANGUAGE, text: unwrapped.code, parts: [], hasContent: true };
+  // Python is the only editor language; older plain-text answers open in it unchanged
+  return { lang: DEFAULT_LANGUAGE, text, parts: [], hasContent: Boolean(text.trim()) };
 }
 
 export default function AnswerEditor({ problemId, initialContent = '', hasSubmission = false, steps = null }) {
@@ -96,7 +82,6 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
   const langRef = useRef(codeLang);
   langRef.current = codeLang;
   const [everSaved, setEverSaved] = useState(hasSubmission);
-  const [voiceLang, setVoiceLang] = useState('en-IN');
   const [message, setMessage] = useState(null);
   const [evaluating, setEvaluating] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -158,7 +143,7 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
   );
 
   const { supported, listening, interim, error, start, stop } = useSpeechRecognition({
-    lang: voiceLang,
+    lang: 'en-IN',
     onFinalText: appendSpeech,
   });
 
@@ -201,7 +186,7 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
 
   return (
     <div className="flex min-h-[26rem] flex-[1_0_auto] flex-col">
-      {/* Toolbar: dictation, voice language and code language */}
+      {/* Toolbar: dictation and code language */}
       <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-line px-3 py-2">
         {supported ? (
           <>
@@ -216,16 +201,6 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
               {listening ? <Stop width={14} height={14} /> : <Mic width={14} height={14} />}
               {listening ? 'Stop dictating' : 'Dictate'}
             </button>
-            <label className="flex items-center gap-2 text-sm text-muted">
-              <span className="text-xs">Voice</span>
-              <select value={voiceLang} onChange={(e) => setVoiceLang(e.target.value)} disabled={listening} className={selectCls}>
-                {VOICE_LANGUAGES.map((l) => (
-                  <option key={l.code} value={l.code}>
-                    {l.label}
-                  </option>
-                ))}
-              </select>
-            </label>
             {listening && (
               <span className="flex h-5 items-center gap-[3px]" aria-hidden="true">
                 {[0, 0.15, 0.3, 0.1, 0.25].map((d, i) => (

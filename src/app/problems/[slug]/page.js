@@ -185,22 +185,6 @@ export default async function ProblemPage({ params, searchParams }) {
       </div>
 
       <div className="mt-6 divide-y divide-line border-y border-line">
-        {problem.roles.length > 0 && (
-          <details className="py-3">
-            <summary className={sectionTitle}>Relevant roles</summary>
-            <ul className="mt-3 flex flex-wrap gap-2">
-              {problem.roles.map((r) => (
-                <li key={r} className={pill}>{r}</li>
-              ))}
-            </ul>
-          </details>
-        )}
-        {problem.subcategory && (
-          <details className="py-3">
-            <summary className={sectionTitle}>Subcategory</summary>
-            <p className="mt-2 text-sm text-muted">{problem.subcategory}</p>
-          </details>
-        )}
         {problem.related.length > 0 && (
           <details className="py-3">
             <summary className={sectionTitle}>{problem.isChallenge ? 'Related challenges' : 'Related questions'}</summary>
@@ -338,7 +322,7 @@ export default async function ProblemPage({ params, searchParams }) {
   );
 
   return (
-    <div data-workspace className="flex flex-col bg-canvas px-2 pb-2 lg:h-[calc(100dvh-3.5rem)]">
+    <div data-workspace className="flex flex-col bg-canvas px-2 pb-2 lg:h-[calc(100dvh-4rem)]">
       <JsonLd data={jsonLd} />
       {/* Top bar: problem list popup, previous / next, timer */}
       <div className="flex h-12 shrink-0 items-center justify-between gap-2">

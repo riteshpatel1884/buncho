@@ -38,13 +38,13 @@ export default function NavShell({ children }) {
   }, []);
 
   return (
-    <div className="sticky top-0 z-50 h-14">
+    <div className="sticky top-0 z-50 h-16">
       <header
         data-compact={compact}
         className={`group/nav relative mx-auto border border-line backdrop-blur-md transition-all duration-300 ease-out ${
           compact
-            ? 'mt-2 h-10 w-[calc(100%-1.5rem)] max-w-[60rem] rounded-full bg-surface/85 shadow-lg shadow-black/15'
-            : 'mt-2 h-12 w-[calc(100%-1.5rem)] max-w-[76rem] rounded-full bg-surface/90 shadow-md shadow-black/5'
+            ? 'mt-2 h-12 w-[calc(100%-1.5rem)] max-w-[60rem] rounded-full bg-surface/85 shadow-lg shadow-black/15'
+            : 'mt-2 h-14 w-[calc(100%-1.5rem)] max-w-[76rem] rounded-full bg-surface/90 shadow-md shadow-black/5'
         }`}
       >
         {children}

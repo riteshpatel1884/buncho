@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { auth } from '@clerk/nextjs/server';
 import Logo from './Logo';
 import { ChevronRight } from './icons';
 
@@ -29,12 +30,15 @@ const COLUMNS = [
   },
 ];
 
-export default function Footer() {
+export default async function Footer() {
+  const { userId } = await auth();
   const year = new Date().getFullYear();
+  // Logged-in users already have an account, so the Account column is only for visitors
+  const columns = userId ? COLUMNS.filter((c) => c.title !== 'Account') : COLUMNS;
   return (
     <footer className="site-footer mt-6 border-t border-line bg-surface">
       <div className="mx-auto w-full max-w-[96rem] px-4 pt-14">
-        <div className="grid gap-10 md:grid-cols-[1.5fr_repeat(3,1fr)]">
+        <div className={`grid gap-10 ${userId ? 'md:grid-cols-[1.5fr_repeat(2,1fr)]' : 'md:grid-cols-[1.5fr_repeat(3,1fr)]'}`}>
           <div>
             <Link href="/" aria-label="Buncho home" className="inline-block">
               <Logo />
@@ -50,7 +54,7 @@ export default function Footer() {
             </Link>
           </div>
 
-          {COLUMNS.map((col) => (
+          {columns.map((col) => (
             <nav key={col.title} aria-label={col.title}>
               <h2 className="text-xs font-semibold uppercase tracking-wider text-ink">{col.title}</h2>
               <ul className="mt-4 space-y-2.5">

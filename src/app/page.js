@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { auth } from '@clerk/nextjs/server';
 import HeroDemo from '@/components/HeroDemo';
 import Logo from '@/components/Logo';
-import { Check, ChevronRight, Flame, Flask, Mic, Tag, Users } from '@/components/icons';
+import { ChevronRight, Flame, Tag } from '@/components/icons';
 import { getTopics } from '@/lib/problems';
 import JsonLd from '@/components/JsonLd';
 import { SITE_NAME, SITE_TAGLINE, SITE_DESCRIPTION, buildMetadata, graph, organizationJsonLd, websiteJsonLd } from '@/lib/seo';
@@ -42,10 +42,6 @@ const STEPS = [
   { n: '03', title: 'Compare and learn', body: 'Unlock the expert solution and community answers, then mark the problem complete.', time: 'About 5 min' },
 ];
 
-const WAVE = [0.1, 0.35, 0.2, 0.5, 0.05, 0.4, 0.25, 0.45, 0.15, 0.3, 0.2, 0.4];
-const HEAT = Array.from({ length: 56 }, (_, i) => [0, 1, 0, 2, 3, 1, 0, 2, 1, 3, 0, 1, 2, 0][(i * 7) % 14]);
-const HEAT_CLS = ['bg-surface', 'bg-accent/35', 'bg-accent/65', 'bg-accent'];
-
 function SectionHeader({ eyebrow, title, body, action }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-4">
@@ -58,17 +54,6 @@ function SectionHeader({ eyebrow, title, body, action }) {
     </div>
   );
 }
-
-function IconTile({ icon: Icon }) {
-  return (
-    <span className="grid h-11 w-11 place-items-center rounded-xl bg-accent-soft text-accent transition-transform duration-300 group-hover:scale-105">
-      <Icon width={22} height={22} />
-    </span>
-  );
-}
-
-const card =
-  'panel group relative overflow-hidden p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/50 hover:shadow-lg hover:shadow-black/10';
 
 export default async function LandingPage() {
   const { userId } = await auth();
@@ -124,111 +109,6 @@ export default async function LandingPage() {
           </dl>
         </div>
         <HeroDemo />
-      </section>
-
-      {/* Topic chips */}
-      {topics.length > 0 && (
-        <section aria-label="Topics" className="mx-auto w-full max-w-[96rem] px-4">
-          <ul className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
-            {topics.map((t) => (
-              <li key={t.id} className="shrink-0">
-                <Link href={`/topics/${t.slug}`} className="inline-flex items-center gap-2 rounded-full bg-surface-2 px-4 py-1.5 text-sm font-medium text-muted transition-colors hover:text-ink">
-                  {t.name}
-                  <span className="rounded-full bg-surface px-2 py-0.5 text-xs text-accent">{t._count.problems}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* Features: bento grid */}
-      <section className="mx-auto w-full max-w-[96rem] px-4 py-20" aria-labelledby="features">
-        <SectionHeader
-          eyebrow="Features"
-          title={<span id="features">Everything you need to prepare</span>}
-          body="One focused workspace for answering, checking and remembering what you learn, so your practice time goes into thinking and not into tooling."
-        />
-
-        <div className="mt-10 grid gap-4 lg:grid-cols-3">
-          {/* Speak or type */}
-          <article className={`${card} lg:col-span-2`}>
-            <IconTile icon={Mic} />
-            <h3 className="mt-5 text-lg font-semibold">Speak or type your answer</h3>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
-              Press the mic and talk your answer through, or write it. Long, real-world scenarios are far easier to explain out loud, just like in a real interview.
-            </p>
-            <div aria-hidden="true" className="mt-6 flex items-center gap-4 rounded-lg bg-surface-2 p-4">
-              <span className="inline-flex items-center gap-2 rounded-md bg-hard px-3 py-1.5 text-xs font-semibold text-white">
-                <span className="h-2 w-2 rounded-full bg-white" /> Dictating
-              </span>
-              <span className="flex h-6 items-center gap-[3px]">
-                {WAVE.map((d, i) => (
-                  <span key={i} className="wave-bar block h-5 w-[3px] rounded-full bg-hard" style={{ animationDelay: `${d}s` }} />
-                ))}
-              </span>
-              <span className="ml-auto font-mono text-xs text-muted">00:42</span>
-            </div>
-          </article>
-
-          {/* Expert reference */}
-          <article className={card}>
-            <IconTile icon={Flask} />
-            <h3 className="mt-5 text-lg font-semibold">Expert reference</h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted">
-              Submit an attempt and the expert solution unlocks, with the equations, code and trade-offs you may have missed.
-            </p>
-            <div aria-hidden="true" className="mt-6 space-y-2 rounded-lg bg-surface-2 p-4">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-easy/12 px-2.5 py-0.5 text-xs font-semibold text-easy">
-                <Check width={12} height={12} strokeWidth={2.6} /> Expert reviewed
-              </span>
-              <span className="block h-2 w-full rounded-full bg-line" />
-              <span className="block h-2 w-5/6 rounded-full bg-line" />
-              <span className="block h-2 w-2/3 rounded-full bg-line" />
-            </div>
-          </article>
-
-          {/* Community */}
-          <article className={card}>
-            <IconTile icon={Users} />
-            <h3 className="mt-5 text-lg font-semibold">Community answers</h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted">
-              Read how other learners answered the same question, upvote what helped, and share your own anonymously.
-            </p>
-            <div aria-hidden="true" className="mt-6 flex items-center justify-between rounded-lg bg-surface-2 p-4">
-              <span className="flex -space-x-2">
-                {['A', 'R', 'S', 'M'].map((c) => (
-                  <span key={c} className="grid h-8 w-8 place-items-center rounded-full border-2 border-surface-2 bg-accent-soft text-xs font-semibold text-accent">
-                    {c}
-                  </span>
-                ))}
-              </span>
-              <span className="rounded-md bg-surface px-2.5 py-1 text-xs font-semibold text-muted">Helpful &middot; 24</span>
-            </div>
-          </article>
-
-          {/* Streaks */}
-          <article className={`${card} lg:col-span-2`}>
-            <IconTile icon={Flame} />
-            <h3 className="mt-5 text-lg font-semibold">Streaks and progress</h3>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
-              Progress rings, a daily streak and an activity grid show what you have covered, so practising a little every day actually sticks.
-            </p>
-            <div aria-hidden="true" className="mt-6 flex items-center gap-5 rounded-lg bg-surface-2 p-4">
-              <div className="grid grid-flow-col grid-rows-4 gap-1.5">
-                {HEAT.map((l, i) => (
-                  <span key={i} className={`h-3.5 w-3.5 rounded-[3px] ${HEAT_CLS[l]}`} />
-                ))}
-              </div>
-              <div className="ml-auto text-right">
-                <p className="flex items-center justify-end gap-1.5 text-lg font-semibold">
-                  <Flame width={18} height={18} className="text-accent" /> 7
-                </p>
-                <p className="text-xs text-muted">day streak</p>
-              </div>
-            </div>
-          </article>
-        </div>
       </section>
 
       {/* How it works */}

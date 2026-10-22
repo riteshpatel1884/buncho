@@ -1,12 +1,7 @@
 // Answers written in the code editor are stored as Markdown: the code goes inside one fenced block
 // (```python ... ```), so it is readable by the AI evaluator and renders with syntax colours everywhere else.
 
-export const CODE_LANGUAGES = [
-  { id: 'python', label: 'Python', comment: '# ' },
-  { id: 'javascript', label: 'JavaScript', comment: '// ' },
-  { id: 'sql', label: 'SQL', comment: '-- ' },
-  { id: 'markdown', label: 'Text / Markdown', comment: '' },
-];
+export const CODE_LANGUAGES = [{ id: 'python', label: 'Python', comment: '# ' }];
 
 export const DEFAULT_LANGUAGE = 'python';
 export const LANGUAGE_KEY = 'buncho-answer-language';

@@ -43,7 +43,7 @@ export default async function Navbar() {
               name="q"
               type="search"
               placeholder="Search problems"
-              className="h-8 w-52 rounded-full bg-surface-2 pl-9 pr-3 text-sm outline-none transition-[width] duration-300 placeholder:text-muted group-data-[compact=true]/nav:h-7 group-data-[compact=true]/nav:w-40"
+              className="h-9 w-52 rounded-full bg-surface-2 pl-9 pr-3 text-sm outline-none transition-[width] duration-300 placeholder:text-muted group-data-[compact=true]/nav:h-8 group-data-[compact=true]/nav:w-40"
             />
           </form>
           <ThemeToggle />

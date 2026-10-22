@@ -14,7 +14,7 @@ const TONES = {
   dark: {
     box: 'bg-[#04140a] text-[#34d67b]',
     word: 'text-[#04140a]',
-    dot: 'text-white',
+    dot: 'text-[#04140a]',
   },
 };
 

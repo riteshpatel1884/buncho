@@ -24,7 +24,7 @@ export async function generateMetadata({ searchParams }) {
 export default async function ChallengesPage({ searchParams }) {
   const filters = { ...parseFilters(await searchParams), challenge: true };
   const user = await getOrCreateUser();
-  const [topics, result] = await Promise.all([getTopics(), getProblems(filters)]);
+  const [topics, result] = await Promise.all([getTopics({ challenge: true }), getProblems(filters)]);
   const statusMap = user ? await getProgressMap(user.id, result.items.map((p) => p.id)) : {};
 
   const { page, challenge, ...rest } = filters;
