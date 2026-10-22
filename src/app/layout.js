@@ -1,9 +1,11 @@
+import { Suspense } from 'react';
 import { ClerkProvider } from '@clerk/nextjs';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import 'katex/dist/katex.min.css';
 import './globals.css';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import RouteProgress from '@/components/RouteProgress';
 import { clerkAppearance } from '@/lib/clerk-appearance';
 
 const display = Inter({ subsets: ['latin'], variable: '--f-display', display: 'swap' });
@@ -36,6 +38,9 @@ export default function RootLayout({ children }) {
           >
             Skip to content
           </a>
+          <Suspense fallback={null}>
+            <RouteProgress />
+          </Suspense>
           <Navbar />
           <main id="main" className="flex-1">
             {children}

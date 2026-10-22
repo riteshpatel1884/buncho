@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createJobTarget } from '@/app/job-actions';
 import { JD_MAX_LENGTH, JD_MIN_LENGTH } from '@/lib/constants';
+import Spinner from '@/components/Spinner';
 
 const field = 'w-full rounded-lg border border-line bg-surface-2/40 px-3 py-2 text-sm outline-none focus:border-accent';
 
@@ -55,12 +56,16 @@ export default function JobForm() {
 
       {error && <p role="alert" className="rounded-lg bg-hard/10 px-3 py-2 text-sm text-hard">{error}</p>}
 
+      {pending && <p role="status" className="text-sm text-muted">Analysing the role and building your plan. This can take a few seconds.</p>}
+
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="submit"
           disabled={pending || short}
-          className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-ink hover:opacity-90 disabled:opacity-50"
+          aria-busy={pending}
+          className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-ink hover:opacity-90 disabled:cursor-wait disabled:opacity-50"
         >
+          {pending && <Spinner size={14} />}
           {pending ? 'Reading job description…' : 'Build my practice plan'}
         </button>
         <p className="text-xs text-muted">Your job description stays private to your account.</p>

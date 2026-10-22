@@ -6,6 +6,7 @@ import { isAdmin } from '@/lib/admin';
 import { moderateAnswer } from '@/app/community-actions';
 import { REPORT_REASON_LABEL } from '@/lib/constants';
 import Markdown from '@/components/Markdown';
+import PendingButton from '@/components/PendingButton';
 
 export const metadata = { title: 'Reported answers' };
 export const dynamic = 'force-dynamic';
@@ -71,10 +72,12 @@ export default async function ReportsPage() {
 
             <div className="flex flex-wrap gap-3 border-t border-line px-5 py-4">
               <form action={moderateAnswer.bind(null, a.id, 'hide')}>
-                <button type="submit" className={danger}>Hide answer</button>
+                <PendingButton className={danger} pendingLabel="Hiding…">Hide answer</PendingButton>
               </form>
               <form action={moderateAnswer.bind(null, a.id, 'dismiss')}>
-                <button type="submit" className={neutral}>Dismiss reports{a.status === 'HIDDEN' ? ' and restore' : ''}</button>
+                <PendingButton className={neutral} pendingLabel="Dismissing…">
+                  Dismiss reports{a.status === 'HIDDEN' ? ' and restore' : ''}
+                </PendingButton>
               </form>
             </div>
           </li>

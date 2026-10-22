@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { requestFeedback } from '@/lib/ai-client';
+import Spinner from './Spinner';
 
 export default function FeedbackControls({ problemId, label = 'Get AI feedback' }) {
   const router = useRouter();
@@ -13,9 +14,9 @@ export default function FeedbackControls({ problemId, label = 'Get AI feedback' 
     setPending(true);
     setError(null);
     const res = await requestFeedback(problemId);
-    setPending(false);
     if (res.ok) router.refresh();
     else setError(res.error);
+    setPending(false);
   }
 
   return (
@@ -24,8 +25,10 @@ export default function FeedbackControls({ problemId, label = 'Get AI feedback' 
         type="button"
         onClick={run}
         disabled={pending}
-        className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:opacity-90 disabled:opacity-50"
+        aria-busy={pending}
+        className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:opacity-90 disabled:cursor-wait disabled:opacity-50"
       >
+        {pending && <Spinner size={14} />}
         {pending ? 'Analysing your answer…' : label}
       </button>
       {error && (

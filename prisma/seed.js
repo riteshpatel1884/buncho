@@ -4,9 +4,16 @@ const { PrismaClient, Prisma } = require('@prisma/client');
 const { topics, problems } = require('./seed-data');
 
 const prisma = new PrismaClient();
-const file = (slug, kind) => path.join(__dirname, 'content', `${slug}.${kind}.md`);
-const read = (slug, kind) => fs.readFileSync(file(slug, kind), 'utf8').trim();
-const readOptional = (slug, kind) => (fs.existsSync(file(slug, kind)) ? read(slug, kind) : null);
+// Files live in prisma/content/<topic-slug>/<slug>.<kind>.md
+// For backward compatibility, a flat prisma/content/<slug>.<kind>.md is used if the topic folder copy does not exist.
+const file = (p, kind) => {
+  const inTopic = path.join(__dirname, 'content', p.topic, `${p.slug}.${kind}.md`);
+  if (fs.existsSync(inTopic)) return inTopic;
+  const flat = path.join(__dirname, 'content', `${p.slug}.${kind}.md`);
+  return fs.existsSync(flat) ? flat : inTopic;
+};
+const read = (p, kind) => fs.readFileSync(file(p, kind), 'utf8').trim();
+const readOptional = (p, kind) => (fs.existsSync(file(p, kind)) ? read(p, kind) : null);
 
 async function main() {
   const topicIds = {};
@@ -23,9 +30,9 @@ async function main() {
   const skipped = [];
 
   for (const [position, p] of problems.entries()) {
-    const missing = ['question', 'solution'].filter((kind) => !fs.existsSync(file(p.slug, kind)));
+    const missing = ['question', 'solution'].filter((kind) => !fs.existsSync(file(p, kind)));
     if (missing.length) {
-      skipped.push(`${p.slug}: missing ${missing.map((k) => `${p.slug}.${k}.md`).join(', ')}`);
+      skipped.push(`${p.slug}: missing ${missing.map((k) => `content/${p.topic}/${p.slug}.${k}.md`).join(', ')}`);
       continue;
     }
 
@@ -33,7 +40,7 @@ async function main() {
     const data = {
       ...rest,
       allowDirectReveal,
-      description: read(p.slug, 'question'),
+      description: read(p, 'question'),
       topicId: topicIds[topic],
       position,
       // Phase 5: production challenge fields
@@ -44,8 +51,8 @@ async function main() {
     };
     const problem = await prisma.problem.upsert({ where: { slug: p.slug }, update: data, create: data });
 
-    const content = read(p.slug, 'solution');
-    const alternatives = readOptional(p.slug, 'alternatives');
+    const content = read(p, 'solution');
+    const alternatives = readOptional(p, 'alternatives');
     await prisma.expertSolution.upsert({
       where: { problemId: problem.id },
       update: { content, alternatives },
@@ -65,7 +72,7 @@ async function main() {
 
   console.log(`Seeded ${seeded.length} of ${problems.length} problems and ${topics.length} topics.`);
   if (skipped.length) {
-    console.warn('\nSkipped (add these files to prisma/content, then run the seed again):');
+    console.warn('\nSkipped (add these files to prisma/content/<topic>/, then run the seed again):');
     skipped.forEach((s) => console.warn(`  - ${s}`));
   }
 }

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { toggleBookmark } from '@/app/actions';
 import { Bookmark } from './icons';
+import Spinner from './Spinner';
 
 const cls =
   'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-muted hover:bg-surface-2 hover:text-ink';
@@ -24,6 +25,7 @@ export default function BookmarkButton({ problemId, slug, initial = false, signe
     <button
       type="button"
       aria-pressed={on}
+      aria-busy={pending}
       disabled={pending}
       onClick={() =>
         start(async () => {
@@ -31,9 +33,10 @@ export default function BookmarkButton({ problemId, slug, initial = false, signe
           if (res.ok) setOn(res.bookmarked);
         })
       }
-      className={`${cls} ${on ? 'text-accent' : ''}`}
+      className={`${cls} disabled:cursor-wait ${on ? 'text-accent' : ''}`}
     >
-      <Bookmark width={16} height={16} filled={on} /> {on ? 'Saved' : 'Save for later'}
+      {pending ? <Spinner size={16} /> : <Bookmark width={16} height={16} filled={on} />}
+      {pending ? 'Saving…' : on ? 'Saved' : 'Save for later'}
     </button>
   );
 }
