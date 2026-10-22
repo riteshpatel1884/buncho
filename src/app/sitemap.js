@@ -4,12 +4,18 @@ import { SITE_URL } from '@/lib/seo';
 // Rebuilt at most once an hour, so new problems show up without hitting the database on every crawl.
 export const revalidate = 3600;
 
+// Bump these when the legal text actually changes, so lastModified stays truthful.
+const TERMS_UPDATED = new Date('2026-10-22');
+const PRIVACY_UPDATED = new Date('2026-10-22');
+
 export default async function sitemap() {
   const now = new Date();
   const entries = [
     { url: `${SITE_URL}/`, lastModified: now, changeFrequency: 'weekly', priority: 1 },
     { url: `${SITE_URL}/problems`, lastModified: now, changeFrequency: 'daily', priority: 0.9 },
     { url: `${SITE_URL}/challenges`, lastModified: now, changeFrequency: 'weekly', priority: 0.8 },
+    { url: `${SITE_URL}/terms`, lastModified: TERMS_UPDATED, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/privacy`, lastModified: PRIVACY_UPDATED, changeFrequency: 'yearly', priority: 0.3 },
   ];
 
   try {
