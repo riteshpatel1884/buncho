@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import { deleteJobTarget, regeneratePlan, startMock } from '@/app/job-actions';
 import Spinner from '@/components/Spinner';
 
-const btn = 'inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold disabled:cursor-wait disabled:opacity-50';
+import { ctaBtn } from './ui';
+
+const btn = 'inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition disabled:cursor-wait disabled:opacity-50';
 
 export function StartMockButton({ jobId, resume = false, disabledReason = null }) {
   const router = useRouter();
@@ -29,7 +31,7 @@ export function StartMockButton({ jobId, resume = false, disabledReason = null }
         onClick={go}
         disabled={pending || Boolean(disabledReason)}
         aria-busy={pending}
-        className={`${btn} bg-accent text-accent-ink hover:opacity-90`}
+        className={`${ctaBtn} w-full`}
       >
         {pending && <Spinner size={14} />}
         {pending ? (resume ? 'Opening…' : 'Preparing…') : resume ? 'Resume mock assessment' : 'Start mock assessment'}
@@ -69,7 +71,7 @@ export function ManageRole({ jobId }) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <button type="button" onClick={regenerate} disabled={pending} aria-busy={refreshing} className={`${btn} bg-surface-2 hover:bg-line`}>
+      <button type="button" onClick={regenerate} disabled={pending} aria-busy={refreshing} className={`${btn} border border-line bg-surface/80 backdrop-blur hover:border-muted`}>
         {refreshing && <Spinner size={14} />}
         {refreshing ? 'Refreshing…' : 'Refresh plan'}
       </button>

@@ -1,294 +1,185 @@
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { getOrCreateUser } from '@/lib/user';
-import { listJobs } from '@/lib/jobs/progress';
-import { MAX_JOB_TARGETS } from '@/lib/constants';
-import { Bar, barColor } from '@/components/jobs/Parts';
-import { Check, ChevronRight, FileText, Flask, Tag } from '@/components/icons';
+import { getJobDetail } from '@/lib/jobs/progress';
+import { Bar, PlanRow, SkillRow } from '@/components/jobs/Parts';
+import { ManageRole, StartMockButton } from '@/components/jobs/JobActions';
+import { Avatar, BackLink, Hero, Ring, Stat, TONE_SOFT, card, chip, toneOf } from '@/components/jobs/ui';
+import { ChevronRight, Flask } from '@/components/icons';
+import { MOCK_MIN_QUESTIONS } from '@/lib/constants';
 
-export const metadata = { title: 'Job preparation' };
+export const metadata = { title: 'Role preparation' };
 
-// Gradient pairs for the company avatars, picked from the theme colours so light and dark both work
-const AVATARS = [
-  ['--accent', '--easy'],
-  ['--easy', '--accent'],
-  ['--medium', '--accent'],
-  ['--accent', '--medium'],
-];
-
-const avatarFor = (id) => {
-  const n = [...String(id)].reduce((s, c) => s + c.charCodeAt(0), 0);
-  const [a, b] = AVATARS[n % AVATARS.length];
-  return `linear-gradient(135deg, var(${a}), var(${b}))`;
-};
-
-const STEPS = [
-  { icon: FileText, title: 'Paste the job description', text: 'Drop in the posting for the job or internship you are applying to.' },
-  { icon: Tag, title: 'We map the skills', text: 'Buncho reads what the role asks for and matches it to reviewed questions.' },
-  { icon: Flask, title: 'Practise and get assessed', text: 'Work through your plan, then take a mock assessment to see where you stand.' },
-];
-
-function status(j) {
-  if (!j.total) return { label: 'No plan yet', cls: 'bg-surface-2 text-muted' };
-  if (j.completed === 0) return { label: 'Not started', cls: 'bg-surface-2 text-muted' };
-  if (j.completed >= j.total) return { label: 'Complete', cls: 'bg-easy/15 text-easy' };
-  return { label: 'In progress', cls: 'bg-accent-soft text-accent' };
-}
-
-function Ring({ pct, size = 60 }) {
-  const stroke = 6;
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  return (
-    <div className="relative shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden="true">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--line)" strokeWidth={stroke} />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke="var(--accent)"
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={c * (1 - pct / 100)}
-        />
-      </svg>
-      <span className="absolute inset-0 grid place-items-center text-sm font-semibold tabular-nums">{pct}%</span>
-    </div>
-  );
-}
-
-function Stat({ label, value, hint }) {
-  return (
-    <div className="rounded-2xl border border-line bg-surface px-4 py-3.5">
-      <p className="text-xs font-medium text-muted">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight">{value}</p>
-      {hint && <p className="mt-0.5 text-xs text-muted">{hint}</p>}
-    </div>
-  );
-}
-
-// Purely decorative preview of what a plan looks like, shown beside the hero on large screens
-function PlanPreview() {
-  const rows = [
-    ['Python', 82],
-    ['RAG pipelines', 64],
-    ['LLM evaluation', 41],
-  ];
-  return (
-    <div aria-hidden="true" className="relative hidden lg:block">
-      <div className="absolute -inset-4 rounded-[2rem] bg-accent/15 blur-2xl" />
-      <div className="relative rotate-2 rounded-2xl border border-line bg-surface p-5 shadow-xl shadow-black/10">
-        <div className="flex items-center gap-3">
-          <span className="grid h-10 w-10 place-items-center rounded-xl text-sm font-bold text-accent-ink" style={{ background: 'linear-gradient(135deg, var(--accent), var(--easy))' }}>A</span>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">AI Engineer · Sample</p>
-            <p className="text-xs text-muted">12 of 20 questions done</p>
-          </div>
-          <span className="ml-auto rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-accent">60%</span>
-        </div>
-        <ul className="mt-5 space-y-3.5">
-          {rows.map(([l, v]) => (
-            <li key={l}>
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-medium">{l}</span>
-                <span className="tabular-nums text-muted">{v}/100</span>
-              </div>
-              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-surface-2">
-                <div className={`h-full rounded-full ${barColor(v)}`} style={{ width: `${v}%` }} />
-              </div>
-            </li>
-          ))}
-        </ul>
-        <div className="mt-5 flex items-center gap-2 rounded-xl bg-surface-2 px-3 py-2 text-xs">
-          <Check width={14} height={14} className="text-accent" strokeWidth={3} />
-          <span className="text-muted">Mock assessment score</span>
-          <span className="ml-auto font-semibold">78/100</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function RoleCard({ j }) {
-  const pct = j.total ? Math.round((j.completed / j.total) * 100) : 0;
-  const st = status(j);
-  const initial = (j.company || j.title || '?').trim().charAt(0).toUpperCase();
-  const added = new Date(j.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });
-
-  return (
-    <li>
-      <Link
-        href={`/jobs/${j.id}`}
-        className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-surface p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/60 hover:shadow-xl hover:shadow-black/10"
-      >
-        <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-accent transition-transform duration-300 group-hover:scale-x-100" />
-
-        <div className="flex items-start gap-3.5">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-lg font-bold text-accent-ink" style={{ background: avatarFor(j.id) }} aria-hidden="true">
-            {initial}
-          </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate text-base font-semibold leading-snug group-hover:text-accent">{j.title}</h2>
-            <p className="mt-0.5 truncate text-sm text-muted">{j.company || 'Company not set'}</p>
-          </div>
-          <Ring pct={pct} />
-        </div>
-
-        <div className="mt-5 flex flex-wrap items-center gap-2">
-          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${st.cls}`}>{st.label}</span>
-          <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-medium text-muted">{j.skillCount} skills</span>
-          <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-medium text-muted">Added {added}</span>
-        </div>
-
-        <div className="mt-5">
-          <div className="mb-1.5 flex items-center justify-between text-xs">
-            <span className="text-muted">Practice plan</span>
-            <span className="font-medium tabular-nums">{j.completed}/{j.total} questions</span>
-          </div>
-          <Bar value={pct} label={`${j.title} plan progress`} />
-        </div>
-
-        <div className="mt-5 flex items-center justify-between border-t border-line pt-4 text-sm">
-          {j.lastMockScore !== null ? (
-            <span className="text-muted">
-              Last mock <span className={`ml-1 rounded-md px-1.5 py-0.5 text-xs font-semibold tabular-nums text-ink ${j.lastMockScore >= 70 ? 'bg-easy/15' : j.lastMockScore >= 50 ? 'bg-medium/15' : 'bg-hard/15'}`}>{j.lastMockScore}/100</span>
-            </span>
-          ) : (
-            <span className="text-muted">No mock taken yet</span>
-          )}
-          <span className="inline-flex items-center gap-1 font-semibold text-accent">
-            Open plan <ChevronRight width={16} height={16} className="transition-transform group-hover:translate-x-0.5" />
-          </span>
-        </div>
-      </Link>
-    </li>
-  );
-}
-
-export default async function JobsPage() {
+export default async function JobPage({ params }) {
   const user = await getOrCreateUser();
   if (!user) redirect('/login');
-  const jobs = await listJobs(user.id);
+  const { id } = await params;
+  const data = await getJobDetail(user.id, id);
+  if (!data) notFound();
 
-  const canAdd = jobs.length < MAX_JOB_TARGETS;
-  const doneTotal = jobs.reduce((s, j) => s + j.completed, 0);
-  const qTotal = jobs.reduce((s, j) => s + j.total, 0);
-  const overall = qTotal ? Math.round((doneTotal / qTotal) * 100) : 0;
-  const mocks = jobs.map((j) => j.lastMockScore).filter((s) => s !== null);
-  const best = mocks.length ? Math.max(...mocks) : null;
-
-  const cta = 'inline-flex items-center justify-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-accent-ink shadow-lg shadow-accent/25 transition hover:-translate-y-0.5 hover:opacity-95';
+  const { job, plan, skills, gaps, mocks, summary, next } = data;
+  const skillLabels = Object.fromEntries(skills.map((s) => [s.key, s.label]));
+  const pct = summary.total ? Math.round((summary.completed / summary.total) * 100) : 0;
+  const open = mocks.find((m) => m.status === 'IN_PROGRESS');
+  const finished = mocks.filter((m) => m.status === 'COMPLETED');
+  const typed = plan.filter((p) => !p.problem.isChallenge).length;
+  const scores = finished.map((m) => m.score).filter((s) => s !== null);
+  const best = scores.length ? Math.max(...scores) : null;
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pb-20 pt-6 sm:px-6">
-      {/* Hero */}
-      <section
-        aria-labelledby="jobs-h1"
-        className="relative overflow-hidden rounded-3xl border border-line"
-        style={{ background: 'linear-gradient(135deg, var(--accent-soft) 0%, var(--surface) 62%)' }}
-      >
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 opacity-60 [mask-image:linear-gradient(to_bottom_left,black,transparent_70%)]"
-          style={{ backgroundImage: 'radial-gradient(var(--line) 1px, transparent 1px)', backgroundSize: '18px 18px' }}
-        />
-        <div aria-hidden="true" className="pointer-events-none absolute -left-16 -top-24 h-64 w-64 rounded-full bg-accent/20 blur-3xl" />
-        <div aria-hidden="true" className="pointer-events-none absolute -bottom-24 right-1/3 h-56 w-56 rounded-full bg-easy/15 blur-3xl" />
+      <BackLink href="/jobs">Job preparation</BackLink>
 
-        <div className="relative grid items-center gap-10 px-6 py-10 sm:px-10 sm:py-14 lg:grid-cols-[1.25fr_1fr]">
-          <div>
-            <span className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-surface/70 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-accent backdrop-blur">
-              <span className="h-1.5 w-1.5 rounded-full bg-accent" /> Job preparation
-            </span>
-            <h1 id="jobs-h1" className="mt-5 text-4xl font-semibold leading-[1.1] tracking-tight sm:text-5xl">
-              Prepare for the role{' '}
-              <span className="bg-clip-text text-transparent" style={{ backgroundImage: 'linear-gradient(90deg, var(--accent), var(--easy))' }}>
-                you actually want
-              </span>
-            </h1>
-            <p className="mt-4 max-w-xl text-base text-muted">
-              Paste a job description. Buncho reads the skills it asks for, matches them to the reviewed question bank and builds a practice plan you can track.
-            </p>
-            <div className="mt-7 flex flex-wrap items-center gap-3">
-              {canAdd ? (
-                <Link href="/jobs/new" className={cta}>
-                  <span className="text-lg leading-none">+</span> Add a role
-                </Link>
-              ) : (
-                <p className="rounded-full border border-line bg-surface/80 px-4 py-2 text-sm text-muted">
-                  You have reached the limit of {MAX_JOB_TARGETS} roles.
-                </p>
-              )}
-              <span className="text-xs text-muted">
-                {jobs.length} of {MAX_JOB_TARGETS} roles used
-              </span>
+      {/* Hero */}
+      <Hero className="mt-3" aria-labelledby="role-h1">
+        <div className="flex flex-col gap-6 p-6 sm:p-8 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-start gap-4 sm:gap-5">
+            <Avatar id={job.id} text={job.company || job.title} size={64} />
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-widest text-accent">Role preparation</p>
+              <h1 id="role-h1" className="mt-1.5 text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">{job.title}</h1>
+              {job.company && <p className="mt-1 text-base text-muted">{job.company}</p>}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className={chip}>{skills.length} skills</span>
+                <span className={chip}>{summary.total} questions</span>
+                <span className={chip}>about {summary.minutesLeft} min left</span>
+              </div>
+              <div className="mt-5"><ManageRole jobId={job.id} /></div>
             </div>
           </div>
-          <PlanPreview />
+
+          <div className="flex shrink-0 items-center gap-5 rounded-2xl border border-line bg-surface/80 p-4 pr-6 backdrop-blur">
+            <Ring value={pct} size={92} stroke={9}>
+              <span className="text-xl font-semibold tabular-nums">{pct}%</span>
+            </Ring>
+            <div>
+              <p className="text-sm font-semibold">Plan progress</p>
+              <p className="mt-0.5 text-sm text-muted">{summary.completed} of {summary.total} completed</p>
+            </div>
+          </div>
         </div>
+      </Hero>
+
+      {/* Key numbers */}
+      <section aria-label="Overview" className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className={`${card} px-4 py-3.5`}>
+          <p className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-muted">
+            Role readiness
+            {summary.provisional && summary.score !== null && <span className="rounded-full bg-medium/15 px-2 py-0.5 text-[0.65rem] font-semibold text-medium">Early estimate</span>}
+          </p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight">
+            {summary.score ?? '—'}
+            {summary.score !== null && <span className="text-sm font-normal text-muted">/100</span>}
+          </p>
+          <p className="mt-0.5 text-xs text-muted">{summary.label}</p>
+        </div>
+        <Stat label="Completed" value={`${summary.completed}/${summary.total}`} hint="plan questions" />
+        <Stat label="Time left" value={`${summary.minutesLeft} min`} hint="to finish the plan" />
+        <Stat label="Best mock score" value={best === null ? '–' : `${best}/100`} hint={best === null ? 'no mock taken yet' : `${finished.length} mock${finished.length === 1 ? '' : 's'} taken`} tone={best === null ? undefined : toneOf(best)} />
       </section>
 
-      {jobs.length > 0 ? (
-        <>
-          {/* Overview numbers */}
-          <section aria-label="Overview" className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Stat label="Roles tracked" value={jobs.length} hint={`${MAX_JOB_TARGETS - jobs.length} slots left`} />
-            <Stat label="Questions done" value={`${doneTotal}/${qTotal}`} hint="across all plans" />
-            <Stat label="Overall progress" value={`${overall}%`} hint={overall >= 100 ? 'All plans complete' : 'keep going'} />
-            <Stat label="Best mock score" value={best === null ? '–' : `${best}/100`} hint={best === null ? 'take a mock to see it' : 'your top result'} />
+      {/* Up next */}
+      {next && (
+        <Link
+          href={`/problems/${next.problem.slug}`}
+          className="group relative mt-5 flex items-center gap-4 overflow-hidden rounded-2xl border border-accent/40 p-5 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-accent/10"
+          style={{ background: 'linear-gradient(110deg, var(--accent-soft), var(--surface) 70%)' }}
+        >
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent text-accent-ink shadow-lg shadow-accent/30">
+            <ChevronRight width={22} height={22} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs font-semibold uppercase tracking-widest text-accent">Up next</span>
+            <span className="mt-0.5 block truncate text-base font-semibold group-hover:text-accent">{next.problem.title}</span>
+            <span className="block truncate text-xs text-muted">{next.reason}</span>
+          </span>
+          <span className="hidden shrink-0 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink sm:block">Start question</span>
+        </Link>
+      )}
+
+      <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="space-y-6">
+          <section aria-labelledby="plan-h" className={`${card} p-5 sm:p-6`}>
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <h2 id="plan-h" className="text-xl font-semibold tracking-tight">Practice plan</h2>
+                <p className="mt-0.5 text-xs text-muted">Ordered from the skills this job asks for most, easier questions first.</p>
+              </div>
+              <span className="text-xs font-medium tabular-nums text-muted">{summary.completed}/{summary.total} done</span>
+            </div>
+            <div className="mt-4"><Bar value={pct} label="Plan completion" /></div>
+            <ol className="-mx-2 mt-4 space-y-1">
+              {plan.map((item, i) => <PlanRow key={item.id} item={item} number={i + 1} skillLabels={skillLabels} />)}
+            </ol>
           </section>
 
-          {/* Role cards */}
-          <div className="mt-10 flex items-end justify-between gap-3">
-            <h2 className="text-xl font-semibold tracking-tight">Your roles</h2>
-            <p className="text-xs text-muted">Newest first</p>
-          </div>
-          <ul className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {jobs.map((j) => (
-              <RoleCard key={j.id} j={j} />
-            ))}
-            {canAdd && (
-              <li>
-                <Link
-                  href="/jobs/new"
-                  className="group flex h-full min-h-[16rem] flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-line bg-surface/40 p-6 text-center transition-colors hover:border-accent hover:bg-accent-soft/40"
-                >
-                  <span className="grid h-12 w-12 place-items-center rounded-full bg-accent-soft text-2xl font-light text-accent transition-transform group-hover:scale-110">+</span>
-                  <span className="text-sm font-semibold">Add another role</span>
-                  <span className="max-w-[14rem] text-xs text-muted">Paste a new job description and get a fresh plan.</span>
-                </Link>
-              </li>
-            )}
-          </ul>
-        </>
-      ) : (
-        <section aria-labelledby="how-h" className="mt-10">
-          <div className="text-center">
-            <h2 id="how-h" className="text-2xl font-semibold tracking-tight">How it works</h2>
-            <p className="mx-auto mt-2 max-w-lg text-sm text-muted">
-              Add the first job or internship you are applying to and get a plan built from questions you can practise right now.
+          <details className={`${card} group p-5 text-sm`}>
+            <summary className="cursor-pointer list-none font-semibold marker:hidden [&::-webkit-details-marker]:hidden">
+              <span className="flex items-center justify-between gap-3">
+                How is role readiness calculated?
+                <span className="text-muted transition-transform group-open:rotate-90"><ChevronRight width={16} height={16} /></span>
+              </span>
+            </summary>
+            <p className="mt-3 text-muted">
+              It is the weighted average of your skill scores, where each skill score is the average AI feedback score of your latest answers to plan questions for that skill. Core skills weigh three times more than nice-to-haves, and a skill is scaled down until you have answered a few questions for it. Skills the question bank cannot test yet are left out. It is a practice indicator, not a prediction of interview results.
             </p>
-          </div>
-          <ol className="mt-8 grid gap-4 md:grid-cols-3">
-            {STEPS.map(({ icon: Icon, title, text }, i) => (
-              <li key={title} className="relative overflow-hidden rounded-2xl border border-line bg-surface p-6">
-                <span aria-hidden="true" className="absolute -right-2 -top-4 select-none text-8xl font-bold text-surface-2">{i + 1}</span>
-                <span className="relative grid h-11 w-11 place-items-center rounded-xl bg-accent-soft text-accent">
-                  <Icon width={22} height={22} />
-                </span>
-                <h3 className="relative mt-4 text-base font-semibold">{title}</h3>
-                <p className="relative mt-1.5 text-sm text-muted">{text}</p>
-              </li>
-            ))}
-          </ol>
-          <div className="mt-8 text-center">
-            <Link href="/jobs/new" className={cta}>Paste a job description</Link>
-          </div>
-        </section>
-      )}
+          </details>
+        </div>
+
+        <aside className="space-y-6 lg:sticky lg:top-20">
+          <section
+            aria-labelledby="mock-h"
+            className="relative overflow-hidden rounded-2xl border border-accent/40 p-5 sm:p-6"
+            style={{ background: 'linear-gradient(160deg, var(--accent-soft), var(--surface) 65%)' }}
+          >
+            <div aria-hidden="true" className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-accent/20 blur-2xl" />
+            <div className="relative">
+              <span className="grid h-11 w-11 place-items-center rounded-xl bg-accent text-accent-ink shadow-md shadow-accent/30"><Flask width={22} height={22} /></span>
+              <h2 id="mock-h" className="mt-4 text-lg font-semibold">Mock assessment</h2>
+              <p className="mt-1.5 text-sm text-muted">
+                A timed set of questions across this job&rsquo;s main skills, with AI feedback at the end. It uses questions you haven&rsquo;t answered yet when possible. If it picks one you already answered, your new answer replaces the old one.
+              </p>
+              <div className="mt-5">
+                <StartMockButton
+                  jobId={job.id}
+                  resume={Boolean(open)}
+                  disabledReason={typed < MOCK_MIN_QUESTIONS ? `Needs at least ${MOCK_MIN_QUESTIONS} written questions in the plan.` : null}
+                />
+              </div>
+              {open && <p className="mt-2 text-center text-xs font-medium text-accent">You have a mock in progress.</p>}
+
+              {finished.length > 0 && (
+                <div className="mt-5 border-t border-line pt-4">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted">Past attempts</p>
+                  <ul className="mt-2 space-y-1">
+                    {finished.map((m) => (
+                      <li key={m.id}>
+                        <Link href={`/jobs/${job.id}/mock/${m.id}`} className="flex items-center justify-between gap-3 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-surface/80">
+                          <span className="text-muted">{m.completedAt?.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+                          <span className={`rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums ${TONE_SOFT[toneOf(m.score)]}`}>{m.score !== null ? `${m.score}/100` : 'No score'}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section aria-labelledby="skills-h" className={`${card} p-5 sm:p-6`}>
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 id="skills-h" className="text-lg font-semibold">Skills in this job</h2>
+              <span className="text-xs text-muted">{skills.length}</span>
+            </div>
+            <ul className="mt-4 space-y-2.5">{skills.map((s) => <SkillRow key={s.key} skill={s} />)}</ul>
+            {gaps.length > 0 && (
+              <p className="mt-4 rounded-xl border border-dashed border-line bg-surface-2/50 p-3.5 text-xs text-muted">
+                <span className="font-semibold text-ink">Not covered yet:</span> {gaps.map((g) => g.label).join(', ')}. The question bank has no matching questions for these, so they are not part of your plan or readiness score.
+              </p>
+            )}
+          </section>
+        </aside>
+      </div>
     </div>
   );
 }

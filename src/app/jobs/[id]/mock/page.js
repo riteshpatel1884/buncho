@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma';
 import { getOrCreateUser } from '@/lib/user';
 import Markdown from '@/components/Markdown';
 import MockRunner from '@/components/jobs/MockRunner';
+import { ctaBtn } from '@/components/jobs/ui';
+import { Flask } from '@/components/icons';
 
 export const metadata = { title: 'Mock assessment' };
 
@@ -20,10 +22,16 @@ export default async function MockPage({ params }) {
     const job = await prisma.jobTarget.findFirst({ where: { id, userId: user.id }, select: { id: true } });
     if (!job) notFound();
     return (
-      <div className="mx-auto max-w-xl px-4 py-16 text-center">
-        <h1 className="text-2xl font-semibold">No mock in progress</h1>
-        <p className="mt-2 text-sm text-muted">Start a mock assessment from your role page.</p>
-        <Link href={`/jobs/${id}`} className="mt-4 inline-block rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-ink">Back to role</Link>
+      <div className="mx-auto w-full max-w-2xl px-4 py-16 sm:px-6">
+        <div className="relative overflow-hidden rounded-3xl border border-line p-8 text-center sm:p-12" style={{ background: 'linear-gradient(135deg, var(--accent-soft), var(--surface) 65%)' }}>
+          <div aria-hidden="true" className="pointer-events-none absolute -left-10 -top-16 h-48 w-48 rounded-full bg-accent/20 blur-3xl" />
+          <div className="relative">
+            <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-accent text-accent-ink shadow-lg shadow-accent/30"><Flask width={28} height={28} /></span>
+            <h1 className="mt-5 text-2xl font-semibold tracking-tight sm:text-3xl">No mock in progress</h1>
+            <p className="mx-auto mt-2 max-w-sm text-sm text-muted">Start a mock assessment from your role page and it will appear here with a timer.</p>
+            <Link href={`/jobs/${id}`} className={`${ctaBtn} mt-6`}>Back to role</Link>
+          </div>
+        </div>
       </div>
     );
   }

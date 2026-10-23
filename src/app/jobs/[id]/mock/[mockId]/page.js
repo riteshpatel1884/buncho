@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma';
 import { getOrCreateUser } from '@/lib/user';
 import { getSkill } from '@/lib/jobs/skills';
 import { Bar } from '@/components/jobs/Parts';
+import { BackLink, Eyebrow, Hero, Ring, Stat, TONE_SOFT, TONE_TEXT, TONE_VAR, card, ctaBtn, toneOf } from '@/components/jobs/ui';
+import { ChevronRight } from '@/components/icons';
 
 export const metadata = { title: 'Mock assessment results' };
 
@@ -40,56 +42,107 @@ export default async function MockResultPage({ params }) {
   }));
   const skills = [...bySkill.entries()].map(([k, e]) => ({ key: k, label: getSkill(k)?.label ?? k, avg: Math.round(e.sum / e.n) })).sort((a, b) => a.avg - b.avg);
 
-  return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-16 pt-8 sm:px-6">
-      <Link href={`/jobs/${id}`} className="text-sm text-muted hover:text-ink">← {mock.job.title}</Link>
-      <h1 className="mt-3 text-3xl font-semibold tracking-tight">Mock assessment results</h1>
+  const tone = toneOf(mock.score);
+  const verdict = mock.score === null ? 'No score' : mock.score >= 70 ? 'Strong result' : mock.score >= 50 ? 'Solid start' : 'Room to grow';
+  const delta = previous && mock.score !== null ? mock.score - previous.score : null;
+  const answeredCount = questions.filter((q) => q.state !== 'skipped').length;
+  const strongest = skills.length ? skills[skills.length - 1] : null;
+  const weakest = skills.length ? skills[0] : null;
 
-      <section className="panel mt-6 p-6 text-center">
-        <p className="text-5xl font-semibold tabular-nums">{mock.score ?? '—'}<span className="text-lg font-normal text-muted">{mock.score !== null ? '/100' : ''}</span></p>
-        {previous && mock.score !== null && (
-          <p className="mt-1 text-sm text-muted">
-            {mock.score === previous.score ? 'Same as' : mock.score > previous.score ? `Up ${mock.score - previous.score} from` : `Down ${previous.score - mock.score} from`} your previous mock ({previous.score}/100)
-          </p>
-        )}
-        {partial && <p className="mx-auto mt-3 max-w-md rounded-lg bg-medium/12 px-3 py-2 text-xs text-medium">AI feedback failed for some answers, so this score covers only the questions that were evaluated. Open those questions to retry feedback.</p>}
-        <p className="mx-auto mt-3 max-w-md text-xs text-muted">This is a practice indicator from AI feedback on your answers. It does not predict how an interview will go.</p>
+  return (
+    <div className="mx-auto w-full max-w-5xl px-4 pb-20 pt-6 sm:px-6">
+      <BackLink href={`/jobs/${id}`}>{mock.job.title}</BackLink>
+
+      {/* Score hero */}
+      <Hero className="mt-3" aria-labelledby="result-h1">
+        <div className="flex flex-col items-center gap-8 p-6 text-center sm:p-10 md:flex-row md:text-left">
+          <Ring value={mock.score ?? 0} size={176} stroke={14} color={TONE_VAR[tone]}>
+            <span>
+              <span className="block text-5xl font-semibold leading-none tabular-nums">{mock.score ?? '—'}</span>
+              {mock.score !== null && <span className="mt-1 block text-sm text-muted">out of 100</span>}
+            </span>
+          </Ring>
+          <div className="min-w-0 flex-1">
+            <Eyebrow>Mock assessment results</Eyebrow>
+            <h1 id="result-h1" className={`mt-3 text-3xl font-semibold tracking-tight sm:text-4xl ${TONE_TEXT[tone]}`}>{verdict}</h1>
+            {delta !== null && (
+              <p className="mt-3">
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ${delta > 0 ? TONE_SOFT.easy : delta < 0 ? TONE_SOFT.hard : TONE_SOFT.muted}`}>
+                  {delta === 0 ? 'Same as' : delta > 0 ? `▲ Up ${delta} from` : `▼ Down ${-delta} from`} your previous mock ({previous.score}/100)
+                </span>
+              </p>
+            )}
+            {partial && (
+              <p className="mt-3 max-w-lg rounded-xl bg-medium/12 px-3.5 py-2.5 text-xs text-medium md:max-w-xl">
+                AI feedback failed for some answers, so this score covers only the questions that were evaluated. Open those questions to retry feedback.
+              </p>
+            )}
+            <p className="mt-3 max-w-xl text-xs text-muted">This is a practice indicator from AI feedback on your answers. It does not predict how an interview will go.</p>
+            <div className="mt-5 flex flex-wrap justify-center gap-3 md:justify-start">
+              <Link href={`/jobs/${id}`} className={ctaBtn}>Back to practice plan</Link>
+            </div>
+          </div>
+        </div>
+      </Hero>
+
+      {/* Highlights */}
+      <section aria-label="Highlights" className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label="Questions answered" value={`${answeredCount}/${questions.length}`} hint={answeredCount === questions.length ? 'every question attempted' : 'unanswered count as 0'} />
+        <Stat label="Skills assessed" value={skills.length} hint="from scored answers" />
+        <Stat label="Strongest skill" value={strongest ? `${strongest.avg}/100` : '–'} hint={strongest?.label} tone={strongest ? toneOf(strongest.avg) : undefined} />
+        <Stat label="Focus next" value={weakest ? `${weakest.avg}/100` : '–'} hint={weakest?.label} tone={weakest ? toneOf(weakest.avg) : undefined} />
       </section>
 
-      {skills.length > 0 && (
-        <section className="panel mt-4 p-5">
-          <h2 className="text-base font-semibold">By skill</h2>
-          <p className="text-xs text-muted">Weakest first.</p>
-          <ul className="mt-4 space-y-3">
-            {skills.map((s) => (
-              <li key={s.key}>
-                <div className="flex justify-between text-sm"><span className="font-medium">{s.label}</span><span className="tabular-nums text-muted">{s.avg}/100</span></div>
-                <div className="mt-1.5"><Bar value={s.avg} label={`${s.label} score`} /></div>
-              </li>
-            ))}
+      <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+        {skills.length > 0 && (
+          <section aria-labelledby="skills-h" className={`${card} p-5 sm:p-6`}>
+            <h2 id="skills-h" className="text-xl font-semibold tracking-tight">By skill</h2>
+            <p className="text-xs text-muted">Weakest first.</p>
+            <ul className="mt-5 space-y-4">
+              {skills.map((s, i) => (
+                <li key={s.key}>
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="flex min-w-0 items-center gap-2 font-medium">
+                      <span className="truncate">{s.label}</span>
+                      {i === 0 && skills.length > 1 && <span className="shrink-0 rounded-full bg-hard/12 px-2 py-0.5 text-[0.65rem] font-semibold text-hard">Focus here</span>}
+                    </span>
+                    <span className={`shrink-0 font-semibold tabular-nums ${TONE_TEXT[toneOf(s.avg)]}`}>{s.avg}<span className="font-normal text-muted">/100</span></span>
+                  </div>
+                  <div className="mt-2"><Bar value={s.avg} label={`${s.label} score`} /></div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <section aria-labelledby="questions-h" className={`${card} p-5 sm:p-6 ${skills.length === 0 ? 'lg:col-span-2' : ''}`}>
+          <h2 id="questions-h" className="text-xl font-semibold tracking-tight">Questions</h2>
+          <p className="text-xs text-muted">Open a question to see feedback and the expert solution.</p>
+          <ul className="-mx-2 mt-4 space-y-1">
+            {questions.map((q, i) => {
+              const t = toneOf(q.score);
+              return (
+                <li key={q.problemId}>
+                  <Link href={`/problems/${slugs[q.problemId] ?? ''}`} className="group flex items-center gap-3.5 rounded-xl border border-transparent px-3 py-3 transition-all hover:border-line hover:bg-surface-2/60">
+                    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl text-sm font-semibold tabular-nums ${TONE_SOFT[t]}`}>{i + 1}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium group-hover:text-accent">{q.title}</span>
+                      <span className="block truncate text-xs text-muted">{STATE[q.state] ?? 'View feedback and the expert solution'}</span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-2">
+                      {q.score !== null ? (
+                        <span className={`rounded-md px-2 py-0.5 text-sm font-semibold tabular-nums ${TONE_SOFT[t]}`}>{q.score}/100</span>
+                      ) : (
+                        <span className="text-sm text-muted">—</span>
+                      )}
+                      <ChevronRight width={16} height={16} className="text-muted transition-transform group-hover:translate-x-0.5" />
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </section>
-      )}
-
-      <section className="panel mt-4 p-5">
-        <h2 className="text-base font-semibold">Questions</h2>
-        <ul className="-mx-2 mt-3 space-y-0.5">
-          {questions.map((q, i) => (
-            <li key={q.problemId}>
-              <Link href={`/problems/${slugs[q.problemId] ?? ''}`} className="flex items-center justify-between gap-4 rounded-lg px-3 py-3 text-sm odd:bg-surface-2/70 hover:bg-surface-2">
-                <span className="min-w-0">
-                  <span className="block truncate font-medium"><span className="mr-1.5 tabular-nums text-muted">{i + 1}.</span>{q.title}</span>
-                  <span className="block text-xs text-muted">{STATE[q.state] ?? 'View feedback and the expert solution'}</span>
-                </span>
-                <span className="shrink-0 font-semibold tabular-nums">{q.score !== null ? `${q.score}/100` : '—'}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <div className="mt-6 flex flex-wrap gap-3">
-        <Link href={`/jobs/${id}`} className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-ink hover:opacity-90">Back to practice plan</Link>
       </div>
     </div>
   );
