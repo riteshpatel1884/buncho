@@ -2,6 +2,7 @@ import Link from 'next/link';
 import DifficultyBadge from '@/components/DifficultyBadge';
 import { Check } from '@/components/icons';
 import { TYPE_LABEL } from '@/lib/constants';
+import { InsightsInline } from '@/components/Insights';
 import { TONE_SOFT, TONE_TEXT, toneOf } from './ui';
 
 export const barColor = (s) => (s >= 70 ? 'bg-easy' : s >= 50 ? 'bg-medium' : 'bg-hard');
@@ -38,7 +39,7 @@ export function SkillRow({ skill }) {
   );
 }
 
-export function PlanRow({ item, number, skillLabels }) {
+export function PlanRow({ item, number, skillLabels, pro = false }) {
   const { problem: p } = item;
   const done = item.status === 'COMPLETED';
   const labels = item.skillKeys.map((k) => skillLabels[k] ?? k);
@@ -67,6 +68,7 @@ export function PlanRow({ item, number, skillLabels }) {
             {labels.length > 2 && <span className="text-[0.7rem] text-muted">+{labels.length - 2}</span>}
             <span className="text-xs text-muted">{TYPE_LABEL[p.type]} · {p.estimatedMinutes} min</span>
           </span>
+          <InsightsInline pro={pro} problem={p} className="mt-1.5" />
         </span>
         <span className="flex shrink-0 flex-col items-end gap-1.5">
           <DifficultyBadge difficulty={p.difficulty} />

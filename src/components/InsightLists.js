@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import DifficultyBadge from './DifficultyBadge';
 import Section, { Empty, rowClass } from './dashboard/Section';
+import { InsightsInline } from './Insights';
 
 export function Recommended({ items }) {
   return (
@@ -29,7 +30,7 @@ export function Recommended({ items }) {
   );
 }
 
-export function RevisionQueue({ items }) {
+export function RevisionQueue({ items, pro = false }) {
   return (
     <Section id="revision" title="Revision queue" hint="Answers due for another look. Lower scores come back sooner.">
       {items.length ? (
@@ -42,6 +43,7 @@ export function RevisionQueue({ items }) {
                   <span className="mt-0.5 block truncate text-xs text-muted">
                     Scored {p.score}/100 · answered {p.answeredDaysAgo === 0 ? 'today' : `${p.answeredDaysAgo}d ago`}
                   </span>
+                  <InsightsInline pro={pro} problem={p} className="mt-0.5" />
                 </span>
                 <span className="shrink-0 text-xs font-semibold text-accent">Revise</span>
               </Link>

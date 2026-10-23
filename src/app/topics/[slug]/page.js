@@ -8,6 +8,7 @@ import ActivityGrid from '@/components/ActivityGrid';
 import { ContinueCard, StatsCard } from '@/components/StatsCard';
 import { getProblems, getProgressMap, getTopics, getUserStats, parseFilters } from '@/lib/problems';
 import { getOrCreateUser } from '@/lib/user';
+import { getIsPro } from '@/lib/subscription';
 import JsonLd from '@/components/JsonLd';
 import { buildMetadata, collectionPageJsonLd, breadcrumbJsonLd, graph, hasActiveFilters, plainText, truncate } from '@/lib/seo';
 
@@ -47,7 +48,8 @@ export default async function TopicPage({ params, searchParams }) {
 
   const filters = { ...parseFilters(await searchParams), topic: slug };
   const user = await getOrCreateUser();
-  const [allTopics, result, stats] = await Promise.all([getTopics(), getProblems(filters), getUserStats(user?.id ?? null)]);
+  const pro = user ? await getIsPro(user.id) : false;
+  const [allTopics, result, stats] = await Promise.all([getTopics(), getProblems({ ...filters, pro }), getUserStats(user?.id ?? null)]);
   const statusMap = user ? await getProgressMap(user.id, result.items.map((p) => p.id)) : {};
 
   const { page, topic: _t, ...rest } = filters;
@@ -90,7 +92,7 @@ export default async function TopicPage({ params, searchParams }) {
           <ProblemFilters topics={allTopics} currentTopic={slug} total={result.total} />
         </Suspense>
 
-        <ProblemList result={result} statusMap={statusMap} basePath={`/topics/${slug}`} params={queryParams} />
+        <ProblemList result={result} statusMap={statusMap} basePath={`/topics/${slug}`} params={queryParams} pro={pro} />
       </div>
     </LibraryLayout>
   );

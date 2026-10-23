@@ -9,6 +9,9 @@ import { RevisionQueue } from '@/components/InsightLists';
 import { StatsCard } from '@/components/StatsCard';
 import { getUserStats } from '@/lib/problems';
 import { getInsights } from '@/lib/insights';
+import { attachInsights, getEntitlements } from '@/lib/subscription';
+import { InsightsInline } from '@/components/Insights';
+import PlanCard from '@/components/billing/PlanCard';
 import { listJobs } from '@/lib/jobs/progress';
 import JobPrepCard from '@/components/jobs/JobPrepCard';
 import Section, { Empty, rowClass } from '@/components/dashboard/Section';
@@ -19,6 +22,9 @@ export const metadata = { title: 'Dashboard' };
 export default async function DashboardPage() {
   const user = await getOrCreateUser();
   if (!user) redirect('/login');
+
+  const ent = await getEntitlements(user.id);
+  const pro = ent.isPro;
 
   const [progress, bookmarks, stats, insights, jobs] = await Promise.all([
     prisma.problemProgress.findMany({
@@ -38,7 +44,11 @@ export default async function DashboardPage() {
   ]);
 
   const completed = progress.filter((p) => p.status === 'COMPLETED');
-  const recentlySolved = completed.slice(0, 5).map((p) => p.problem);
+  const [revision, recentlySolved, savedList] = await Promise.all([
+    attachInsights(insights.revision, pro),
+    attachInsights(completed.slice(0, 5).map((p) => p.problem), pro),
+    attachInsights(bookmarks.map((b) => b.problem), pro),
+  ]);
 
   const firstName = user.name?.split(' ')[0];
   const next = insights.recommendations[0];
@@ -50,7 +60,10 @@ export default async function DashboardPage() {
         {items.map((item) => (
           <li key={item.slug}>
             <Link href={`/problems/${item.slug}`} className={rowClass}>
-              <span className="min-w-0 truncate font-medium">{item.title}</span>
+              <span className="min-w-0">
+                <span className="block truncate font-medium">{item.title}</span>
+                <InsightsInline pro={pro} problem={item} className="mt-0.5" />
+              </span>
               <DifficultyBadge difficulty={item.difficulty} plain />
             </Link>
           </li>
@@ -107,7 +120,7 @@ export default async function DashboardPage() {
           <ReadinessCard readiness={insights.readiness} competencies={insights.competencies} />
 
           <div className="grid gap-8 xl:grid-cols-2">
-            <RevisionQueue items={insights.revision} />
+            <RevisionQueue items={revision} pro={pro} />
             <Section id="recent" title="Recently solved" hint="Problems you have submitted an answer for.">
               <List items={recentlySolved} empty="Submit an answer to solve your first problem." />
             </Section>
@@ -116,12 +129,13 @@ export default async function DashboardPage() {
 
         {/* Sidebar */}
         <aside className="min-w-0 space-y-8">
+          <PlanCard ent={ent} />
           <StatsCard stats={stats} signedIn roomy />
           <WeeklyActivity weekly={insights.weekly} />
           <JobPrepCard jobs={jobs.slice(0, 3)} />
 
           <Section id="saved" title="Saved for later">
-            <List items={bookmarks.map((b) => b.problem)} empty="Use Save for later on any problem to collect it here." />
+            <List items={savedList} empty="Use Save for later on any problem to collect it here." />
           </Section>
         </aside>
       </div>

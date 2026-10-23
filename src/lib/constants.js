@@ -97,3 +97,13 @@ export const MOCK_QUESTIONS = 5;
 export const MOCK_MIN_QUESTIONS = 3;
 export const MOCK_MIN_MINUTES = 20;
 export const MOCK_MAX_MINUTES = 60;
+
+/* ---------- Phase 8: plans and billing ---------- */
+
+// Free plan: 1 role at a time, and ONE mock assessment for the whole account (lifetime, not per role).
+export const FREE_ROLE_LIMIT = 1;
+export const FREE_MOCK_LIMIT = 1;
+
+export const PRO_PLAN_ID = 'PRO_MONTHLY';
+export const PRO_PRICE_INR = 99;
+export const PRO_PERIOD_DAYS = 30;

@@ -56,6 +56,13 @@ enum MockStatus {
   COMPLETED
 }
 
+// Phase 8: subscriptions
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
 /* ---------- Core models (Phase 1-2) ---------- */
 
 model User {
@@ -81,6 +88,12 @@ model User {
   // Phase 7
   jobTargets       JobTarget[]
   mockAssessments  MockAssessment[]
+  // Phase 8: plans and billing
+  // Lifetime count of mock attempts started. Kept on the user (not derived from MockAssessment rows) so that
+  // deleting a role, which cascades to its mocks, cannot reset the free attempt.
+  mockAttemptsUsed Int              @default(0)
+  subscription     Subscription?
+  payments         Payment[]
 
   @@index([email])
 }
@@ -113,6 +126,11 @@ model Problem {
   position          Int         @default(0)
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
+
+  // Phase 8: interview insights (Pro). Only ever selected for users with an active subscription.
+  // askedFrequency: whole percent (0-100) of reported interviews where this question came up. Null = no data yet.
+  askedFrequency   Int?
+  askedByCompanies String[]
 
   // Phase 5: production challenges
   isChallenge  Boolean @default(false)
@@ -358,4 +376,35 @@ model MockAssessment {
 
   @@index([jobId, startedAt])
   @@index([userId, status])
+}
+
+/* ---------- Plans and billing (Phase 8) ---------- */
+
+// One row per user. Pro is active while currentPeriodEnd is in the future, so nothing has to run on a schedule
+// to expire it. Each successful payment pushes currentPeriodEnd forward.
+model Subscription {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan             String   @default("PRO_MONTHLY")
+  startedAt        DateTime @default(now())
+  currentPeriodEnd DateTime
+  updatedAt        DateTime @updatedAt
+}
+
+// One row per Cashfree order. orderId is our own id, sent to Cashfree as order_id.
+model Payment {
+  id          String        @id @default(cuid())
+  orderId     String        @unique
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  plan        String
+  amountPaise Int
+  currency    String        @default("INR")
+  status      PaymentStatus @default(PENDING)
+  cfPaymentId String?
+  paidAt      DateTime?
+  createdAt   DateTime      @default(now())
+
+  @@index([userId, createdAt])
 }

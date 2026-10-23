@@ -19,6 +19,7 @@ export default async function Navbar() {
           { href: '/dashboard', label: 'Dashboard' },
         ]
       : []),
+    { href: '/pricing', label: 'Pricing' },
   ];
 
   return (

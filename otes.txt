@@ -1,5 +1,5 @@
 npx prisma db push
-npx prisma generate...
+npx prisma generate
 npm run dev
 
 seed

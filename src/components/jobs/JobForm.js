@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createJobTarget } from '@/app/job-actions';
 import { JD_MAX_LENGTH, JD_MIN_LENGTH } from '@/lib/constants';
@@ -17,6 +18,7 @@ export default function JobForm() {
   const [company, setCompany] = useState('');
   const [jd, setJd] = useState('');
   const [error, setError] = useState(null);
+  const [upgrade, setUpgrade] = useState(false);
   const [pending, startTransition] = useTransition();
 
   function submit(e) {
@@ -24,7 +26,10 @@ export default function JobForm() {
     setError(null);
     startTransition(async () => {
       const res = await createJobTarget({ title, company, jdText: jd });
-      if (!res.ok) return setError(res.error);
+      if (!res.ok) {
+        setUpgrade(res.code === 'UPGRADE');
+        return setError(res.error);
+      }
       router.push(`/jobs/${res.id}`);
     });
   }
@@ -79,7 +84,12 @@ export default function JobForm() {
         </div>
       </div>
 
-      {error && <p role="alert" className="rounded-xl border border-hard/30 bg-hard/10 px-4 py-3 text-sm text-hard">{error}</p>}
+      {error && (
+        <p role="alert" className="rounded-xl border border-hard/30 bg-hard/10 px-4 py-3 text-sm text-hard">
+          {error}
+          {upgrade && <> <Link href="/pricing" className="font-semibold underline">See Buncho Pro</Link></>}
+        </p>
+      )}
 
       {pending && (
         <div role="status" className="flex items-center gap-3 rounded-xl border border-accent/30 bg-accent-soft px-4 py-3 text-sm">

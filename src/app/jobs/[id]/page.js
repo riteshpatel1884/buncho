@@ -2,11 +2,12 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { getOrCreateUser } from '@/lib/user';
 import { getJobDetail } from '@/lib/jobs/progress';
+import { getEntitlements } from '@/lib/subscription';
 import { Bar, PlanRow, SkillRow } from '@/components/jobs/Parts';
 import { ManageRole, StartMockButton } from '@/components/jobs/JobActions';
-import { Avatar, BackLink, Hero, Ring, Stat, TONE_SOFT, card, chip, toneOf } from '@/components/jobs/ui';
-import { ChevronRight, Flask } from '@/components/icons';
-import { MOCK_MIN_QUESTIONS } from '@/lib/constants';
+import { Avatar, BackLink, Hero, Ring, Stat, TONE_SOFT, card, chip, ctaBtn, toneOf } from '@/components/jobs/ui';
+import { ChevronRight, Flask, Lock } from '@/components/icons';
+import { FREE_MOCK_LIMIT, MOCK_MIN_QUESTIONS, PRO_PRICE_INR } from '@/lib/constants';
 
 export const metadata = { title: 'Role preparation' };
 
@@ -14,7 +15,9 @@ export default async function JobPage({ params }) {
   const user = await getOrCreateUser();
   if (!user) redirect('/login');
   const { id } = await params;
-  const data = await getJobDetail(user.id, id);
+  const ent = await getEntitlements(user.id);
+  const pro = ent.isPro;
+  const data = await getJobDetail(user.id, id, { pro });
   if (!data) notFound();
 
   const { job, plan, skills, gaps, mocks, summary, next } = data;
@@ -109,7 +112,7 @@ export default async function JobPage({ params }) {
             </div>
             <div className="mt-4"><Bar value={pct} label="Plan completion" /></div>
             <ol className="-mx-2 mt-4 space-y-1">
-              {plan.map((item, i) => <PlanRow key={item.id} item={item} number={i + 1} skillLabels={skillLabels} />)}
+              {plan.map((item, i) => <PlanRow key={item.id} item={item} number={i + 1} skillLabels={skillLabels} pro={pro} />)}
             </ol>
           </section>
 
@@ -139,14 +142,31 @@ export default async function JobPage({ params }) {
               <p className="mt-1.5 text-sm text-muted">
                 A timed set of questions across this job&rsquo;s main skills, with AI feedback at the end. It uses questions you haven&rsquo;t answered yet when possible. If it picks one you already answered, your new answer replaces the old one.
               </p>
-              <div className="mt-5">
-                <StartMockButton
-                  jobId={job.id}
-                  resume={Boolean(open)}
-                  disabledReason={typed < MOCK_MIN_QUESTIONS ? `Needs at least ${MOCK_MIN_QUESTIONS} written questions in the plan.` : null}
-                />
-              </div>
-              {open && <p className="mt-2 text-center text-xs font-medium text-accent">You have a mock in progress.</p>}
+              {open || ent.mocks.canStart ? (
+                <>
+                  <div className="mt-5">
+                    <StartMockButton
+                      jobId={job.id}
+                      resume={Boolean(open)}
+                      disabledReason={typed < MOCK_MIN_QUESTIONS ? `Needs at least ${MOCK_MIN_QUESTIONS} written questions in the plan.` : null}
+                    />
+                  </div>
+                  {open && <p className="mt-2 text-center text-xs font-medium text-accent">You have a mock in progress.</p>}
+                  {!pro && !open && (
+                    <p className="mt-2 text-center text-xs text-muted">
+                      {FREE_MOCK_LIMIT} free attempt included for your account, with the full result and AI feedback.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <div className="mt-5 rounded-xl border border-dashed border-accent/40 bg-surface/60 p-4">
+                  <p className="flex items-center gap-2 text-sm font-semibold"><Lock width={15} height={15} /> Free mock assessment used</p>
+                  <p className="mt-1.5 text-xs text-muted">
+                    Your result and feedback stay free to review. With Pro you can retake after practising your weak skills and watch your score move.
+                  </p>
+                  <Link href="/pricing" className={`${ctaBtn} mt-4 w-full`}>Unlock unlimited mocks · ₹{PRO_PRICE_INR}</Link>
+                </div>
+              )}
 
               {finished.length > 0 && (
                 <div className="mt-5 border-t border-line pt-4">

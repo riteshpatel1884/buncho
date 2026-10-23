@@ -6,8 +6,9 @@ import { getOrCreateUser } from '@/lib/user';
 import { hashContent } from '@/lib/ai/evaluate';
 import { extractSkills, guessTitle } from '@/lib/jobs/extract';
 import { buildPlan } from '@/lib/jobs/plan';
+import { getEntitlements } from '@/lib/subscription';
 import {
-  JD_MAX_LENGTH, JD_MIN_LENGTH, MAX_ANSWER_LENGTH, MAX_JOB_TARGETS, MIN_ANSWER_LENGTH,
+  FREE_MOCK_LIMIT, FREE_ROLE_LIMIT, JD_MAX_LENGTH, JD_MIN_LENGTH, MAX_ANSWER_LENGTH, MAX_JOB_TARGETS, MIN_ANSWER_LENGTH,
   MIN_SKILLS_REQUIRED, MOCK_MAX_MINUTES, MOCK_MIN_MINUTES, MOCK_MIN_QUESTIONS, MOCK_QUESTIONS,
 } from '@/lib/constants';
 
@@ -25,6 +26,16 @@ const slimSkills = (skills) =>
 
 export async function createJobTarget({ title, company, jdText }) {
   const user = await requireUser();
+
+  // Free plan: one role. Checked first so nothing is analysed or stored for a refused request.
+  const ent = await getEntitlements(user.id);
+  if (!ent.roles.canAdd) {
+    return {
+      ok: false,
+      code: 'UPGRADE',
+      error: `The free plan includes ${FREE_ROLE_LIMIT} role preparation plan. Upgrade to Pro to add more roles.`,
+    };
+  }
 
   const text = String(jdText ?? '').replace(/\r\n/g, '\n').trim();
   if (text.length < JD_MIN_LENGTH) return { ok: false, error: 'Paste the full job description. This one is too short to read skills from.' };
@@ -145,14 +156,40 @@ export async function startMock(jobId) {
   const minutes = picked.reduce((a, i) => a + i.problem.estimatedMinutes, 0);
   const durationMinutes = Math.min(MOCK_MAX_MINUTES, Math.max(MOCK_MIN_MINUTES, Math.round(minutes / 5) * 5));
 
-  // Only one open mock per role. Starting again replaces an abandoned one.
-  const [, mock] = await prisma.$transaction([
-    prisma.mockAssessment.deleteMany({ where: { jobId: job.id, userId: user.id, status: 'IN_PROGRESS' } }),
-    prisma.mockAssessment.create({
+  // Only one open mock per role. For a free user that open mock IS their one attempt, so it is resumed, not replaced.
+  const upgrade = {
+    ok: false,
+    code: 'UPGRADE',
+    error: `You have used your ${FREE_MOCK_LIMIT} free mock assessment. Upgrade to Pro for unlimited attempts.`,
+  };
+  const ent = await getEntitlements(user.id);
+  if (!ent.isPro) {
+    const open = await prisma.mockAssessment.findFirst({
+      where: { jobId: job.id, userId: user.id, status: 'IN_PROGRESS' },
+      select: { id: true },
+    });
+    if (open) return { ok: true, id: open.id };
+  }
+
+  const mock = await prisma.$transaction(async (tx) => {
+    // The counter lives on the user and only goes up, so deleting a role cannot hand back the free attempt.
+    // For free users the increment is conditional, which makes the check atomic (two tabs cannot both pass).
+    if (ent.isPro) {
+      await tx.user.update({ where: { id: user.id }, data: { mockAttemptsUsed: { increment: 1 } } });
+    } else {
+      const claimed = await tx.user.updateMany({
+        where: { id: user.id, mockAttemptsUsed: { lt: FREE_MOCK_LIMIT } },
+        data: { mockAttemptsUsed: { increment: 1 } },
+      });
+      if (claimed.count === 0) return null;
+    }
+    await tx.mockAssessment.deleteMany({ where: { jobId: job.id, userId: user.id, status: 'IN_PROGRESS' } });
+    return tx.mockAssessment.create({
       data: { jobId: job.id, userId: user.id, problemIds: picked.map((i) => i.problemId), durationMinutes },
       select: { id: true },
-    }),
-  ]);
+    });
+  });
+  if (!mock) return upgrade;
 
   revalidatePath(`/jobs/${job.id}`);
   return { ok: true, id: mock.id };

@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { getOrCreateUser } from '@/lib/user';
 import { getCommunityAnswers } from '@/lib/community';
+import { getIsPro } from '@/lib/subscription';
+import { InsightsPanel } from '@/components/Insights';
 import { hashContent } from '@/lib/ai/evaluate';
 import { DIFFICULTY_LABEL, TYPE_LABEL } from '@/lib/constants';
 import Markdown from '@/components/Markdown';
@@ -70,8 +72,9 @@ export default async function ProblemPage({ params, searchParams }) {
   const rubric = asArray(problem.rubric);
   const scenarioData = asArray(problem.scenarioData);
 
-  const [user, neighbors] = await Promise.all([getOrCreateUser(), getProblemNeighbors(slug)]);
-  const upNext = await getUpNext({ userId: user?.id ?? null, currentSlug: slug });
+  const user = await getOrCreateUser();
+  const [neighbors, pro] = await Promise.all([getProblemNeighbors(slug), user ? getIsPro(user.id) : false]);
+  const upNext = await getUpNext({ userId: user?.id ?? null, currentSlug: slug, pro });
 
   let progress = null;
   let submission = null;
@@ -142,6 +145,9 @@ export default async function ProblemPage({ params, searchParams }) {
         <BookmarkButton problemId={problem.id} slug={slug} initial={bookmarked} signedIn={Boolean(user)} pill />
         {progress?.status === 'COMPLETED' && <span className="rounded-full bg-easy/12 px-2.5 py-0.5 text-xs font-semibold text-easy">Completed</span>}
       </div>
+
+      {/* Pro only. For everyone else this renders a lock and the values are never read into the page. */}
+      <InsightsPanel pro={pro} problem={pro ? { askedFrequency: problem.askedFrequency, askedByCompanies: problem.askedByCompanies } : null} />
 
       <section aria-label="Problem statement" className="mt-5">
         <Markdown>{problem.description}</Markdown>
@@ -328,7 +334,7 @@ export default async function ProblemPage({ params, searchParams }) {
       {/* Top bar: problem list popup, previous / next, timer */}
       <div className="flex h-12 shrink-0 items-center justify-between gap-2">
         <div className="flex items-center gap-1">
-          <ProblemListPopup items={upNext.items} remaining={upNext.remaining} signedIn={Boolean(user)} />
+          <ProblemListPopup items={upNext.items} remaining={upNext.remaining} signedIn={Boolean(user)} pro={pro} />
           {neighbors.prev ? (
             <Link href={`/problems/${neighbors.prev}`} className={arrow} aria-label="Previous problem" title="Previous problem">
               <ChevronLeft width={18} height={18} />

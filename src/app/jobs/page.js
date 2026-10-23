@@ -2,9 +2,10 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getOrCreateUser } from '@/lib/user';
 import { listJobs } from '@/lib/jobs/progress';
+import { getEntitlements } from '@/lib/subscription';
 import { MAX_JOB_TARGETS } from '@/lib/constants';
 import { Bar, barColor } from '@/components/jobs/Parts';
-import { Check, ChevronRight, FileText, Flask, Tag } from '@/components/icons';
+import { Check, ChevronRight, FileText, Flask, Lock, Tag } from '@/components/icons';
 
 export const metadata = { title: 'Job preparation' };
 
@@ -171,9 +172,11 @@ function RoleCard({ j }) {
 export default async function JobsPage() {
   const user = await getOrCreateUser();
   if (!user) redirect('/login');
-  const jobs = await listJobs(user.id);
+  const [jobs, ent] = await Promise.all([listJobs(user.id), getEntitlements(user.id)]);
 
-  const canAdd = jobs.length < MAX_JOB_TARGETS;
+  const atMax = jobs.length >= MAX_JOB_TARGETS;
+  const needsPro = !atMax && !ent.roles.canAdd; // free plan: the one role is already used
+  const canAdd = !atMax && ent.roles.canAdd;
   const doneTotal = jobs.reduce((s, j) => s + j.completed, 0);
   const qTotal = jobs.reduce((s, j) => s + j.total, 0);
   const overall = qTotal ? Math.round((doneTotal / qTotal) * 100) : 0;
@@ -217,13 +220,17 @@ export default async function JobsPage() {
                 <Link href="/jobs/new" className={cta}>
                   <span className="text-lg leading-none">+</span> Add a role
                 </Link>
+              ) : needsPro ? (
+                <Link href="/pricing" className={cta}>
+                  <Lock width={16} height={16} /> Add more roles with Pro
+                </Link>
               ) : (
                 <p className="rounded-full border border-line bg-surface/80 px-4 py-2 text-sm text-muted">
                   You have reached the limit of {MAX_JOB_TARGETS} roles.
                 </p>
               )}
               <span className="text-xs text-muted">
-                {jobs.length} of {MAX_JOB_TARGETS} roles used
+                {ent.isPro ? `${jobs.length} of ${MAX_JOB_TARGETS} roles used` : `${Math.min(jobs.length, ent.roles.limit)} of ${ent.roles.limit} free role used`}
               </span>
             </div>
           </div>
@@ -235,7 +242,7 @@ export default async function JobsPage() {
         <>
           {/* Overview numbers */}
           <section aria-label="Overview" className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Stat label="Roles tracked" value={jobs.length} hint={`${MAX_JOB_TARGETS - jobs.length} slots left`} />
+            <Stat label="Roles tracked" value={jobs.length} hint={ent.isPro ? `${MAX_JOB_TARGETS - jobs.length} slots left` : 'free plan includes 1'} />
             <Stat label="Questions done" value={`${doneTotal}/${qTotal}`} hint="across all plans" />
             <Stat label="Overall progress" value={`${overall}%`} hint={overall >= 100 ? 'All plans complete' : 'keep going'} />
             <Stat label="Best mock score" value={best === null ? '–' : `${best}/100`} hint={best === null ? 'take a mock to see it' : 'your top result'} />
@@ -250,15 +257,19 @@ export default async function JobsPage() {
             {jobs.map((j) => (
               <RoleCard key={j.id} j={j} />
             ))}
-            {canAdd && (
+            {(canAdd || needsPro) && (
               <li>
                 <Link
-                  href="/jobs/new"
+                  href={canAdd ? '/jobs/new' : '/pricing'}
                   className="group flex h-full min-h-[16rem] flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-line bg-surface/40 p-6 text-center transition-colors hover:border-accent hover:bg-accent-soft/40"
                 >
-                  <span className="grid h-12 w-12 place-items-center rounded-full bg-accent-soft text-2xl font-light text-accent transition-transform group-hover:scale-110">+</span>
-                  <span className="text-sm font-semibold">Add another role</span>
-                  <span className="max-w-[14rem] text-xs text-muted">Paste a new job description and get a fresh plan.</span>
+                  <span className="grid h-12 w-12 place-items-center rounded-full bg-accent-soft text-2xl font-light text-accent transition-transform group-hover:scale-110">
+                    {canAdd ? '+' : <Lock width={20} height={20} />}
+                  </span>
+                  <span className="text-sm font-semibold">{canAdd ? 'Add another role' : 'Add another role with Pro'}</span>
+                  <span className="max-w-[14rem] text-xs text-muted">
+                    {canAdd ? 'Paste a new job description and get a fresh plan.' : 'The free plan includes one role preparation plan.'}
+                  </span>
                 </Link>
               </li>
             )}

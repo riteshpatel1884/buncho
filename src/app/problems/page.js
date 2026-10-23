@@ -5,6 +5,7 @@ import ProblemList from '@/components/ProblemList';
 import { NextUpCard, ProgressCard } from '@/components/ProblemStats';
 import { getProblems, getProgressMap, getTopics, getUserStats, parseFilters } from '@/lib/problems';
 import { getOrCreateUser } from '@/lib/user';
+import { getIsPro } from '@/lib/subscription';
 import { Bookmark } from '@/components/icons';
 import JsonLd from '@/components/JsonLd';
 import { buildMetadata, collectionPageJsonLd, breadcrumbJsonLd, graph, hasActiveFilters } from '@/lib/seo';
@@ -29,7 +30,8 @@ export async function generateMetadata({ searchParams }) {
 export default async function ProblemsPage({ searchParams }) {
   const filters = parseFilters(await searchParams);
   const user = await getOrCreateUser();
-  const [topics, result, stats] = await Promise.all([getTopics(), getProblems(filters), getUserStats(user?.id ?? null)]);
+  const pro = user ? await getIsPro(user.id) : false;
+  const [topics, result, stats] = await Promise.all([getTopics(), getProblems({ ...filters, pro }), getUserStats(user?.id ?? null)]);
   const statusMap = user ? await getProgressMap(user.id, result.items.map((p) => p.id)) : {};
 
   const { page, ...rest } = filters;
@@ -79,7 +81,7 @@ export default async function ProblemsPage({ searchParams }) {
       </div>
 
       <div className="mt-4">
-        <ProblemList result={result} statusMap={statusMap} basePath="/problems" params={params} />
+        <ProblemList result={result} statusMap={statusMap} basePath="/problems" params={params} pro={pro} />
       </div>
     </div>
   );

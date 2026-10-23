@@ -1,5 +1,6 @@
 import { prisma } from './prisma';
 import { DIFFICULTIES, PROBLEM_TYPES, PAGE_SIZE } from './constants';
+import { attachInsights, insightSelect } from './subscription';
 
 // One fixed, shuffled order used everywhere a problem list or "next problem" is shown (list pages,
 // previous / next arrows, Problem List popup). It is not sorted by difficulty. Each problem's position comes
@@ -37,7 +38,7 @@ export function parseFilters(sp = {}) {
   };
 }
 
-export async function getProblems({ q, topic, difficulty, type, page, challenge }) {
+export async function getProblems({ q, topic, difficulty, type, page, challenge, pro = false }) {
   const where = {
     published: true,
     ...(challenge && { isChallenge: true }),
@@ -69,6 +70,7 @@ export async function getProblems({ q, topic, difficulty, type, page, challenge 
           type: true,
           estimatedMinutes: true,
           topic: { select: { name: true, slug: true } },
+          ...insightSelect(pro),
         },
       })
     : [];
@@ -173,7 +175,7 @@ export async function getUserStats(userId) {
  * Next unsolved problems after the current one (wrapping around), for the Problem List popup.
  * Signed-out visitors just get the next problems in order.
  */
-export async function getUpNext({ userId, currentSlug, limit = 20 }) {
+export async function getUpNext({ userId, currentSlug, limit = 20, pro = false }) {
   const all = shuffled(
     await prisma.problem.findMany({ where: { published: true }, select: { id: true, slug: true, title: true, difficulty: true } }),
   );
@@ -183,12 +185,9 @@ export async function getUpNext({ userId, currentSlug, limit = 20 }) {
   const rotated = i >= 0 ? [...all.slice(i + 1), ...all.slice(0, i)] : all;
   const unsolved = rotated.filter((p) => status[p.id] !== 'COMPLETED');
 
-  return {
-    items: unsolved.slice(0, limit).map((p) => ({
-      slug: p.slug,
-      title: p.title,
-      difficulty: p.difficulty,
-    })),
-    remaining: unsolved.length,
-  };
+  const items = await attachInsights(
+    unsolved.slice(0, limit).map((p) => ({ slug: p.slug, title: p.title, difficulty: p.difficulty })),
+    pro,
+  );
+  return { items, remaining: unsolved.length };
 }

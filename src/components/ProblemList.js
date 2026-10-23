@@ -1,11 +1,17 @@
 import Link from 'next/link';
 import DifficultyBadge from './DifficultyBadge';
 import { PAGE_SIZE, TYPE_LABEL } from '@/lib/constants';
-import { Check, ChevronLeft, ChevronRight } from './icons';
+import { Check, ChevronLeft, ChevronRight, Lock } from './icons';
+import { Companies, Frequency, InsightsInline } from './Insights';
 
 const EDGE = { EASY: 'border-l-easy', MEDIUM: 'border-l-medium', HARD: 'border-l-hard' };
-// status | title | topic | type | time | difficulty (the last four only from md up)
-const COLS = 'md:grid-cols-[1.5rem_minmax(0,1fr)_11rem_7rem_4.5rem_5.5rem]';
+// Columns follow the width of the list itself (container queries), not the screen, because the list sits in
+// different layouts (full width on /problems, beside a sidebar and a rail on topic pages).
+//   narrow:  status | title | difficulty
+//   @2xl:    status | title | topic | type | time | difficulty
+//   @5xl:    status | title | topic | type | time | asked % | companies | difficulty
+const COLS =
+  '@2xl:grid-cols-[1.5rem_minmax(0,1fr)_11rem_7rem_4.5rem_5.5rem] @5xl:grid-cols-[1.5rem_minmax(0,1fr)_9rem_6.5rem_4rem_5.5rem_11rem_5rem]';
 
 function StatusMark({ status }) {
   if (status === 'COMPLETED') {
@@ -32,7 +38,7 @@ function StatusMark({ status }) {
   );
 }
 
-export function ProblemRow({ problem, status, number }) {
+export function ProblemRow({ problem, status, number, pro = false }) {
   return (
     <li>
       <Link
@@ -45,13 +51,17 @@ export function ProblemRow({ problem, status, number }) {
             <span className="mr-1.5 tabular-nums text-muted">{number}.</span>
             {problem.title}
           </span>
-          <span className="mt-0.5 block truncate text-xs text-muted md:hidden">
+          <span className="mt-0.5 block truncate text-xs text-muted @2xl:hidden">
             {problem.topic.name} · {TYPE_LABEL[problem.type]} · {problem.estimatedMinutes} min
           </span>
+          {/* Below the wide layout the two insight columns do not fit, so they sit under the title */}
+          <InsightsInline pro={pro} problem={problem} className="mt-1 @5xl:hidden" />
         </span>
-        <span className="hidden truncate text-xs text-muted md:block">{problem.topic.name}</span>
-        <span className="hidden truncate text-xs text-muted md:block">{TYPE_LABEL[problem.type]}</span>
-        <span className="hidden text-xs tabular-nums text-muted md:block">{problem.estimatedMinutes} min</span>
+        <span className="hidden truncate text-xs text-muted @2xl:block">{problem.topic.name}</span>
+        <span className="hidden truncate text-xs text-muted @2xl:block">{TYPE_LABEL[problem.type]}</span>
+        <span className="hidden text-xs tabular-nums text-muted @2xl:block">{problem.estimatedMinutes} min</span>
+        <span className="hidden @5xl:block"><Frequency pro={pro} value={problem.askedFrequency} /></span>
+        <span className="hidden min-w-0 @5xl:block"><Companies pro={pro} list={problem.askedByCompanies} /></span>
         <span className="text-right">
           <DifficultyBadge difficulty={problem.difficulty} />
         </span>
@@ -86,7 +96,7 @@ export function Pagination({ basePath, page, totalPages, params }) {
   );
 }
 
-export default function ProblemList({ result, statusMap = {}, basePath, params }) {
+export default function ProblemList({ result, statusMap = {}, basePath, params, pro = false }) {
   const { items, page, totalPages } = result;
 
   if (!items.length) {
@@ -105,9 +115,22 @@ export default function ProblemList({ result, statusMap = {}, basePath, params }
 
   return (
     <>
-      <div className="overflow-hidden rounded-2xl border border-line bg-surface">
+      {!pro && (
+        <Link
+          href="/pricing"
+          className="mb-3 flex items-center gap-3 rounded-xl border border-dashed border-line bg-surface px-4 py-3 text-sm transition-colors hover:border-accent"
+        >
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent"><Lock width={16} height={16} /></span>
+          <span className="min-w-0 flex-1">
+            <span className="font-semibold">See how often each question is asked, and which companies asked it.</span>
+            <span className="ml-1 text-muted">Part of Buncho Pro.</span>
+          </span>
+          <span className="hidden shrink-0 font-semibold text-accent sm:block">Unlock</span>
+        </Link>
+      )}
+      <div className="@container overflow-hidden rounded-2xl border border-line bg-surface">
         <div
-          className={`hidden gap-x-3 border-b border-l-[3px] border-line border-l-transparent bg-surface-2/60 px-4 py-2 text-[0.7rem] font-semibold uppercase tracking-wider text-muted md:grid ${COLS}`}
+          className={`hidden gap-x-3 border-b border-l-[3px] border-line border-l-transparent bg-surface-2/60 px-4 py-2 text-[0.7rem] font-semibold uppercase tracking-wider text-muted @2xl:grid ${COLS}`}
           aria-hidden="true"
         >
           <span />
@@ -115,11 +138,13 @@ export default function ProblemList({ result, statusMap = {}, basePath, params }
           <span>Topic</span>
           <span>Type</span>
           <span>Time</span>
+          <span className="hidden items-center gap-1 @5xl:flex">Asked {!pro && <Lock width={11} height={11} />}</span>
+          <span className="hidden items-center gap-1 @5xl:flex">Companies {!pro && <Lock width={11} height={11} />}</span>
           <span className="text-right">Level</span>
         </div>
         <ul className="divide-y divide-line">
           {items.map((p, i) => (
-            <ProblemRow key={p.id} problem={p} status={statusMap[p.id]} number={offset + i + 1} />
+            <ProblemRow key={p.id} problem={p} status={statusMap[p.id]} number={offset + i + 1} pro={pro} />
           ))}
         </ul>
       </div>

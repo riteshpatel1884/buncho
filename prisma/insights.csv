@@ -1,0 +1,7 @@
+slug,frequency,companies
+bias-variance-tradeoff,62,Google|Amazon|Flipkart
+precision-recall-imbalanced,48,Amazon|Razorpay
+vanishing-gradients,35,Microsoft|Nvidia
+regularization-in-ml,41,Google|Swiggy|PhonePe|Meesho
+what-is-rag,70,Microsoft|Google|Freshworks
+reduce-rag-hallucinations,55,Amazon|Zomato

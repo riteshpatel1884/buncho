@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import DifficultyBadge from './DifficultyBadge';
 import { List } from './icons';
+import { InsightsInline } from './Insights';
 
-export default function ProblemListPopup({ items, remaining, signedIn }) {
+export default function ProblemListPopup({ items, remaining, signedIn, pro = false }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -67,6 +68,7 @@ export default function ProblemListPopup({ items, remaining, signedIn }) {
                     <span className="min-w-0">
                       <span className="block truncate">{p.title}</span>
                       {p.attempted && <span className="text-xs text-medium">Attempted</span>}
+                      <InsightsInline pro={pro} problem={p} className="mt-0.5" />
                     </span>
                     <DifficultyBadge difficulty={p.difficulty} plain />
                   </Link>

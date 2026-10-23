@@ -1,8 +1,11 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getOrCreateUser } from '@/lib/user';
 import JobForm from '@/components/jobs/JobForm';
-import { BackLink, Eyebrow, Gradient, Hero, card } from '@/components/jobs/ui';
-import { Check, FileText, Flask, Tag } from '@/components/icons';
+import { getEntitlements } from '@/lib/subscription';
+import { BackLink, Eyebrow, Gradient, Hero, card, ctaBtn } from '@/components/jobs/ui';
+import { Check, FileText, Flask, Lock, Tag } from '@/components/icons';
+import { FREE_ROLE_LIMIT, PRO_PRICE_INR } from '@/lib/constants';
 
 export const metadata = { title: 'Add a role' };
 
@@ -21,6 +24,26 @@ const TIPS = [
 export default async function NewJobPage() {
   const user = await getOrCreateUser();
   if (!user) redirect('/login');
+  const ent = await getEntitlements(user.id);
+
+  if (!ent.roles.canAdd) {
+    return (
+      <div className="mx-auto w-full max-w-2xl px-4 pb-20 pt-6 sm:px-6">
+        <BackLink href="/jobs">Job preparation</BackLink>
+        <div className="mt-3 rounded-3xl border border-line bg-surface p-8 text-center sm:p-12">
+          <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-accent-soft text-accent"><Lock width={26} height={26} /></span>
+          <h1 className="mt-5 text-2xl font-semibold tracking-tight sm:text-3xl">Your free role is in use</h1>
+          <p className="mx-auto mt-2 max-w-md text-sm text-muted">
+            The free plan includes {FREE_ROLE_LIMIT} role preparation plan. Delete it to start a new one, or upgrade to Pro and keep a plan for every job you apply to.
+          </p>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <Link href="/pricing" className={ctaBtn}>Upgrade to Pro · ₹{PRO_PRICE_INR}</Link>
+            <Link href="/jobs" className="inline-flex items-center rounded-full border border-line px-5 py-3 text-sm font-semibold hover:border-muted">Back to my role</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pb-20 pt-6 sm:px-6">

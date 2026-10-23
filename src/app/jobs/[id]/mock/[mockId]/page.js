@@ -3,9 +3,12 @@ import { notFound, redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { getOrCreateUser } from '@/lib/user';
 import { getSkill } from '@/lib/jobs/skills';
+import { attachInsights, getIsPro } from '@/lib/subscription';
+import { InsightsInline } from '@/components/Insights';
+import { PRO_PRICE_INR } from '@/lib/constants';
 import { Bar } from '@/components/jobs/Parts';
 import { BackLink, Eyebrow, Hero, Ring, Stat, TONE_SOFT, TONE_TEXT, TONE_VAR, card, ctaBtn, toneOf } from '@/components/jobs/ui';
-import { ChevronRight } from '@/components/icons';
+import { ChevronRight, Lock } from '@/components/icons';
 
 export const metadata = { title: 'Mock assessment results' };
 
@@ -30,7 +33,13 @@ export default async function MockResultPage({ params }) {
   });
 
   const { questions, partial } = mock.results;
-  const slugs = Object.fromEntries((await prisma.problem.findMany({ where: { id: { in: mock.problemIds } }, select: { id: true, slug: true } })).map((p) => [p.id, p.slug]));
+  const pro = await getIsPro(user.id);
+  const problemRows = await attachInsights(
+    await prisma.problem.findMany({ where: { id: { in: mock.problemIds } }, select: { id: true, slug: true } }),
+    pro,
+  );
+  const slugs = Object.fromEntries(problemRows.map((p) => [p.id, p.slug]));
+  const insightsBy = Object.fromEntries(problemRows.map((p) => [p.id, p]));
 
   // Per-skill averages from the questions that were scored
   const bySkill = new Map();
@@ -93,6 +102,30 @@ export default async function MockResultPage({ params }) {
         <Stat label="Focus next" value={weakest ? `${weakest.avg}/100` : '–'} hint={weakest?.label} tone={weakest ? toneOf(weakest.avg) : undefined} />
       </section>
 
+      {/* The result above is complete and free. This only explains what another attempt would add. */}
+      {!pro && (
+        <section
+          aria-labelledby="again-h"
+          className="relative mt-5 overflow-hidden rounded-2xl border border-accent/40 p-5 sm:p-6"
+          style={{ background: 'linear-gradient(135deg, var(--accent-soft), var(--surface) 70%)' }}
+        >
+          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <h2 id="again-h" className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+                <Lock width={16} height={16} className="text-accent" /> Ready to improve this score?
+              </h2>
+              <p className="mt-1.5 max-w-xl text-sm text-muted">
+                {weakest && skills.length > 1
+                  ? <>Your weakest area was <span className="font-semibold text-ink">{weakest.label}</span> ({weakest.avg}/100). </>
+                  : null}
+                Practise it, retake the mock, and Buncho will show how much you improved. Your free mock assessment is used, so another attempt needs Pro. Everything on this page stays yours either way.
+              </p>
+            </div>
+            <Link href="/pricing" className={`${ctaBtn} shrink-0`}>Unlock unlimited mocks · ₹{PRO_PRICE_INR}</Link>
+          </div>
+        </section>
+      )}
+
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
         {skills.length > 0 && (
           <section aria-labelledby="skills-h" className={`${card} p-5 sm:p-6`}>
@@ -128,6 +161,7 @@ export default async function MockResultPage({ params }) {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium group-hover:text-accent">{q.title}</span>
                       <span className="block truncate text-xs text-muted">{STATE[q.state] ?? 'View feedback and the expert solution'}</span>
+                      <InsightsInline pro={pro} problem={insightsBy[q.problemId]} className="mt-1" />
                     </span>
                     <span className="flex shrink-0 items-center gap-2">
                       {q.score !== null ? (

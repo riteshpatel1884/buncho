@@ -1,10 +1,11 @@
 import { prisma } from '@/lib/prisma';
 import { READINESS_FULL_CONFIDENCE } from '@/lib/constants';
+import { insightSelect } from '@/lib/subscription';
 
 const levelFor = (s) => (s >= 80 ? 'Strong' : s >= 65 ? 'Solid' : s >= 45 ? 'Developing' : 'Early');
 
 /** Everything the role page needs: plan items with the user's status and score, per-skill progress, and role readiness. */
-export async function getJobDetail(userId, jobId) {
+export async function getJobDetail(userId, jobId, { pro = false } = {}) {
   const job = await prisma.jobTarget.findFirst({
     where: { id: jobId, userId },
     include: {
@@ -12,7 +13,7 @@ export async function getJobDetail(userId, jobId) {
         orderBy: { priority: 'asc' },
         include: {
           problem: {
-            select: { id: true, slug: true, title: true, difficulty: true, type: true, estimatedMinutes: true, isChallenge: true, published: true, topic: { select: { name: true } } },
+            select: { id: true, slug: true, title: true, difficulty: true, type: true, estimatedMinutes: true, isChallenge: true, published: true, topic: { select: { name: true } }, ...insightSelect(pro) },
           },
         },
       },
