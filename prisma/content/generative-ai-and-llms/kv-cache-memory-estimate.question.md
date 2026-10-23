@@ -1,0 +1,1 @@
+A model has 80 layers, 8 KV heads, head dimension 128, and runs in FP16. Estimate the KV cache per token and for a 32k-token request, and show how it constrains batch size on an 80 GB GPU. Then list ways to compress it.

@@ -5,7 +5,8 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Close, Menu } from './icons';
 
-export default function MobileMenu({ links }) {
+// cta: optional extra link shown at the end of the menu, e.g. { href: '/register', label: 'Sign up' }
+export default function MobileMenu({ links, cta = null }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -33,6 +34,13 @@ export default function MobileMenu({ links }) {
                 </Link>
               </li>
             ))}
+            {cta && (
+              <li>
+                <Link href={cta.href} className="block py-3 text-lg font-medium">
+                  {cta.label}
+                </Link>
+              </li>
+            )}
           </ul>
         </nav>
       )}

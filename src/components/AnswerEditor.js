@@ -296,22 +296,14 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
         </button>
       </div>
 
-      {/* Result strip, like the Test Result panel */}
-      <div className="shrink-0 border-t border-line bg-surface-2 px-4 py-3">
-        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted">Result</p>
-        {message ? (
-          <p role={message.type === 'error' ? 'alert' : 'status'} className={`mt-1 text-sm ${message.type === 'error' ? 'text-hard' : 'text-easy'}`}>
+      {/* Status message (saving, feedback ready, errors). Only rendered when there is something to say. */}
+      {message && (
+        <div className="shrink-0 border-t border-line bg-surface-2 px-4 py-3">
+          <p role={message.type === 'error' ? 'alert' : 'status'} className={`text-sm ${message.type === 'error' ? 'text-hard' : 'text-easy'}`}>
             {message.text}
           </p>
-        ) : (
-          <p className="mt-1 text-sm text-muted">{everSaved ? 'Your answer is saved.' : 'You must submit your answer first.'}</p>
-        )}
-        {supported && (
-          <p className="mt-2 text-xs text-muted">
-            Voice input uses your browser&rsquo;s speech service. In Chrome and Edge your audio is processed by the browser vendor, not by Buncho. Review the transcript before saving, since technical terms are sometimes misheard.
-          </p>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

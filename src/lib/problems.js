@@ -1,8 +1,29 @@
 import { prisma } from './prisma';
 import { DIFFICULTIES, PROBLEM_TYPES, PAGE_SIZE } from './constants';
 
-// Same ordering everywhere a problem list or "next problem" is shown.
-const PROBLEM_ORDER = [{ difficulty: 'asc' }, { position: 'asc' }, { title: 'asc' }];
+// One fixed, shuffled order used everywhere a problem list or "next problem" is shown (list pages,
+// previous / next arrows, Problem List popup). It is not sorted by difficulty. Each problem's position comes
+// from a hash of its slug, so the order looks random but stays the same between page loads (pagination never
+// repeats or skips a problem), and adding a new problem does not reshuffle the existing ones.
+const SHUFFLE_SEED = 'buncho-v1';
+
+function shuffleKey(slug) {
+  let h = 2166136261; // FNV-1a
+  const str = `${SHUFFLE_SEED}:${slug}`;
+  for (let i = 0; i < str.length; i += 1) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+/** Returns a copy of rows (each needs a slug) in the shared shuffled order. */
+function shuffled(rows) {
+  return rows
+    .map((r) => ({ r, k: shuffleKey(r.slug) }))
+    .sort((a, b) => a.k - b.k || (a.r.slug < b.r.slug ? -1 : 1))
+    .map((x) => x.r);
+}
 
 /** Turns untrusted search params into a safe filter object. */
 export function parseFilters(sp = {}) {
@@ -32,24 +53,27 @@ export async function getProblems({ q, topic, difficulty, type, page, challenge 
     }),
   };
 
-  const [items, total] = await Promise.all([
-    prisma.problem.findMany({
-      where,
-      select: {
-        id: true,
-        slug: true,
-        title: true,
-        difficulty: true,
-        type: true,
-        estimatedMinutes: true,
-        topic: { select: { name: true, slug: true } },
-      },
-      orderBy: PROBLEM_ORDER,
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-    }),
-    prisma.problem.count({ where }),
-  ]);
+  // Shuffle every matching problem, then load full details for just the requested page
+  const matches = shuffled(await prisma.problem.findMany({ where, select: { id: true, slug: true } }));
+  const total = matches.length;
+  const pageIds = matches.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((m) => m.id);
+
+  const rows = pageIds.length
+    ? await prisma.problem.findMany({
+        where: { id: { in: pageIds } },
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          difficulty: true,
+          type: true,
+          estimatedMinutes: true,
+          topic: { select: { name: true, slug: true } },
+        },
+      })
+    : [];
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  const items = pageIds.map((id) => byId.get(id)).filter(Boolean);
 
   return { items, total, page, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)) };
 }
@@ -73,11 +97,7 @@ export async function getProgressMap(userId, problemIds) {
 
 /** Previous / next problem in the same order as the problem list. */
 export async function getProblemNeighbors(slug) {
-  const all = await prisma.problem.findMany({
-    where: { published: true },
-    select: { slug: true },
-    orderBy: PROBLEM_ORDER,
-  });
+  const all = shuffled(await prisma.problem.findMany({ where: { published: true }, select: { slug: true } }));
   const i = all.findIndex((p) => p.slug === slug);
   return {
     prev: i > 0 ? all[i - 1].slug : null,
@@ -154,11 +174,9 @@ export async function getUserStats(userId) {
  * Signed-out visitors just get the next problems in order.
  */
 export async function getUpNext({ userId, currentSlug, limit = 20 }) {
-  const all = await prisma.problem.findMany({
-    where: { published: true },
-    select: { id: true, slug: true, title: true, difficulty: true },
-    orderBy: PROBLEM_ORDER,
-  });
+  const all = shuffled(
+    await prisma.problem.findMany({ where: { published: true }, select: { id: true, slug: true, title: true, difficulty: true } }),
+  );
   const status = userId ? await getProgressMap(userId, all.map((p) => p.id)) : {};
 
   const i = all.findIndex((p) => p.slug === currentSlug);

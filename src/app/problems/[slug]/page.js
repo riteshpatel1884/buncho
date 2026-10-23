@@ -139,6 +139,7 @@ export default async function ProblemPage({ params, searchParams }) {
         <Link href={`/topics/${problem.topic.slug}`} className={`${pill} hover:text-ink`}>{problem.topic.name}</Link>
         <span className={pill}>{TYPE_LABEL[problem.type]}</span>
         <span className={pill}>{problem.estimatedMinutes} min</span>
+        <BookmarkButton problemId={problem.id} slug={slug} initial={bookmarked} signedIn={Boolean(user)} pill />
         {progress?.status === 'COMPLETED' && <span className="rounded-full bg-easy/12 px-2.5 py-0.5 text-xs font-semibold text-easy">Completed</span>}
       </div>
 
@@ -358,12 +359,6 @@ export default async function ProblemPage({ params, searchParams }) {
               <Link href="/problems">Problems</Link> / <Link href={`/topics/${problem.topic.slug}`}>{problem.topic.name}</Link>
             </nav>
             <ProblemTabs tabs={tabs} initial={sp?.cpage ? 'community' : 'description'} />
-            <div className="flex shrink-0 items-center justify-between gap-2 border-t border-line px-3 py-1.5">
-              <Link href={`/topics/${problem.topic.slug}`} className="rounded-md px-2.5 py-1.5 text-sm font-medium text-muted hover:bg-surface-2 hover:text-ink">
-                More in {problem.topic.name}
-              </Link>
-              <BookmarkButton problemId={problem.id} slug={slug} initial={bookmarked} signedIn={Boolean(user)} />
-            </div>
           </>
         }
         right={
@@ -380,9 +375,12 @@ export default async function ProblemPage({ params, searchParams }) {
                     hasSubmission={Boolean(submission)}
                     steps={steps.length ? steps : null}
                   />
-                  <div className="shrink-0 border-t border-line p-3">
-                    <ShareControl problemId={problem.id} hasSubmission={Boolean(submission)} shared={shared} />
-                  </div>
+                  {/* Only shown once an answer has been submitted */}
+                  {submission && (
+                    <div className="shrink-0 border-t border-line p-3">
+                      <ShareControl problemId={problem.id} hasSubmission shared={shared} />
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="flex min-h-[26rem] flex-[1_0_auto] flex-col">

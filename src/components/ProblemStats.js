@@ -102,7 +102,7 @@ export function NextUpCard({ stats, signedIn }) {
 
   if (!signedIn) {
     return (
-      <section aria-label="Get started" className={card}>
+      <section aria-label="Get started" className={`hidden md:flex ${card.replace('flex ', '')}`}>
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-accent">Get started</p>
           <h2 className="mt-2 text-lg font-semibold leading-snug">Create your free account</h2>

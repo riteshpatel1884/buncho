@@ -13,7 +13,6 @@ export default async function Navbar() {
 
   const links = [
     { href: '/problems', label: 'Problems', match: ['/topics'] },
-    { href: '/challenges', label: 'Challenges' },
     ...(userId
       ? [
           { href: '/jobs', label: 'Job prep' },
@@ -54,12 +53,12 @@ export default async function Navbar() {
               <Link href="/login" className="hidden px-3 py-2 text-sm font-medium text-muted hover:text-ink sm:block">
                 Log in
               </Link>
-              <Link href="/register" className="rounded-full bg-accent px-3.5 py-1.5 text-sm font-semibold text-accent-ink hover:opacity-90">
+              <Link href="/register" className="hidden rounded-full bg-accent px-3.5 py-1.5 text-sm font-semibold text-accent-ink hover:opacity-90 md:block">
                 Sign up
               </Link>
             </>
           )}
-          <MobileMenu links={links} />
+          <MobileMenu links={links} cta={userId ? null : { href: '/register', label: 'Sign up' }} />
         </div>
       </div>
     </NavShell>
