@@ -57,7 +57,7 @@ const CALLOUTS = new Set(['info', 'tip', 'warning']);
 const MAX_DEPTH = 12;
 const MAX_NODES = 30000;
 
-const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
+const str = (v, max) => (typeof v === 'string' ? v.replace(/\u0000/g, '').slice(0, max) : '');
 const int = (v, min, max) => {
   const n = Number(v);
   return Number.isInteger(n) && n >= min && n <= max ? n : null;
@@ -133,7 +133,9 @@ export function sanitizeDoc(input) {
     if (node.type === 'text') {
       if (typeof node.text !== 'string' || !node.text) return null;
       const marks = cleanMarks(node.marks);
-      return { type: 'text', text: node.text.slice(0, 50000), ...(marks && { marks }) };
+      const t = node.text.replace(/\u0000/g, '').slice(0, 50000);
+      if (!t) return null;
+      return { type: 'text', text: t, ...(marks && { marks }) };
     }
 
     const attrs = cleanAttrs(node);
