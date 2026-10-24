@@ -13,6 +13,7 @@ export default async function Navbar() {
 
   const links = [
     { href: '/problems', label: 'Problems', match: ['/topics'] },
+    { href: '/blog', label: 'Blog' },
     ...(userId
       ? [
           { href: '/jobs', label: 'Job prep' },

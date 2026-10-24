@@ -214,3 +214,53 @@ export const problemJsonLd = (problem) => ({
 
 /** Wraps several schema.org nodes into one @graph document. */
 export const graph = (...nodes) => ({ '@context': 'https://schema.org', '@graph': nodes.filter(Boolean) });
+
+/* ------------------------------- blog -------------------------------- */
+
+export const blogPostingJsonLd = (post, { url, headline } = {}) => {
+  const pageUrl = url ?? absoluteUrl(`/blog/${post.slug}`);
+  const image = post.coverImage ? [post.coverImage.startsWith('http') ? post.coverImage : absoluteUrl(post.coverImage)] : undefined;
+  return {
+    '@type': 'BlogPosting',
+    '@id': `${pageUrl}#article`,
+    mainEntityOfPage: { '@type': 'WebPage', '@id': pageUrl },
+    url: pageUrl,
+    // Google recommends headlines under about 110 characters
+    headline: truncate(headline ?? post.title, 110),
+    description: post.metaDescription || post.excerpt,
+    ...(image && { image }),
+    datePublished: post.publishedAt?.toISOString(),
+    dateModified: (post.lastEditedAt ?? post.publishedAt)?.toISOString(),
+    author: { '@type': 'Person', name: post.author?.name || SITE_NAME },
+    publisher: { '@id': `${SITE_URL}/#organization` },
+    isPartOf: { '@id': `${SITE_URL}/#website` },
+    inLanguage: 'en',
+    ...(post.tags?.length && { keywords: post.tags.join(', ') }),
+    ...(post.categoryName && { articleSection: post.categoryName }),
+    ...(post.readingMinutes && { timeRequired: `PT${post.readingMinutes}M` }),
+    ...(post.levelLabel && { proficiencyLevel: post.levelLabel }),
+    isAccessibleForFree: true,
+  };
+};
+
+export const blogCollectionJsonLd = ({ name, description, path, posts = [] }) => ({
+  '@type': 'CollectionPage',
+  '@id': `${absoluteUrl(path)}#page`,
+  url: absoluteUrl(path),
+  name,
+  description,
+  inLanguage: 'en',
+  isPartOf: { '@id': `${SITE_URL}/#website` },
+  ...(posts.length > 0 && {
+    mainEntity: {
+      '@type': 'ItemList',
+      numberOfItems: posts.length,
+      itemListElement: posts.map((p, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        url: absoluteUrl(`/blog/${p.slug}`),
+        name: p.title,
+      })),
+    },
+  }),
+});

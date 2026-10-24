@@ -11,6 +11,7 @@ const COLUMNS = [
       { href: '/problems?difficulty=EASY', label: 'Easy warm-ups' },
       { href: '/problems?difficulty=HARD', label: 'Hard challenges' },
       { href: '/problems?type=SYSTEM_DESIGN', label: 'System design' },
+      { href: '/blog', label: 'Blog' },
     ],
   },
   {

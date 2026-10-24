@@ -63,6 +63,20 @@ enum PaymentStatus {
   FAILED
 }
 
+// Blog
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  UNPUBLISHED
+  SCHEDULED
+}
+
+enum PostLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
 /* ---------- Core models (Phase 1-2) ---------- */
 
 model User {
@@ -94,6 +108,11 @@ model User {
   mockAttemptsUsed Int              @default(0)
   subscription     Subscription?
   payments         Payment[]
+  // Blog
+  blogPosts        BlogPost[]
+  blogLikes        BlogLike[]
+  blogComments     BlogComment[]
+  blogFeedback     BlogFeedback[]
 
   @@index([email])
 }
@@ -406,5 +425,105 @@ model Payment {
   paidAt      DateTime?
   createdAt   DateTime      @default(now())
 
+  @@index([userId, createdAt])
+}
+
+/* ---------- Blog ---------- */
+
+// A post is public when status is PUBLISHED or SCHEDULED and publishedAt is in the past. Scheduling therefore needs
+// no cron job: a SCHEDULED post simply starts matching the public query once its time has passed.
+model BlogPost {
+  id            String     @id @default(cuid())
+  slug          String     @unique
+  // Old slugs keep working: the article route redirects them (301) to the current slug
+  previousSlugs String[]
+  title         String
+  excerpt       String     @default("") @db.Text // subtitle shown under the title and on cards
+  // TipTap/ProseMirror JSON. Never HTML: the public page renders it node by node into React elements.
+  content       Json
+  contentText   String     @default("") @db.Text // plain text copy, used for search and reading time
+  category      String     @default("") // slug from BLOG_CATEGORIES in lib/blog-constants.js
+  tags          String[]
+  level         PostLevel?
+  keyTakeaways  String[]
+  resources     Json? // [{ type: 'github' | 'notebook' | 'dataset' | 'docs' | 'other', label, url }]
+  coverImage    String?
+  coverAlt      String?
+  seoTitle      String?
+  metaDescription String?
+  canonicalUrl  String?
+  featured      Boolean    @default(false)
+  status        PostStatus @default(DRAFT)
+  publishedAt   DateTime?
+  scheduledFor  DateTime?
+  readingMinutes Int       @default(1)
+  views         Int        @default(0)
+  // Set only when an admin saves. updatedAt also moves when views are counted, so it cannot be used for
+  // dateModified in structured data or sitemap lastmod.
+  lastEditedAt  DateTime   @default(now())
+  authorId      String
+  author        User       @relation(fields: [authorId], references: [id])
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  likes     BlogLike[]
+  comments  BlogComment[]
+  feedback  BlogFeedback[]
+  revisions BlogRevision[]
+
+  @@index([status, publishedAt])
+  @@index([category, status, publishedAt])
+  @@index([featured, status])
+  @@index([tags], type: Gin)
+}
+
+model BlogRevision {
+  id        String   @id @default(cuid())
+  postId    String
+  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  title     String
+  content   Json
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([postId, createdAt])
+}
+
+model BlogLike {
+  id        String   @id @default(cuid())
+  postId    String
+  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([userId])
+}
+
+// "Was this article helpful?" One answer per user, which they can change.
+model BlogFeedback {
+  id        String   @id @default(cuid())
+  postId    String
+  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  helpful   Boolean
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([postId, userId])
+}
+
+model BlogComment {
+  id        String   @id @default(cuid())
+  postId    String
+  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([postId, createdAt])
   @@index([userId, createdAt])
 }
