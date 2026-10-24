@@ -260,7 +260,8 @@ html[data-busy='true'] body { cursor: progress; }
   border-radius: 0.375rem;
 }
 .prose-blog pre {
-  background: var(--surface-2);
+  background: var(--code-bg);
+  color: var(--code-fg);
   border: 1px solid var(--line);
   border-radius: 0.5rem;
   padding: 1rem 1.1rem;
@@ -310,6 +311,71 @@ html[data-busy='true'] body { cursor: progress; }
 .prose-blog .callout-warning .callout-title { color: var(--medium); }
 .prose-blog img.ProseMirror-selectednode,
 .prose-blog .ProseMirror-selectednode { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Code colours, modelled on VS Code (Light+ / Dark+) so snippets look like they do in a Python editor */
+:root {
+  --code-bg: #f7f7f8;
+  --code-fg: #1f1f1f;
+  --tok-keyword: #af00db;
+  --tok-literal: #0000ff;
+  --tok-builtin: #267f99;
+  --tok-string: #a31515;
+  --tok-number: #098658;
+  --tok-comment: #008000;
+  --tok-function: #795e26;
+  --tok-class: #267f99;
+  --tok-variable: #001080;
+  --tok-meta: #795e26;
+  --tok-tag: #800000;
+}
+.dark {
+  --code-bg: #1e1e1e;
+  --code-fg: #d4d4d4;
+  --tok-keyword: #c586c0;
+  --tok-literal: #569cd6;
+  --tok-builtin: #4ec9b0;
+  --tok-string: #ce9178;
+  --tok-number: #b5cea8;
+  --tok-comment: #6a9955;
+  --tok-function: #dcdcaa;
+  --tok-class: #4ec9b0;
+  --tok-variable: #9cdcfe;
+  --tok-meta: #dcdcaa;
+  --tok-tag: #569cd6;
+}
+.prose-blog pre .hljs-keyword,
+.prose-blog pre .hljs-selector-tag,
+.prose-blog pre .hljs-doctag,
+.prose-blog pre .hljs-operator.hljs-keyword { color: var(--tok-keyword); }
+.prose-blog pre .hljs-literal,
+.prose-blog pre .hljs-variable.language_ { color: var(--tok-literal); }
+.prose-blog pre .hljs-built_in,
+.prose-blog pre .hljs-type { color: var(--tok-builtin); }
+.prose-blog pre .hljs-string,
+.prose-blog pre .hljs-regexp,
+.prose-blog pre .hljs-symbol { color: var(--tok-string); }
+.prose-blog pre .hljs-number { color: var(--tok-number); }
+.prose-blog pre .hljs-comment,
+.prose-blog pre .hljs-quote { color: var(--tok-comment); font-style: italic; }
+.prose-blog pre .hljs-title,
+.prose-blog pre .hljs-title.function_,
+.prose-blog pre .hljs-section { color: var(--tok-function); }
+.prose-blog pre .hljs-title.class_,
+.prose-blog pre .hljs-title.class_.inherited__ { color: var(--tok-class); }
+.prose-blog pre .hljs-params,
+.prose-blog pre .hljs-variable,
+.prose-blog pre .hljs-attr,
+.prose-blog pre .hljs-attribute,
+.prose-blog pre .hljs-property,
+.prose-blog pre .hljs-template-variable { color: var(--tok-variable); }
+.prose-blog pre .hljs-meta,
+.prose-blog pre .hljs-meta .hljs-keyword { color: var(--tok-meta); }
+.prose-blog pre .hljs-meta .hljs-string { color: var(--tok-string); }
+.prose-blog pre .hljs-name,
+.prose-blog pre .hljs-tag { color: var(--tok-tag); }
+.prose-blog pre .hljs-subst { color: var(--code-fg); }
+.prose-blog pre .hljs-emphasis { font-style: italic; }
+.prose-blog pre .hljs-strong { font-weight: 700; }
 
 /* Editor-only bits */
 .blog-editor .ProseMirror { outline: none; min-height: 24rem; }

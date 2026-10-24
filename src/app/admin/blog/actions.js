@@ -8,6 +8,7 @@ import { LEVELS, LIMITS, CATEGORY_BY_SLUG, RESOURCE_TYPES, RESERVED_SLUGS } from
 import { docToText, readingMinutes, safeUrl, sanitizeDoc, slugify } from '@/lib/blog-content';
 import { cleanTags, validatePost } from '@/lib/blog-validate';
 import { formatDateTimeIST } from '@/lib/datetime';
+import { DIFFICULTIES, PROBLEM_TYPES } from '@/lib/constants';
 
 /*
  * Every export here is a public HTTP endpoint, so each one re-checks admin rights on the server. The proxy and the
@@ -70,6 +71,7 @@ function normalise(input) {
     level: LEVELS.includes(input.level) ? input.level : null,
     keyTakeaways: list(input.keyTakeaways, LIMITS.takeawaysMax, 240),
     resources,
+    practiceProblemIds: [...new Set(list(input.practiceProblemIds, 12, 40))],
     coverImage: safeUrl(input.coverImage, { mailto: false }) ?? null,
     coverAlt: text(input.coverAlt, 300) || null,
     seoTitle: text(input.seoTitle, 100) || null,
@@ -247,4 +249,88 @@ export async function getRevision(postId, revisionId) {
   const rev = await prisma.blogRevision.findFirst({ where: { id: String(revisionId), postId: String(postId) }, select: { title: true, content: true } });
   if (!rev) return fail('That version no longer exists.');
   return { ok: true, title: rev.title, content: sanitizeDoc(rev.content) };
+}
+
+/* ------------------------ practice question picker ------------------------ */
+
+const problemRow = (p) => ({
+  id: p.id,
+  slug: p.slug,
+  title: p.title,
+  difficulty: p.difficulty,
+  type: p.type,
+  topic: p.topic?.name ?? '',
+  subcategory: p.subcategory ?? '',
+});
+const problemSelect = { id: true, slug: true, title: true, difficulty: true, type: true, subcategory: true, topic: { select: { name: true } } };
+
+/** Categories (topics) and their sub-categories, for the picker's filter dropdowns. */
+export async function getProblemFilters() {
+  try {
+    const admin = await requireAdmin();
+    if (!admin) return fail(FORBIDDEN);
+    const [topics, subs] = await Promise.all([
+      prisma.topic.findMany({ orderBy: { order: 'asc' }, select: { slug: true, name: true } }),
+      prisma.problem.findMany({
+        where: { published: true, subcategory: { not: null } },
+        distinct: ['topicId', 'subcategory'],
+        select: { subcategory: true, topic: { select: { slug: true } } },
+      }),
+    ]);
+    const subcategories = {};
+    subs.forEach((s) => {
+      (subcategories[s.topic.slug] ??= []).push(s.subcategory);
+    });
+    Object.values(subcategories).forEach((a) => a.sort((x, y) => x.localeCompare(y)));
+    return { ok: true, topics, subcategories };
+  } catch (err) {
+    return crashed('loading problem filters', err);
+  }
+}
+
+/** Searches the problem bank by text, category, sub-category, difficulty and type. */
+export async function searchProblems(filters = {}) {
+  try {
+    const admin = await requireAdmin();
+    if (!admin) return fail(FORBIDDEN);
+    const str = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+    const q = str(filters.q, 100);
+    const topic = str(filters.topic, 80);
+    const subcategory = str(filters.subcategory, 120);
+    const where = {
+      published: true,
+      ...(topic && { topic: { slug: topic } }),
+      ...(subcategory && { subcategory }),
+      ...(DIFFICULTIES.includes(filters.difficulty) && { difficulty: filters.difficulty }),
+      ...(PROBLEM_TYPES.includes(filters.type) && { type: filters.type }),
+      ...(q && {
+        OR: [
+          { title: { contains: q, mode: 'insensitive' } },
+          { subcategory: { contains: q, mode: 'insensitive' } },
+          { description: { contains: q, mode: 'insensitive' } },
+        ],
+      }),
+    };
+    const [total, rows] = await Promise.all([
+      prisma.problem.count({ where }),
+      prisma.problem.findMany({ where, select: problemSelect, orderBy: [{ topic: { order: 'asc' } }, { title: 'asc' }], take: 40 }),
+    ]);
+    return { ok: true, total, items: rows.map(problemRow) };
+  } catch (err) {
+    return crashed('searching problems', err);
+  }
+}
+
+/** Details for already-chosen problem ids, in the same order. */
+export async function getProblemsByIds(ids) {
+  try {
+    const admin = await requireAdmin();
+    if (!admin) return fail(FORBIDDEN);
+    const wanted = (Array.isArray(ids) ? ids : []).filter((x) => typeof x === 'string').slice(0, 12);
+    const rows = await prisma.problem.findMany({ where: { id: { in: wanted } }, select: problemSelect });
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    return { ok: true, items: wanted.map((id) => byId.get(id)).filter(Boolean).map(problemRow) };
+  } catch (err) {
+    return crashed('loading problems', err);
+  }
 }

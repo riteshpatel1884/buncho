@@ -82,11 +82,7 @@ export default function BlogIndex({ heading, intro, basePath, activeCategory = '
           <h2 id="featured-heading" className="text-lg font-semibold">Featured</h2>
           <div className="mt-4 space-y-5">
             <PostCard post={featured[0]} large priority />
-            {featured.length > 1 && (
-              <div className="grid gap-5 md:grid-cols-2">
-                {featured.slice(1).map((p) => <PostCard key={p.id} post={p} />)}
-              </div>
-            )}
+            {featured.slice(1).map((p) => <PostCard key={p.id} post={p} large />)}
           </div>
         </section>
       )}
@@ -94,8 +90,8 @@ export default function BlogIndex({ heading, intro, basePath, activeCategory = '
       <section aria-labelledby="latest-heading" className="mt-10">
         <h2 id="latest-heading" className="text-lg font-semibold">{filtered ? 'Results' : 'Latest articles'}</h2>
         {result.items.length ? (
-          <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {result.items.map((p, i) => <PostCard key={p.id} post={p} priority={!showFeatured && i < 3} />)}
+          <div className="mt-4 space-y-5">
+            {result.items.map((p, i) => <PostCard key={p.id} post={p} large priority={!showFeatured && i < 2} />)}
           </div>
         ) : (
           <p className="mt-4 rounded-lg border border-dashed border-line p-8 text-center text-sm text-muted">

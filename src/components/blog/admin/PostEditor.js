@@ -6,6 +6,7 @@ import { EditorContent, useEditor } from '@tiptap/react';
 import { buildExtensions } from './extensions';
 import EditorToolbar from './EditorToolbar';
 import ImageDialog from './ImageDialog';
+import PracticePicker from './PracticePicker';
 import { Field, ResourcesField, Section, TagInput, inputCls } from './fields';
 import { uploadImage } from './upload';
 import { savePost, publishPost, unpublishPost, listRevisions, getRevision } from '@/app/admin/blog/actions';
@@ -21,7 +22,7 @@ const plain = (doc) => JSON.parse(JSON.stringify(doc));
 const AUTOSAVE_MS = 3000;
 const blank = {
   id: null, title: '', slug: '', excerpt: '', content: EMPTY_DOC, category: '', tags: [], level: '', keyTakeaways: [],
-  resources: [], coverImage: '', coverAlt: '', seoTitle: '', metaDescription: '', canonicalUrl: '', featured: false,
+  resources: [], practiceProblemIds: [], coverImage: '', coverAlt: '', seoTitle: '', metaDescription: '', canonicalUrl: '', featured: false,
   status: 'DRAFT', live: false, scheduledFor: '', version: null,
 };
 
@@ -302,6 +303,8 @@ export default function PostEditor({ initial }) {
             <EditorContent editor={editor} />
           </div>
           {err('content') && <p className="text-sm text-hard">{err('content')}</p>}
+
+          <PracticePicker value={form.practiceProblemIds ?? []} onChange={(practiceProblemIds) => set({ practiceProblemIds })} />
         </div>
 
         {/* Settings column */}
@@ -349,12 +352,12 @@ export default function PostEditor({ initial }) {
             </Field>
           </Section>
 
-          <Section title="Cover image">
+          <Section title="Cover image (optional)">
             {form.coverImage && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={form.coverImage} alt="" className="aspect-[1200/630] w-full rounded-md border border-line object-cover" />
             )}
-            <Field id="cover-file" label="Upload (recommended 1200×630)" error={err('coverImage')}>
+            <Field id="cover-file" label="Upload (optional, recommended 1200×630)" error={err('coverImage')}>
               <input id="cover-file" type="file" accept="image/png,image/jpeg,image/webp,image/avif" onChange={onCoverFile} disabled={coverBusy} className="block w-full text-sm" />
             </Field>
             <Field id="cover-url" label="Or image URL">

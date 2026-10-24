@@ -24,6 +24,7 @@ export default async function EditPostPage({ params }) {
     level: post.level ?? '',
     keyTakeaways: post.keyTakeaways,
     resources: Array.isArray(post.resources) ? post.resources : [],
+    practiceProblemIds: post.practiceProblemIds ?? [],
     coverImage: post.coverImage ?? '',
     coverAlt: post.coverAlt ?? '',
     seoTitle: post.seoTitle ?? '',

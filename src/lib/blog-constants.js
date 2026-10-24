@@ -63,7 +63,7 @@ export const LIMITS = {
 export const RESERVED_SLUGS = ['category', 'tag', 'feed.xml', 'feed', 'new', 'admin'];
 
 export const CODE_LANGUAGES = [
-  ['plaintext', 'Plain text'],
+  ['', 'Auto-detect'],
   ['python', 'Python'],
   ['javascript', 'JavaScript'],
   ['typescript', 'TypeScript'],

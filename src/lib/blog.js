@@ -102,6 +102,7 @@ const fullSelect = {
   content: true,
   keyTakeaways: true,
   resources: true,
+  practiceProblemIds: true,
   seoTitle: true,
   metaDescription: true,
   canonicalUrl: true,
@@ -180,4 +181,15 @@ export async function getViewerState(postId, userId) {
     prisma.blogFeedback.findUnique({ where: { postId_userId: { postId, userId } }, select: { helpful: true } }),
   ]);
   return { liked: Boolean(like), helpful: fb ? fb.helpful : null };
+}
+
+/** The practice questions an admin attached to a post, in the order they chose. Unpublished problems are skipped. */
+export async function getPracticeProblems(ids = []) {
+  if (!ids?.length) return [];
+  const rows = await prisma.problem.findMany({
+    where: { id: { in: ids }, published: true },
+    select: { id: true, slug: true, title: true, difficulty: true, type: true, estimatedMinutes: true, topic: { select: { name: true } } },
+  });
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  return ids.map((id) => byId.get(id)).filter(Boolean);
 }

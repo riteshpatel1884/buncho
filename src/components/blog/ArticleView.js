@@ -1,25 +1,26 @@
 import Link from 'next/link';
-import { buildHeadingIndex, tocFromHeadings } from '@/lib/blog-content';
+import { buildHeadingIndex } from '@/lib/blog-content';
 import { CATEGORY_BY_SLUG, LEVEL_LABEL, LEVEL_STYLE, RESOURCE_LABEL } from '@/lib/blog-constants';
+import { DIFFICULTY_LABEL } from '@/lib/constants';
 import { absoluteUrl } from '@/lib/seo';
 import { formatDateIST } from '@/lib/datetime';
 import Breadcrumbs from './Breadcrumbs';
 import RichContent from './RichContent';
-import TableOfContents from './TableOfContents';
 import ReadingProgress from './ReadingProgress';
 import PostSidebar from './PostSidebar';
 import Engagement from './Engagement';
 import Comments from './Comments';
 import ViewTracker from './ViewTracker';
 
+const DIFF_BADGE = { EASY: 'bg-easy/12 text-easy', MEDIUM: 'bg-medium/12 text-medium', HARD: 'bg-hard/12 text-hard' };
+
 /**
  * The whole article page body. Used by the public route and by the admin preview, so what an editor previews is
  * exactly what readers get. `preview` hides anything that writes data (views, likes, comments).
  */
-export default function ArticleView({ post, related = [], viewer = {}, helpfulCounts = { yes: 0, no: 0 }, comments = [], preview = false }) {
+export default function ArticleView({ post, related = [], practice = [], viewer = {}, helpfulCounts = { yes: 0, no: 0 }, comments = [], preview = false }) {
   const category = CATEGORY_BY_SLUG[post.category];
   const headings = buildHeadingIndex(post.content);
-  const toc = tocFromHeadings(headings);
   const url = absoluteUrl(`/blog/${post.slug}`);
   const author = post.author?.name || 'Buncho';
   const loginHref = `/login?redirect_url=${encodeURIComponent(`/blog/${post.slug}`)}`;
@@ -37,15 +38,16 @@ export default function ArticleView({ post, related = [], viewer = {}, helpfulCo
       <ReadingProgress />
       {!preview && <ViewTracker slug={post.slug} />}
 
-      <header className="mx-auto max-w-[46rem] xl:max-w-none xl:pl-[calc(14rem+2rem)]">
+      <div className="mx-auto w-full max-w-[72rem]">
+      <header className="max-w-[48rem]">
         <Breadcrumbs items={crumbs} />
         {category && (
           <p className="mt-6 text-xs font-semibold uppercase tracking-widest text-accent">
             {category.group} / {category.name}
           </p>
         )}
-        <h1 className="mt-2 max-w-[46rem] text-3xl font-bold leading-tight tracking-tight sm:text-4xl">{post.title}</h1>
-        {post.excerpt && <p className="mt-3 max-w-[46rem] text-lg leading-relaxed text-muted">{post.excerpt}</p>}
+        <h1 className="mt-2 max-w-[48rem] text-3xl font-bold leading-tight tracking-tight sm:text-4xl">{post.title}</h1>
+        {post.excerpt && <p className="mt-3 max-w-[48rem] text-lg leading-relaxed text-muted">{post.excerpt}</p>}
         <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
           <span className="font-medium text-ink">{author}</span>
           <span aria-hidden="true">•</span>
@@ -61,12 +63,8 @@ export default function ArticleView({ post, related = [], viewer = {}, helpfulCo
         </p>
       </header>
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[13rem_minmax(0,1fr)] xl:grid-cols-[14rem_minmax(0,46rem)_18rem] xl:justify-center">
-        <aside className="lg:row-span-2 lg:self-start xl:row-span-1 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto" aria-label="Table of contents">
-          <TableOfContents items={toc} />
-        </aside>
-
-        <article className="min-w-0 lg:col-start-2" id="article-body">
+      <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,48rem)_20rem]">
+        <article className="min-w-0" id="article-body">
           {post.coverImage && (
             <figure className="overflow-hidden rounded-xl border border-line bg-surface-2">
               {/* Dimensions reserve the space (no layout shift); eager + high priority because it is the LCP element */}
@@ -110,6 +108,27 @@ export default function ArticleView({ post, related = [], viewer = {}, helpfulCo
             </section>
           )}
 
+          {practice.length > 0 && (
+            <section aria-labelledby="practice-heading" className="mt-10 rounded-xl border border-line bg-surface p-5">
+              <h2 id="practice-heading" className="text-lg font-semibold">Practice what you learned</h2>
+              <p className="mt-1 text-sm text-muted">Try these interview questions on the same topic and get AI feedback on your answers.</p>
+              <ul className="mt-4 space-y-2">
+                {practice.map((p) => (
+                  <li key={p.id}>
+                    <Link href={`/problems/${p.slug}`} className="flex items-center gap-3 rounded-lg border border-line px-4 py-3 transition-colors hover:border-accent/60 hover:bg-surface-2">
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-medium leading-snug">{p.title}</span>
+                        <span className="mt-0.5 block text-xs text-muted">{p.topic?.name}{p.estimatedMinutes ? ` · ~${p.estimatedMinutes} min` : ''}</span>
+                      </span>
+                      <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${DIFF_BADGE[p.difficulty]}`}>{DIFFICULTY_LABEL[p.difficulty]}</span>
+                      <span aria-hidden="true" className="text-muted">→</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           {!preview ? (
             <>
               <Engagement
@@ -135,9 +154,11 @@ export default function ArticleView({ post, related = [], viewer = {}, helpfulCo
           </p>
         </article>
 
-        <aside className="lg:col-start-2 xl:col-start-3 xl:row-start-1 xl:sticky xl:top-20 xl:self-start" aria-label="Article information">
+        {/* On wide screens this column stays in view while reading and scrolls on its own when it is taller than the window */}
+        <aside className="xl:sticky xl:top-20 xl:max-h-[calc(100dvh-6rem)] xl:self-start xl:overflow-y-auto xl:overscroll-contain xl:pr-1" aria-label="Article information">
           <PostSidebar post={post} url={url} related={related} helpfulCounts={helpfulCounts} />
         </aside>
+      </div>
       </div>
     </div>
   );

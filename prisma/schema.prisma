@@ -447,6 +447,8 @@ model BlogPost {
   level         PostLevel?
   keyTakeaways  String[]
   resources     Json? // [{ type: 'github' | 'notebook' | 'dataset' | 'docs' | 'other', label, url }]
+  // Problem ids the admin picked as practice questions, shown under the article in this order
+  practiceProblemIds String[]
   coverImage    String?
   coverAlt      String?
   seoTitle      String?

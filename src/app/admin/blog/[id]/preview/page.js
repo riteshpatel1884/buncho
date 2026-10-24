@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import ArticleView from '@/components/blog/ArticleView';
 import { requireAdminPage } from '@/lib/blog-admin';
-import { getPostForAdmin, getRelatedPosts, effectiveStatus } from '@/lib/blog';
+import { getPostForAdmin, getRelatedPosts, getPracticeProblems, effectiveStatus } from '@/lib/blog';
 import { CATEGORY_BY_SLUG, STATUS_LABEL } from '@/lib/blog-constants';
 
 export const metadata = { title: 'Preview', robots: { index: false, follow: false } };
@@ -18,6 +18,7 @@ export default async function PreviewPage({ params }) {
   const post = { ...raw, publishedAt: raw.publishedAt ?? new Date() };
   const related = raw.status === 'DRAFT' ? [] : await getRelatedPosts(post);
   const status = effectiveStatus(raw);
+  const practice = await getPracticeProblems(raw.practiceProblemIds);
 
   return (
     <>
@@ -30,7 +31,7 @@ export default async function PreviewPage({ params }) {
           <Link href={`/admin/blog/${id}/edit`} className="font-semibold text-accent underline underline-offset-4">Back to editor</Link>
         </div>
       </div>
-      <ArticleView post={post} related={related} preview />
+      <ArticleView post={post} related={related} practice={practice} preview />
     </>
   );
 }

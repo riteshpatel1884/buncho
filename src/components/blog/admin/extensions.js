@@ -64,7 +64,7 @@ export function buildExtensions() {
       codeBlock: false,
       link: { openOnClick: false, autolink: true, HTMLAttributes: { rel: 'noopener noreferrer' } },
     }),
-    CodeBlockLowlight.configure({ lowlight, defaultLanguage: 'plaintext' }),
+    CodeBlockLowlight.configure({ lowlight, defaultLanguage: null }),
     BlogImage.configure({ inline: false, allowBase64: false }),
     TextAlign.configure({ types: ['heading', 'paragraph'] }),
     TableKit.configure({ table: { resizable: false } }),

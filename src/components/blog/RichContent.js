@@ -30,12 +30,24 @@ function hastToReact(node, key) {
   return null;
 }
 
+// Languages tried when a code block has no language set. Kept small so detection stays accurate.
+const AUTO_SUBSET = ['python', 'javascript', 'typescript', 'bash', 'json', 'sql', 'yaml', 'xml', 'css', 'java', 'cpp', 'go', 'dockerfile'];
+
+/** Returns { nodes, language }. With no language chosen, the language is detected from the code itself. */
 function highlight(code, language) {
-  if (!language || language === 'plaintext' || !lowlight.registered(language)) return code;
   try {
-    return lowlight.highlight(language, code).children.map((c, i) => hastToReact(c, i));
+    if (!language || language === 'plaintext') {
+      const found = lowlight.highlightAuto(code, { subset: AUTO_SUBSET });
+      const detected = found.data?.language;
+      if (detected && (found.data?.relevance ?? 0) >= 3) {
+        return { nodes: found.children.map((c, i) => hastToReact(c, i)), language: detected };
+      }
+      return { nodes: code, language: 'code' };
+    }
+    if (!lowlight.registered(language)) return { nodes: code, language };
+    return { nodes: lowlight.highlight(language, code).children.map((c, i) => hastToReact(c, i)), language };
   } catch {
-    return code;
+    return { nodes: code, language: language || 'code' };
   }
 }
 
@@ -105,7 +117,7 @@ function renderNode(node, ctx, key) {
       return h('hr', { key });
     case 'codeBlock': {
       const code = plain(node);
-      const language = a.language || 'plaintext';
+      const { nodes, language } = highlight(code, a.language);
       return h(
         'div',
         { key, className: 'code-block' },
@@ -115,7 +127,7 @@ function renderNode(node, ctx, key) {
           h('span', { className: 'code-block-lang' }, language),
           h(CopyCodeButton, { code }),
         ),
-        h('pre', { tabIndex: 0 }, h('code', { className: `language-${language}` }, highlight(code, language))),
+        h('pre', { tabIndex: 0 }, h('code', { className: `language-${language}` }, nodes)),
       );
     }
     case 'image': {

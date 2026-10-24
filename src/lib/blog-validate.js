@@ -44,8 +44,11 @@ export function validatePost(post, { now = new Date(), schedule = null } = {}) {
   if (tags.length < 1) err('tags', 'Add at least one tag.');
   if (tags.length > LIMITS.tagsMax) err('tags', `Use at most ${LIMITS.tagsMax} tags.`);
 
-  if (!safeUrl(post.coverImage, { mailto: false })) err('coverImage', 'Add a cover image.');
-  else if (!(post.coverAlt ?? '').trim()) err('coverAlt', 'Describe the cover image in the alt text field.');
+  // The cover image is optional. If one is set it must be a valid URL, and alt text is recommended.
+  if ((post.coverImage ?? '').trim()) {
+    if (!safeUrl(post.coverImage, { mailto: false })) err('coverImage', 'The cover image URL is not valid.');
+    else if (!(post.coverAlt ?? '').trim()) warn('coverAlt', 'Add alt text for the cover image (good for accessibility and SEO).');
+  }
 
   if (post.canonicalUrl && !/^https:\/\//i.test(post.canonicalUrl.trim())) {
     err('canonicalUrl', 'Canonical URL must be a full https:// address (or leave it empty).');

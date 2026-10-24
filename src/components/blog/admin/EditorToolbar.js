@@ -39,7 +39,7 @@ export default function EditorToolbar({ editor, onImage }) {
       ordered: e.isActive('orderedList'),
       quote: e.isActive('blockquote'),
       codeBlock: e.isActive('codeBlock'),
-      language: e.getAttributes('codeBlock').language || 'plaintext',
+      language: (e.getAttributes('codeBlock').language ?? '') === 'plaintext' ? '' : e.getAttributes('codeBlock').language || '',
       callout: e.isActive('callout'),
       table: e.isActive('table'),
       image: e.isActive('image'),
@@ -107,7 +107,7 @@ export default function EditorToolbar({ editor, onImage }) {
         {s.codeBlock && (
           <>
             <label className="sr-only" htmlFor="code-lang">Code language</label>
-            <select id="code-lang" value={s.language} onChange={(e) => chain().updateAttributes('codeBlock', { language: e.target.value }).run()} className="h-8 rounded-md border border-line bg-surface px-2 text-sm">
+            <select id="code-lang" value={s.language} onChange={(e) => chain().updateAttributes('codeBlock', { language: e.target.value || null }).run()} className="h-8 rounded-md border border-line bg-surface px-2 text-sm">
               {CODE_LANGUAGES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </>

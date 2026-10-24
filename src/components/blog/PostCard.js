@@ -6,8 +6,10 @@ export default function PostCard({ post, priority = false, large = false }) {
   const category = CATEGORY_BY_SLUG[post.category];
   return (
     <article className={`group relative flex flex-col overflow-hidden rounded-xl border border-line bg-surface transition-colors hover:border-accent/60 ${large ? 'md:flex-row' : ''}`}>
-      <Link href={`/blog/${post.slug}`} tabIndex={-1} aria-hidden="true" className={`block shrink-0 overflow-hidden bg-surface-2 ${large ? 'md:w-[46%]' : ''}`}>
-        {post.coverImage ? (
+      {/* Cover images are optional: without one the card is just text */}
+      {post.coverImage && (
+      <Link href={`/blog/${post.slug}`} tabIndex={-1} aria-hidden="true" className={`block shrink-0 overflow-hidden bg-surface-2 ${large ? 'md:w-[40%]' : ''}`}>
+        {(
           // Fixed 1200x630 box reserves the space, so cards never shift layout while images load
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -20,10 +22,9 @@ export default function PostCard({ post, priority = false, large = false }) {
             decoding="async"
             className="aspect-[1200/630] h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
           />
-        ) : (
-          <div className="aspect-[1200/630] w-full" />
         )}
       </Link>
+      )}
       <div className="flex flex-1 flex-col p-5">
         <div className="flex flex-wrap items-center gap-2 text-xs">
           {category && (

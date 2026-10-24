@@ -2,7 +2,7 @@ import { notFound, permanentRedirect } from 'next/navigation';
 import { auth } from '@clerk/nextjs/server';
 import ArticleView from '@/components/blog/ArticleView';
 import JsonLd from '@/components/JsonLd';
-import { getLivePost, getRelatedPosts, getFeedbackCounts, getComments, getViewerState, findSlugRedirect } from '@/lib/blog';
+import { getLivePost, getPracticeProblems, getRelatedPosts, getFeedbackCounts, getComments, getViewerState, findSlugRedirect } from '@/lib/blog';
 import { getOrCreateUser } from '@/lib/user';
 import { isAdmin } from '@/lib/admin';
 import { CATEGORY_BY_SLUG, LEVEL_LABEL } from '@/lib/blog-constants';
@@ -50,8 +50,9 @@ export default async function ArticlePage({ params }) {
   const user = clerkId ? await getOrCreateUser() : null;
   const admin = isAdmin(user);
 
-  const [related, helpfulCounts, rawComments, viewerState] = await Promise.all([
+  const [related, practice, helpfulCounts, rawComments, viewerState] = await Promise.all([
     getRelatedPosts(post),
+    getPracticeProblems(post.practiceProblemIds),
     getFeedbackCounts(post.id),
     getComments(post.id),
     getViewerState(post.id, user?.id),
@@ -84,6 +85,7 @@ export default async function ArticlePage({ params }) {
       <ArticleView
         post={post}
         related={related}
+        practice={practice}
         helpfulCounts={helpfulCounts}
         comments={comments}
         viewer={{ signedIn: Boolean(user), ...viewerState }}
