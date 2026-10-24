@@ -53,16 +53,26 @@ export const AI_RUBRIC_LABEL = {
 // One entry per topic, in the order shown on the dashboard. Weights add up to 100 and favour LLM and RAG work
 // for AI/GenAI engineer roles. A topic with no published questions is left out of the score until it has some.
 export const COMPETENCIES = [
-  { key: 'ml', name: 'Machine Learning Fundamentals', weight: 8, topics: ['ml-fundamentals'] },
-  { key: 'dl', name: 'Deep Learning', weight: 10, topics: ['deep-learning'] },
+  { key: 'ml', name: 'Machine Learning Fundamentals', weight: 5, topics: ['ml-fundamentals'] },
+  { key: 'mlalgo', name: 'ML Algorithms', weight: 2, topics: ['ml-algorithms'] },
+  { key: 'dl', name: 'Deep Learning', weight: 8, topics: ['deep-learning'] },
   { key: 'python', name: 'Python for AI/ML', weight: 4, topics: ['python-for-ai-ml'] },
   { key: 'stats', name: 'Statistics and Mathematics', weight: 3, topics: ['statistics-and-mathematics'] },
-  { key: 'genai', name: 'Generative AI and LLMs', weight: 15, topics: ['generative-ai-and-llms'] },
-  { key: 'rag', name: 'RAG and Vector Databases', weight: 20, topics: ['rag-and-vector-databases'] },
-  { key: 'agents', name: 'AI Agents and Tool Calling', weight: 10, topics: ['ai-agents-and-tool-calling'] },
-  { key: 'design', name: 'ML System Design', weight: 8, topics: ['ml-system-design'] },
-  { key: 'prod', name: 'Production AI Engineering', weight: 15, topics: ['production-ai-engineering'] },
-  { key: 'cases', name: 'AI Engineering Case Studies', weight: 7, topics: ['ai-engineering-case-studies'] },
+  { key: 'genai', name: 'Generative AI and LLMs', weight: 10, topics: ['generative-ai-and-llms'] },
+  { key: 'finetune', name: 'Fine-Tuning', weight: 4, topics: ['fine-tuning'] },
+  { key: 'multimodal', name: 'Multimodal AI', weight: 2, topics: ['multimodal-ai'] },
+  { key: 'rag', name: 'RAG and Vector Databases', weight: 12, topics: ['rag-and-vector-databases'] },
+  { key: 'embeddings', name: 'Embeddings', weight: 4, topics: ['embeddings'] },
+  { key: 'agents', name: 'AI Agents and Tool Calling', weight: 8, topics: ['ai-agents-and-tool-calling'] },
+  { key: 'mcp', name: 'MCP', weight: 2, topics: ['mcp'] },
+  { key: 'design', name: 'ML System Design', weight: 5, topics: ['ml-system-design'] },
+  { key: 'aisystem', name: 'AI System Design', weight: 4, topics: ['ai-system-design'] },
+  { key: 'eval', name: 'LLM Evaluation and Testing', weight: 5, topics: ['llm-evaluation-and-testing'] },
+  { key: 'safety', name: 'AI Safety, Ethics and Responsible AI', weight: 4, topics: ['ai-safety-ethics-responsible-ai'] },
+  { key: 'infra', name: 'AI Infrastructure and Scalability', weight: 4, topics: ['ai-infrastructure-and-scalability'] },
+  { key: 'gateways', name: 'LLM Gateways', weight: 2, topics: ['llm-gateways'] },
+  { key: 'prod', name: 'Production AI Engineering', weight: 8, topics: ['production-ai-engineering'] },
+  { key: 'cases', name: 'AI Engineering Case Studies', weight: 4, topics: ['ai-engineering-case-studies'] },
 ];
 
 // A topic counts in full once you have this many AI-evaluated answers in it (fewer = scaled down)
