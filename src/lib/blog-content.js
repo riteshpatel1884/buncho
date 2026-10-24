@@ -50,7 +50,7 @@ export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const ALIGN = new Set(['left', 'center', 'right', 'justify']);
 const NODE_TYPES = new Set([
   'paragraph', 'heading', 'text', 'bulletList', 'orderedList', 'listItem', 'blockquote', 'codeBlock',
-  'horizontalRule', 'hardBreak', 'image', 'table', 'tableRow', 'tableHeader', 'tableCell', 'callout',
+  'horizontalRule', 'hardBreak', 'image', 'table', 'tableRow', 'tableHeader', 'tableCell', 'callout', 'faq',
 ]);
 const MARK_TYPES = new Set(['bold', 'italic', 'underline', 'strike', 'code', 'link']);
 const CALLOUTS = new Set(['info', 'tip', 'warning']);
@@ -234,3 +234,38 @@ export function buildHeadingIndex(doc) {
 
 /** Entries for the sticky table of contents: H2 and H3 only. */
 export const tocFromHeadings = (headings) => headings.filter((h) => h.level <= 3 && h.text);
+
+/* -------------------------------- FAQ -------------------------------- */
+
+const QUESTION_START = /^\s*Q(?:uestion)?\s*\d*\s*[.:)\-\u2013]\s*\S/i;
+const NOT_ANSWER = new Set(['heading', 'horizontalRule', 'faq']);
+
+/**
+ * Turns pasted "Q1. question / answer paragraphs" runs into FAQ blocks (question first, answer after). A run
+ * ends at the next question, a heading or a divider. Only top-level blocks are looked at; a question with no
+ * answer is left as it is.
+ */
+export function groupQaIntoFaq(doc) {
+  const blocks = doc?.content ?? [];
+  const out = [];
+  let converted = 0;
+  for (let i = 0; i < blocks.length; i += 1) {
+    const block = blocks[i];
+    if (block.type === 'paragraph' && QUESTION_START.test(nodeText(block))) {
+      const answer = [];
+      let j = i + 1;
+      while (j < blocks.length && !NOT_ANSWER.has(blocks[j].type) && !(blocks[j].type === 'paragraph' && QUESTION_START.test(nodeText(blocks[j])))) {
+        answer.push(blocks[j]);
+        j += 1;
+      }
+      if (answer.length) {
+        out.push({ type: 'faq', content: [block, ...answer] });
+        converted += 1;
+        i = j - 1;
+        continue;
+      }
+    }
+    out.push(block);
+  }
+  return { doc: { ...doc, content: out }, converted };
+}

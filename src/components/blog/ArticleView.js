@@ -1,9 +1,8 @@
 import Link from 'next/link';
 import { buildHeadingIndex } from '@/lib/blog-content';
-import { CATEGORY_BY_SLUG, LEVEL_LABEL, LEVEL_STYLE, RESOURCE_LABEL } from '@/lib/blog-constants';
+import { CATEGORY_BY_SLUG, RESOURCE_LABEL } from '@/lib/blog-constants';
 import { DIFFICULTY_LABEL } from '@/lib/constants';
 import { absoluteUrl } from '@/lib/seo';
-import { formatDateIST } from '@/lib/datetime';
 import Breadcrumbs from './Breadcrumbs';
 import RichContent from './RichContent';
 import ReadingProgress from './ReadingProgress';
@@ -22,7 +21,6 @@ export default function ArticleView({ post, related = [], practice = [], viewer 
   const category = CATEGORY_BY_SLUG[post.category];
   const headings = buildHeadingIndex(post.content);
   const url = absoluteUrl(`/blog/${post.slug}`);
-  const author = post.author?.name || 'Buncho';
   const loginHref = `/login?redirect_url=${encodeURIComponent(`/blog/${post.slug}`)}`;
   const resources = Array.isArray(post.resources) ? post.resources : [];
 
@@ -48,39 +46,10 @@ export default function ArticleView({ post, related = [], practice = [], viewer 
         )}
         <h1 className="mt-2 max-w-[48rem] text-3xl font-bold leading-tight tracking-tight sm:text-4xl">{post.title}</h1>
         {post.excerpt && <p className="mt-3 max-w-[48rem] text-lg leading-relaxed text-muted">{post.excerpt}</p>}
-        <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
-          <span className="font-medium text-ink">{author}</span>
-          <span aria-hidden="true">•</span>
-          <time dateTime={post.publishedAt?.toISOString()}>{post.publishedAt ? formatDateIST(post.publishedAt) : 'Not published yet'}</time>
-          <span aria-hidden="true">•</span>
-          <span>{post.readingMinutes} min read</span>
-          {post.level && (
-            <>
-              <span aria-hidden="true">•</span>
-              <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${LEVEL_STYLE[post.level]}`}>{LEVEL_LABEL[post.level]}</span>
-            </>
-          )}
-        </p>
       </header>
 
       <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,48rem)_20rem]">
         <article className="min-w-0" id="article-body">
-          {post.coverImage && (
-            <figure className="overflow-hidden rounded-xl border border-line bg-surface-2">
-              {/* Dimensions reserve the space (no layout shift); eager + high priority because it is the LCP element */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={post.coverImage}
-                alt={post.coverAlt || ''}
-                width={1200}
-                height={630}
-                fetchPriority="high"
-                decoding="async"
-                className="aspect-[1200/630] w-full object-cover"
-              />
-            </figure>
-          )}
-
           {post.keyTakeaways?.length > 0 && (
             <section aria-labelledby="takeaways-heading" className="mt-8 rounded-xl border border-line bg-accent-soft/50 p-5">
               <h2 id="takeaways-heading" className="text-sm font-semibold uppercase tracking-wider text-accent">Key takeaways</h2>

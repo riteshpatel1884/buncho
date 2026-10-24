@@ -44,6 +44,35 @@ export const Callout = Node.create({
   },
 });
 
+/**
+ * Expandable question and answer. The first block inside is the question, everything after it is the answer.
+ * Stored as { type: 'faq', content: [...] } and rendered as <details> on the public page.
+ */
+export const Faq = Node.create({
+  name: 'faq',
+  group: 'block',
+  content: 'block+',
+  defining: true,
+  parseHTML() {
+    return [{ tag: 'div[data-faq]' }, { tag: 'details[data-faq]' }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ['div', mergeAttributes(HTMLAttributes, { 'data-faq': '', class: 'faq' }), 0];
+  },
+  addCommands() {
+    return {
+      setFaq:
+        () =>
+        ({ commands }) =>
+          commands.wrapIn(this.name),
+      unsetFaq:
+        () =>
+        ({ commands }) =>
+          commands.lift(this.name),
+    };
+  },
+});
+
 /** Block image with caption and intrinsic size (the size lets the public page reserve space and avoid layout shift). */
 const BlogImage = Image.extend({
   addAttributes() {
@@ -69,6 +98,7 @@ export function buildExtensions() {
     TextAlign.configure({ types: ['heading', 'paragraph'] }),
     TableKit.configure({ table: { resizable: false } }),
     Callout,
+    Faq,
     Placeholder.configure({ placeholder: 'Start writing. Use the toolbar for headings, code blocks, tables and callouts.' }),
   ];
 }

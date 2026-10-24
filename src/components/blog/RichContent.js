@@ -168,6 +168,19 @@ function renderNode(node, ctx, key) {
         renderChildren(node, ctx),
       );
     }
+    case 'faq': {
+      // First block is the question (the clickable line), the rest is the answer
+      const [first, ...rest] = node.content ?? [];
+      if (!first) return null;
+      if (first.type === 'heading') ctx.cursor += 1; // keeps heading ids in step with the heading index
+      const question = ['paragraph', 'heading'].includes(first.type) ? renderChildren(first, ctx) : plain(first);
+      return h(
+        'details',
+        { key, className: 'faq' },
+        h('summary', null, question),
+        h('div', { className: 'faq-body' }, rest.map((c, i) => renderNode(c, ctx, i))),
+      );
+    }
     case 'callout': {
       const variant = CALLOUT_VARIANTS[a.variant] ? a.variant : 'info';
       return h(

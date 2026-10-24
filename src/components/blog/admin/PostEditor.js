@@ -59,6 +59,8 @@ export default function PostEditor({ initial }) {
   const timer = useRef(null);
   const markDirtyRef = useRef(() => {});
   const docTimer = useRef(null);
+  const rootRef = useRef(null);
+  const barRef = useRef(null);
   formRef.current = form;
   metaRef.current = meta;
 
@@ -73,6 +75,19 @@ export default function PostEditor({ initial }) {
       docTimer.current = setTimeout(() => setDoc(e.getJSON()), 400); // validation does not need every keystroke
     },
   });
+
+  // The site navbar is sticky (4rem). The action bar sticks under it, the formatting toolbar under the action bar.
+  // The bar's height changes (wrapping, status messages), so it is measured and shared as a CSS variable.
+  useEffect(() => {
+    const bar = barRef.current;
+    const root = rootRef.current;
+    if (!bar || !root || typeof ResizeObserver === 'undefined') return undefined;
+    const apply = () => root.style.setProperty('--editor-bar-h', `${bar.offsetHeight}px`);
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(bar);
+    return () => ro.disconnect();
+  }, []);
 
   const autosaves = !meta.live && ['DRAFT', 'UNPUBLISHED'].includes(meta.status);
   const canAutosave = () => !metaRef.current.live && ['DRAFT', 'UNPUBLISHED'].includes(metaRef.current.status);
@@ -244,9 +259,9 @@ export default function PostEditor({ initial }) {
   const statusLabel = meta.live ? 'Live' : meta.status === 'SCHEDULED' ? 'Scheduled' : meta.status === 'UNPUBLISHED' ? 'Unpublished' : 'Draft';
 
   return (
-    <div className="mx-auto w-full max-w-[90rem] px-4 pb-20 sm:px-6">
+    <div ref={rootRef} className="mx-auto w-full max-w-[90rem] px-4 pb-20 sm:px-6">
       {/* Top bar */}
-      <div className="sticky top-0 z-30 -mx-4 mb-6 border-b border-line bg-surface/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+      <div ref={barRef} className="sticky top-16 z-30 -mx-4 mb-6 border-b border-line bg-surface/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
         <div className="flex flex-wrap items-center gap-3">
           <Link href="/admin/blog" className="text-sm text-muted hover:text-ink">← All articles</Link>
           <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-semibold">{statusLabel}</span>
@@ -308,7 +323,7 @@ export default function PostEditor({ initial }) {
         </div>
 
         {/* Settings column */}
-        <aside className="min-w-0 space-y-3 lg:sticky lg:top-24 lg:max-h-[calc(100dvh-7rem)] lg:self-start lg:overflow-y-auto lg:pr-1" aria-label="Article settings">
+        <aside className="min-w-0 space-y-3 lg:sticky lg:top-[calc(4rem+var(--editor-bar-h,3.75rem)+1rem)] lg:max-h-[calc(100dvh-4rem-var(--editor-bar-h,3.75rem)-2rem)] lg:self-start lg:overflow-y-auto lg:pr-1" aria-label="Article settings">
           <Section title={`Publishing checklist (${errors.length ? `${errors.length} to fix` : 'ready'})`}>
             {errors.length === 0 ? (
               <p className="text-sm text-easy">Everything required is filled in.</p>
@@ -352,7 +367,7 @@ export default function PostEditor({ initial }) {
             </Field>
           </Section>
 
-          <Section title="Cover image (optional)">
+          <Section title="Cover image (optional, shown on the blog list only)">
             {form.coverImage && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={form.coverImage} alt="" className="aspect-[1200/630] w-full rounded-md border border-line object-cover" />

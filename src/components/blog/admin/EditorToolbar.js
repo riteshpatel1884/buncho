@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useEditorState } from '@tiptap/react';
 import { CODE_LANGUAGES } from '@/lib/blog-constants';
+import { groupQaIntoFaq } from '@/lib/blog-content';
 import { safeUrl } from '@/lib/blog-content';
 
 const base = 'inline-flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-sm font-medium transition-colors disabled:opacity-40';
@@ -39,6 +40,7 @@ export default function EditorToolbar({ editor, onImage }) {
       ordered: e.isActive('orderedList'),
       quote: e.isActive('blockquote'),
       codeBlock: e.isActive('codeBlock'),
+      faq: e.isActive('faq'),
       language: (e.getAttributes('codeBlock').language ?? '') === 'plaintext' ? '' : e.getAttributes('codeBlock').language || '',
       callout: e.isActive('callout'),
       table: e.isActive('table'),
@@ -70,6 +72,12 @@ export default function EditorToolbar({ editor, onImage }) {
     setLinkOpen(false);
   }
 
+  function makeFaqs() {
+    const { doc, converted } = groupQaIntoFaq(JSON.parse(JSON.stringify(editor.getJSON())));
+    if (!converted) return window.alert('No "Q1. question" lines with an answer underneath were found.');
+    editor.commands.setContent(doc, { emitUpdate: true });
+  }
+
   function setHeading(value) {
     const level = Number(value);
     if (!level) chain().setParagraph().run();
@@ -77,7 +85,7 @@ export default function EditorToolbar({ editor, onImage }) {
   }
 
   return (
-    <div className="sticky top-0 z-20 rounded-t-lg border-b border-line bg-surface">
+    <div className="sticky top-[calc(4rem+var(--editor-bar-h,3.75rem))] z-20 rounded-t-lg border-b border-line bg-surface">
       <div role="toolbar" aria-label="Formatting" className="flex flex-wrap items-center gap-0.5 p-1.5">
         <label className="sr-only" htmlFor="heading-select">Text style</label>
         <select id="heading-select" value={s.heading} onChange={(e) => setHeading(e.target.value)} className="h-8 rounded-md border border-line bg-surface px-2 text-sm">
@@ -112,6 +120,8 @@ export default function EditorToolbar({ editor, onImage }) {
             </select>
           </>
         )}
+        <Btn label="FAQ item: first block is the question, the rest is the answer" active={s.faq} onClick={() => (s.faq ? chain().unsetFaq().run() : chain().setFaq().run())}>FAQ</Btn>
+        <Btn label="Turn every 'Q1. question' plus its answer in the article into an FAQ" onClick={makeFaqs}>Q&amp;A → FAQ</Btn>
         <Btn label="Image" active={s.image} onClick={onImage}>Image</Btn>
         <Btn label="Insert table" onClick={() => chain().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>Table</Btn>
         <Sep />

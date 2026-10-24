@@ -377,6 +377,45 @@ html[data-busy='true'] body { cursor: progress; }
 .prose-blog pre .hljs-emphasis { font-style: italic; }
 .prose-blog pre .hljs-strong { font-weight: 700; }
 
+/* FAQ: question line that expands to show the answer */
+.prose-blog .faq {
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  background: var(--surface);
+}
+.prose-blog .faq + .faq { margin-top: 0.6rem; }
+.prose-blog details.faq > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.1rem;
+  font-weight: 650;
+  line-height: 1.5;
+}
+.prose-blog details.faq > summary::-webkit-details-marker { display: none; }
+.prose-blog details.faq > summary::after {
+  content: '+';
+  flex-shrink: 0;
+  font-size: 1.25rem;
+  line-height: 1.3;
+  color: var(--accent);
+  transition: transform 0.15s;
+}
+.prose-blog details.faq[open] > summary::after { transform: rotate(45deg); }
+.prose-blog details.faq > summary:hover { background: var(--surface-2); border-radius: 0.6rem; }
+.prose-blog details.faq > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.prose-blog .faq-body { border-top: 1px solid var(--line); padding: 0.85rem 1.1rem 1rem; }
+.prose-blog .faq-body > * + * { margin-top: 0.8em; }
+/* In the editor the FAQ is always open: the first block is the question, the rest is the answer */
+.blog-editor .ProseMirror div.faq { padding: 0.75rem 1.1rem; border-left: 4px solid var(--accent); }
+.blog-editor .ProseMirror div.faq > * + * { margin-top: 0.7em; }
+.blog-editor .ProseMirror div.faq > :first-child { font-weight: 650; }
+.blog-editor .ProseMirror div.faq > :first-child::before { content: 'Question: '; color: var(--accent); font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.06em; }
+.blog-editor .ProseMirror div.faq > :nth-child(2)::before { content: 'Answer'; display: block; color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; }
+
 /* Editor-only bits */
 .blog-editor .ProseMirror { outline: none; min-height: 24rem; }
 .blog-editor .ProseMirror p.is-editor-empty:first-child::before {
