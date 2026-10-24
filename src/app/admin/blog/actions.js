@@ -15,6 +15,13 @@ import { formatDateTimeIST } from '@/lib/datetime';
  */
 
 const fail = (error, extra = {}) => ({ ok: false, error, ...extra });
+
+/** Turns a thrown server error into a readable message (admin-only actions, so showing the cause is safe). */
+function crashed(label, err) {
+  console.error(`[${label}]`, err);
+  const lastLine = String(err?.message ?? err).split('\n').map((l) => l.trim()).filter(Boolean).pop() ?? '';
+  return fail(`Server error while ${label} (${err?.code ?? err?.name ?? 'unknown'}): ${lastLine.slice(0, 220)}`);
+}
 const FORBIDDEN = 'Not allowed.';
 const MAX_REVISIONS = 30;
 const AUTOSAVE_SNAPSHOT_GAP_MS = 10 * 60 * 1000;
@@ -40,7 +47,7 @@ function refresh(post, previous) {
 /* ------------------------ input normalisation ------------------------ */
 
 function normalise(input) {
-  const text = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+  const text = (v, max) => (typeof v === 'string' ? v.replace(/\u0000/g, '').trim().slice(0, max) : '');
   const list = (v, max, each) =>
     (Array.isArray(v) ? v : []).map((x) => text(x, each)).filter(Boolean).slice(0, max);
 
@@ -85,7 +92,16 @@ async function uniqueSlug(base, excludeId) {
   return `${base}-${Date.now().toString(36)}`;
 }
 
-async function snapshot(postId, data, { force, note = null }) {
+async function snapshot(postId, data, opts) {
+  // Revision history is a bonus: if it fails, the article itself must still save
+  try {
+    await snapshotInner(postId, data, opts);
+  } catch (err) {
+    console.error('[snapshot]', err);
+  }
+}
+
+async function snapshotInner(postId, data, { force, note = null }) {
   const last = await prisma.blogRevision.findFirst({ where: { postId }, orderBy: { createdAt: 'desc' }, select: { content: true, title: true, createdAt: true } });
   const same = last && last.title === data.title && JSON.stringify(last.content) === JSON.stringify(data.content);
   if (same && !note) return;
@@ -101,7 +117,15 @@ async function snapshot(postId, data, { force, note = null }) {
  * Creates or updates a post (never changes its public status). `source` is 'autosave' or 'manual'.
  * `baseVersion` is the lastEditedAt the editor loaded; if someone else saved since, nothing is overwritten.
  */
-export async function savePost(input, { source = 'manual', baseVersion = null } = {}) {
+export async function savePost(input, opts) {
+  try {
+    return await savePostInner(input, opts);
+  } catch (err) {
+    return crashed('saving', err);
+  }
+}
+
+async function savePostInner(input, { source = 'manual', baseVersion = null } = {}) {
   const admin = await requireAdmin();
   if (!admin) return fail(FORBIDDEN);
   if (!input || typeof input !== 'object') return fail('Invalid data.');
@@ -143,7 +167,15 @@ export async function savePost(input, { source = 'manual', baseVersion = null } 
 /* ---------------------- publishing / unpublishing -------------------- */
 
 /** Validates the saved article and makes it public now, or at `scheduledFor` (ISO string). */
-export async function publishPost(id, { scheduledFor = null } = {}) {
+export async function publishPost(id, opts) {
+  try {
+    return await publishPostInner(id, opts);
+  } catch (err) {
+    return crashed('publishing', err);
+  }
+}
+
+async function publishPostInner(id, { scheduledFor = null } = {}) {
   const admin = await requireAdmin();
   if (!admin) return fail(FORBIDDEN);
   const post = await prisma.blogPost.findUnique({ where: { id: String(id) } });
