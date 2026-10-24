@@ -14,6 +14,10 @@ import { EMPTY_DOC, slugify } from '@/lib/blog-content';
 import { validatePost } from '@/lib/blog-validate';
 import { fromISTInputValue } from '@/lib/datetime';
 
+/* ProseMirror attrs are null-prototype objects, which React cannot send to a server action (they arrive as
+   unusable "temporary client references"). A JSON round trip turns them into plain objects. */
+const plain = (doc) => JSON.parse(JSON.stringify(doc));
+
 const AUTOSAVE_MS = 3000;
 const blank = {
   id: null, title: '', slug: '', excerpt: '', content: EMPTY_DOC, category: '', tags: [], level: '', keyTakeaways: [],
@@ -72,7 +76,7 @@ export default function PostEditor({ initial }) {
   const autosaves = !meta.live && ['DRAFT', 'UNPUBLISHED'].includes(meta.status);
   const canAutosave = () => !metaRef.current.live && ['DRAFT', 'UNPUBLISHED'].includes(metaRef.current.status);
 
-  const payload = useCallback(() => ({ ...formRef.current, id: metaRef.current.id, content: editor ? editor.getJSON() : formRef.current.content }), [editor]);
+  const payload = useCallback(() => ({ ...formRef.current, id: metaRef.current.id, content: editor ? plain(editor.getJSON()) : formRef.current.content }), [editor]);
 
   /** Saves now. Returns true on success. Autosave and the Save button both come through here. */
   const save = useCallback(
