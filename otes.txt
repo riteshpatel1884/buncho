@@ -5,7 +5,6 @@ npm run dev
 seed
 npx prisma db seed
 
-Fine-Tuning and Model Adaptation
 AI System Design
 Evaluation and Testing
 AI Safety, Ethics, and Responsible AI

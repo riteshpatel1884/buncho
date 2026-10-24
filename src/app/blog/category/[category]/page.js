@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import BlogIndex from '@/components/blog/BlogIndex';
 import JsonLd from '@/components/JsonLd';
 import { CATEGORY_BY_SLUG } from '@/lib/blog-constants';
-import { getPosts, getTagCounts, getCategoryCounts, parseBlogParams } from '@/lib/blog';
+import { getPosts, parseBlogParams } from '@/lib/blog';
 import { buildMetadata, breadcrumbJsonLd, blogCollectionJsonLd, graph } from '@/lib/seo';
 
 export async function generateMetadata({ params, searchParams }) {
@@ -21,11 +21,7 @@ export default async function CategoryPage({ params, searchParams }) {
   if (!category) notFound();
   const filters = parseBlogParams(await searchParams);
   const path = `/blog/category/${category.slug}`;
-  const [result, tags, categoryCounts] = await Promise.all([
-    getPosts({ ...filters, category: category.slug }),
-    getTagCounts(),
-    getCategoryCounts(),
-  ]);
+  const result = await getPosts({ ...filters, category: category.slug });
 
   const jsonLd = graph(
     breadcrumbJsonLd([{ name: 'Home', path: '/' }, { name: 'Blog', path: '/blog' }, { name: category.name, path }]),
@@ -39,11 +35,8 @@ export default async function CategoryPage({ params, searchParams }) {
         heading={`${category.name} articles`}
         intro={category.description}
         basePath={path}
-        activeCategory={category.slug}
         result={result}
         filters={filters}
-        tags={tags}
-        categoryCounts={categoryCounts}
       />
     </>
   );

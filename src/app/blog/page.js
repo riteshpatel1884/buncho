@@ -1,6 +1,6 @@
 import BlogIndex from '@/components/blog/BlogIndex';
 import JsonLd from '@/components/JsonLd';
-import { getPosts, getFeaturedPosts, getTagCounts, getCategoryCounts, parseBlogParams } from '@/lib/blog';
+import { getPosts, getFeaturedPosts, parseBlogParams } from '@/lib/blog';
 import { buildMetadata, breadcrumbJsonLd, blogCollectionJsonLd, graph } from '@/lib/seo';
 
 const TITLE = 'AI, ML & GenAI Blog';
@@ -22,11 +22,7 @@ export default async function BlogPage({ searchParams }) {
   const filters = parseBlogParams(await searchParams);
   const showFeatured = !filters.q && !filters.tag && filters.page === 1;
   const featured = showFeatured ? await getFeaturedPosts(3) : [];
-  const [result, tags, categoryCounts] = await Promise.all([
-    getPosts({ ...filters, excludeIds: featured.map((f) => f.id) }),
-    getTagCounts(),
-    getCategoryCounts(),
-  ]);
+  const result = await getPosts({ ...filters, excludeIds: featured.map((f) => f.id) });
 
   const jsonLd = graph(
     breadcrumbJsonLd([{ name: 'Home', path: '/' }, { name: 'Blog', path: '/blog' }]),
@@ -43,8 +39,6 @@ export default async function BlogPage({ searchParams }) {
         result={result}
         filters={filters}
         featured={featured}
-        tags={tags}
-        categoryCounts={categoryCounts}
       />
     </>
   );

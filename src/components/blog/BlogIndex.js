@@ -1,12 +1,6 @@
 import Link from 'next/link';
-import { BLOG_CATEGORIES } from '@/lib/blog-constants';
 import PostCard from './PostCard';
 import { Search } from '@/components/icons';
-
-const chip = (on) =>
-  `whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
-    on ? 'border-accent bg-accent text-accent-ink' : 'border-line bg-surface hover:bg-surface-2'
-  }`;
 
 function hrefFor(base, params) {
   const sp = new URLSearchParams();
@@ -16,7 +10,7 @@ function hrefFor(base, params) {
 }
 
 /** Shared by /blog and /blog/category/[category]. All filtering is plain links and a GET form: no client JS. */
-export default function BlogIndex({ heading, intro, basePath, activeCategory = '', result, filters, featured = [], tags = [], categoryCounts = {} }) {
+export default function BlogIndex({ heading, intro, basePath, result, filters, featured = [] }) {
   const { q, tag } = filters;
   const filtered = Boolean(q || tag);
   const showFeatured = !filtered && result.page === 1 && featured.length > 0;
@@ -45,29 +39,6 @@ export default function BlogIndex({ heading, intro, basePath, activeCategory = '
         </div>
         <button type="submit" className="rounded-full bg-accent px-5 text-sm font-semibold text-accent-ink hover:opacity-90">Search</button>
       </form>
-
-      <nav aria-label="Categories" className="no-scrollbar mt-6 flex gap-2 overflow-x-auto pb-1">
-        <Link href="/blog" className={chip(!activeCategory)} aria-current={!activeCategory ? 'page' : undefined}>All</Link>
-        {BLOG_CATEGORIES.filter((c) => categoryCounts[c.slug] || c.slug === activeCategory).map((c) => (
-          <Link key={c.slug} href={`/blog/category/${c.slug}`} className={chip(activeCategory === c.slug)} aria-current={activeCategory === c.slug ? 'page' : undefined}>
-            {c.name}
-          </Link>
-        ))}
-      </nav>
-
-      {tags.length > 0 && (
-        <nav aria-label="Popular tags" className="mt-3 flex flex-wrap gap-2 text-xs">
-          {tags.map(({ tag: t }) => (
-            <Link
-              key={t}
-              href={hrefFor(basePath, { tag: t === tag ? '' : t })}
-              className={`rounded-full px-2.5 py-1 font-medium ${t === tag ? 'bg-accent-soft text-ink ring-1 ring-accent' : 'bg-surface-2 text-muted hover:text-ink'}`}
-            >
-              #{t}
-            </Link>
-          ))}
-        </nav>
-      )}
 
       {filtered && (
         <p className="mt-6 text-sm text-muted" role="status">
