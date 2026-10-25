@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ProBadge } from '@/components/ProBadge';
 
 function partOfDay(hour) {
   if (hour >= 5 && hour < 12) return 'Good morning';
@@ -16,7 +15,7 @@ const indiaHour = () =>
   Number(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hourCycle: 'h23', timeZone: 'Asia/Kolkata' }).format(new Date()));
 
 /** Phone: "Good morning" on line 1, the name on line 2. Desktop: "Good morning, Name" on one line. */
-export default function Greeting({ name, pro = false }) {
+export default function Greeting({ name }) {
   const [greeting, setGreeting] = useState(() => partOfDay(indiaHour()));
 
   useEffect(() => {
@@ -32,12 +31,7 @@ export default function Greeting({ name, pro = false }) {
         {greeting}
         {name && <span className="hidden sm:inline">,</span>}
       </span>
-      {(name || pro) && (
-        <span className="flex min-w-0 items-center gap-2">
-          {name && <span className="truncate">{name}</span>}
-          {pro && <ProBadge className="shrink-0" />}
-        </span>
-      )}
+      {name && <span className="min-w-0 truncate">{name}</span>}
     </h1>
   );
 }
