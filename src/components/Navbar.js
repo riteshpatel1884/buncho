@@ -6,7 +6,7 @@ import NavLinks from './NavLinks';
 import NavShell from './NavShell';
 import ThemeToggle from './ThemeToggle';
 import MobileMenu from './MobileMenu';
-import { Crown, ProBadge } from './ProBadge';
+import { ProBadge } from './ProBadge';
 import { Search } from './icons';
 import { getOrCreateUser } from '@/lib/user';
 import { getIsPro } from '@/lib/subscription';
@@ -28,30 +28,28 @@ export default async function Navbar() {
     { href: '/pricing', label: 'Pricing' },
   ];
 
+  // On phones the account lives inside the hamburger menu
+  const profile = userId ? { name: user?.name ?? null, email: user?.email ?? null, imageUrl: user?.imageUrl ?? null } : null;
+
   return (
     <NavShell premium={isPro}>
       <div className="flex h-full w-full items-center gap-2 px-3 sm:gap-4 sm:px-5">
-        <Link
-          href="/"
-          aria-label="Buncho home"
-          className="shrink-0 origin-left transition-transform duration-300 group-data-[compact=true]/nav:scale-90"
-        >
-          <Logo />
-        </Link>
-
-        {isPro && (
-          <>
-            {/* Wide screens: the PRO pill. Phones: just a crown, so everything fits in the bar. */}
-            <ProBadge className="-ml-1 hidden sm:inline-flex" />
-            <span
-              title="Buncho Pro"
-              aria-label="Buncho Pro"
-              className="hidden h-6 w-6 shrink-0 place-items-center rounded-full bg-gradient-to-br from-amber-300 via-amber-400 to-amber-600 text-amber-950 shadow-sm shadow-amber-500/30 min-[360px]:grid sm:hidden"
-            >
-              <Crown width={13} height={13} />
+        {/* Logo and PRO pill. On phones, if space runs out this group is clipped, never the buttons on the right. */}
+        <div className="flex min-w-0 items-center gap-2 max-md:overflow-hidden sm:gap-3">
+          <Link
+            href="/"
+            aria-label="Buncho home"
+            className="shrink-0 origin-left transition-transform duration-300 group-data-[compact=true]/nav:scale-90"
+          >
+            <Logo />
+          </Link>
+          {isPro && (
+            // The wrapper (not the badge itself) controls visibility, so nothing can override it
+            <span className="flex shrink-0 items-center max-[339px]:hidden">
+              <ProBadge />
             </span>
-          </>
-        )}
+          )}
+        </div>
 
         <NavLinks links={links} />
 
@@ -67,14 +65,19 @@ export default async function Navbar() {
               className="h-9 w-52 rounded-full bg-surface-2 pl-9 pr-3 text-sm outline-none transition-[width] duration-300 placeholder:text-muted group-data-[compact=true]/nav:h-8 group-data-[compact=true]/nav:w-40"
             />
           </form>
-          <ThemeToggle />
+
+          <ThemeToggle premium={isPro} />
+
           {userId ? (
+            // Tablets and desktops only. On phones the profile is inside the hamburger menu.
             isPro ? (
-              <span className="grid place-items-center rounded-full bg-gradient-to-br from-amber-300 via-amber-400 to-amber-600 p-[2px] shadow-sm shadow-amber-500/40">
+              <span className="hidden place-items-center rounded-full bg-gradient-to-br from-amber-300 via-amber-400 to-amber-600 p-[2px] shadow-sm shadow-amber-500/40 md:grid">
                 <UserButton />
               </span>
             ) : (
-              <UserButton />
+              <span className="hidden md:block">
+                <UserButton />
+              </span>
             )
           ) : (
             <>
@@ -86,7 +89,13 @@ export default async function Navbar() {
               </Link>
             </>
           )}
-          <MobileMenu links={links} cta={userId ? null : { href: '/register', label: 'Sign up' }} />
+
+          <MobileMenu
+            links={links}
+            cta={userId ? null : { href: '/register', label: 'Sign up' }}
+            profile={profile}
+            premium={isPro}
+          />
         </div>
       </div>
     </NavShell>
