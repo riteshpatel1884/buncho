@@ -62,18 +62,32 @@ export default async function AdminBillingPage({ searchParams }) {
   const saved = typeof sp.saved === 'string' ? sp.saved : null;
   const error = typeof sp.error === 'string' ? sp.error : null;
 
-  const [settings, codes, payments, paidCount, revenue, activePro] = await Promise.all([
-    getBillingSettings(),
-    prisma.discountCode.findMany({ orderBy: { createdAt: 'desc' } }),
-    prisma.payment.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 15,
-      include: { user: { select: { email: true, name: true } } },
-    }),
-    prisma.payment.count({ where: { status: 'PAID' } }),
-    prisma.payment.aggregate({ where: { status: 'PAID' }, _sum: { amountPaise: true } }),
-    prisma.subscription.count({ where: { currentPeriodEnd: { gt: new Date() } } }),
-  ]);
+  const settings = await getBillingSettings(); // has its own fallback to defaults
+
+  let codes = [];
+  let payments = [];
+  let paidCount = 0;
+  let revenue = { _sum: { amountPaise: 0 } };
+  let activePro = 0;
+  let dbProblem = null;
+
+  // If the database is behind schema.prisma (missing tables or columns) show a notice instead of crashing the page.
+  try {
+    [codes, payments, paidCount, revenue, activePro] = await Promise.all([
+      prisma.discountCode.findMany({ orderBy: { createdAt: 'desc' } }),
+      prisma.payment.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 15,
+        include: { user: { select: { email: true, name: true } } },
+      }),
+      prisma.payment.count({ where: { status: 'PAID' } }),
+      prisma.payment.aggregate({ where: { status: 'PAID' }, _sum: { amountPaise: true } }),
+      prisma.subscription.count({ where: { currentPeriodEnd: { gt: new Date() } } }),
+    ]);
+  } catch (err) {
+    console.error('[admin billing] could not load billing data', err?.code, err);
+    dbProblem = err?.code ? `Prisma error ${err.code}` : 'Database error';
+  }
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:py-14">
@@ -85,6 +99,11 @@ export default async function AdminBillingPage({ searchParams }) {
         <Link href="/pricing" className="text-sm font-semibold text-accent underline underline-offset-4">View pricing page</Link>
       </div>
 
+      {dbProblem && (
+        <p role="alert" className="mt-5 rounded-xl border border-hard/40 bg-hard/10 px-4 py-3 text-sm font-medium text-hard">
+          The database is out of date ({dbProblem}). Run <code>npx prisma db push</code> against the production DATABASE_URL and DIRECT_URL, make sure the build runs <code>prisma generate</code>, then redeploy.
+        </p>
+      )}
       {saved && <p role="status" className="mt-5 rounded-xl border border-accent/40 bg-accent-soft px-4 py-3 text-sm font-medium text-accent">{saved}</p>}
       {error && <p role="alert" className="mt-5 rounded-xl border border-hard/40 bg-hard/10 px-4 py-3 text-sm font-medium text-hard">{error}</p>}
 
@@ -270,7 +289,7 @@ export default async function AdminBillingPage({ searchParams }) {
                   {payments.map((p) => (
                     <tr key={p.id} className="border-t border-line">
                       <td className="py-2.5 pr-3 text-xs text-muted">{fmt(p.createdAt)}</td>
-                      <td className="py-2.5 pr-3">{p.user.name ?? p.user.email ?? 'unknown'}</td>
+                      <td className="py-2.5 pr-3">{p.user?.name ?? p.user?.email ?? 'unknown'}</td>
                       <td className="py-2.5 pr-3 tabular-nums">{rupees(p.amountPaise)}</td>
                       <td className="py-2.5 pr-3 text-xs">{p.discountCode ?? '—'}</td>
                       <td className="py-2.5">

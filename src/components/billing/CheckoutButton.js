@@ -45,12 +45,18 @@ export default function CheckoutButton({ signedIn, label = 'Upgrade to Pro', pri
   function apply() {
     setCodeError(null);
     startCheck(async () => {
-      const res = await previewPrice({ code });
-      if (!res.ok) {
+      try {
+        const res = await previewPrice({ code });
+        if (!res.ok) {
+          setApplied(null);
+          return setCodeError(res.error);
+        }
+        setApplied(res);
+      } catch (err) {
+        console.error(err);
         setApplied(null);
-        return setCodeError(res.error);
+        setCodeError('Could not check that code right now. Please try again.');
       }
-      setApplied(res);
     });
   }
 
@@ -64,16 +70,18 @@ export default function CheckoutButton({ signedIn, label = 'Upgrade to Pro', pri
     e.preventDefault();
     setError(null);
     start(async () => {
-      const res = await startCheckout({ code: applied ? applied.code : '' });
-      if (!res.ok) return setError(res.error);
       try {
+        const res = await startCheckout({ code: applied ? applied.code : '' });
+        if (!res.ok) return setError(res.error);
         await loadSdk();
         const cashfree = window.Cashfree({ mode: res.mode });
         setRedirecting(true);
         await cashfree.checkout({ paymentSessionId: res.paymentSessionId, redirectTarget: '_self' });
       } catch (err) {
+        // Catch everything here so a failure shows a message instead of crashing the whole page.
+        console.error(err);
         setRedirecting(false);
-        setError(err?.message || 'Could not open the payment window.');
+        setError(err?.message || 'Could not open the payment window. Please try again.');
       }
     });
   }

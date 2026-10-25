@@ -8,6 +8,7 @@ import { ctaBtn } from '@/components/jobs/ui';
 import { Check } from '@/components/icons';
 
 export const metadata = { title: 'Payment status', robots: { index: false, follow: false } };
+export const dynamic = 'force-dynamic';
 
 const dateFmt = (d) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' });
 
