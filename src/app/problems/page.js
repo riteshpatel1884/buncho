@@ -3,6 +3,7 @@ import Link from 'next/link';
 import ProblemFilters from '@/components/ProblemFilters';
 import ProblemList from '@/components/ProblemList';
 import { NextUpCard, ProgressCard } from '@/components/ProblemStats';
+import PacePlanner from '@/components/PacePlanner';
 import { getProblems, getProgressMap, getTopics, getUserStats, parseFilters } from '@/lib/problems';
 import { getOrCreateUser } from '@/lib/user';
 import { getIsPro } from '@/lib/subscription';
@@ -69,7 +70,11 @@ export default async function ProblemsPage({ searchParams }) {
         )}
       </header>
 
-      <section aria-label="Your stats" className="mt-6 grid gap-4 md:grid-cols-[3fr_2fr]">
+      <div className="mt-6">
+        <PacePlanner remaining={Math.max(0, stats.total - stats.solved)} total={stats.total} signedIn={Boolean(user)} />
+      </div>
+
+      <section aria-label="Your stats" className="mt-4 grid gap-4 md:grid-cols-[3fr_2fr]">
         <ProgressCard stats={stats} signedIn={Boolean(user)} />
         <NextUpCard stats={stats} signedIn={Boolean(user)} />
       </section>
