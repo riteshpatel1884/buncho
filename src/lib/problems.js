@@ -1,5 +1,5 @@
 import { prisma } from './prisma';
-import { DIFFICULTIES, PROBLEM_TYPES, PAGE_SIZE } from './constants';
+import { DIFFICULTIES, PROBLEM_TYPES, PAGE_SIZE, TOPIC_ORDER } from './constants';
 import { attachInsights, insightSelect } from './subscription';
 
 // One fixed, shuffled order used everywhere a problem list or "next problem" is shown (list pages,
@@ -80,11 +80,21 @@ export async function getProblems({ q, topic, difficulty, type, page, challenge,
   return { items, total, page, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)) };
 }
 
-export function getTopics({ challenge = false } = {}) {
-  return prisma.topic.findMany({
+export async function getTopics({ challenge = false } = {}) {
+  const topics = await prisma.topic.findMany({
     orderBy: { order: 'asc' },
     include: { _count: { select: { problems: { where: { published: true, ...(challenge && { isChallenge: true }) } } } } },
   });
+  // Your chosen order (TOPIC_ORDER in lib/constants.js) first; anything not listed there
+  // keeps its database order after them.
+  const rank = (slug) => {
+    const i = TOPIC_ORDER.indexOf(slug);
+    return i === -1 ? TOPIC_ORDER.length : i;
+  };
+  return topics
+    .map((t, i) => ({ t, i }))
+    .sort((a, b) => rank(a.t.slug) - rank(b.t.slug) || a.i - b.i)
+    .map(({ t }) => t);
 }
 
 /** Map of problemId -> 'COMPLETED' for the problems this user has solved (submitted an answer for). */

@@ -117,3 +117,30 @@ export const FREE_MOCK_LIMIT = 1;
 export const PRO_PLAN_ID = 'PRO_MONTHLY';
 export const PRO_PRICE_INR = 99;
 export const PRO_PERIOD_DAYS = 30;
+
+/* ---------- Topic chip order (Problems, Topics and Challenges pages) ---------- */
+
+// Topics appear in exactly this order. Edit the list to rearrange them: move a slug up or down.
+// Any topic not listed here is placed after these, in its normal database order.
+export const TOPIC_ORDER = [
+  'python-for-ai-ml',
+  'ml-fundamentals',
+  'ml-algorithms',
+  'deep-learning',
+  'statistics-and-mathematics',
+  'generative-ai-and-llms',
+  'fine-tuning',
+  'embeddings',
+  'rag-and-vector-databases',
+  'ai-agents-and-tool-calling',
+  'mcp',
+  'multimodal-ai',
+  'llm-evaluation-and-testing',
+  'ai-safety-ethics-and-responsible-ai',
+  'ml-system-design',
+  'ai-system-design',
+  'ai-infrastructure-and-scalability',
+  'llm-gateways',
+  'production-ai-engineering',
+  'ai-engineering-case-studies',
+];
