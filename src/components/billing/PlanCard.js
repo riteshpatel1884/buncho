@@ -1,22 +1,32 @@
 import Link from 'next/link';
 import Section from '@/components/dashboard/Section';
-import { ProBadge } from '@/components/ProBadge';
+import { Check } from '@/components/icons';
 
-const dateFmt = (d) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+const PRO_PERKS = [
+  'Multiple role preparation plans',
+  'Unlimited mock assessments',
+  'Company-wise question insights',
+  'Question frequency data',
+  'Advanced revision',
+];
 
 export default function PlanCard({ ent }) {
   if (ent.isPro) {
     return (
-      <Section
-        id="plan-h"
-        title="Your plan"
-        action={{ href: '/pricing', label: 'Extend' }}
-        className="!border-amber-400/60 bg-gradient-to-br from-amber-50 to-white shadow-md shadow-amber-500/10 dark:from-[#2d230a] dark:to-[#1f1b12]"
-      >
-        <p className="flex items-center gap-2 text-sm font-semibold">
-          Buncho Pro <ProBadge />
+      <Section id="plan-h" title="Your plan" action={{ href: '/pricing', label: 'Extend' }} className="!border-amber-400/40">
+        <ul className="space-y-2.5">
+          {PRO_PERKS.map((p) => (
+            <li key={p} className="flex items-center gap-2.5 text-sm">
+              <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-amber-400/20 text-amber-600 dark:text-amber-300">
+                <Check width={10} height={10} strokeWidth={3.5} />
+              </span>
+              {p}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-4 border-t border-line pt-4 text-xs text-muted">
+          Pro does not renew automatically. Each payment adds more time on top.
         </p>
-        <p className="mt-1 text-sm text-muted">Renews by paying again. Active until {dateFmt(ent.periodEnd)}.</p>
       </Section>
     );
   }

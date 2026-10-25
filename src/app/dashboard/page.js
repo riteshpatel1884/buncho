@@ -13,7 +13,6 @@ import { attachInsights, getEntitlements } from '@/lib/subscription';
 import { InsightsInline } from '@/components/Insights';
 import PlanCard from '@/components/billing/PlanCard';
 import ProBanner from '@/components/ProBanner';
-import { ProBadge } from '@/components/ProBadge';
 import { listJobs } from '@/lib/jobs/progress';
 import JobPrepCard from '@/components/jobs/JobPrepCard';
 import Section, { Empty, rowClass } from '@/components/dashboard/Section';
@@ -82,7 +81,7 @@ export default async function DashboardPage() {
       {pro && (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-80 bg-gradient-to-b from-amber-400/15 via-amber-300/5 to-transparent"
+          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 bg-[radial-gradient(60%_100%_at_50%_0%,rgba(251,191,36,0.10),transparent)]"
         />
       )}
 
@@ -100,12 +99,9 @@ export default async function DashboardPage() {
             )}
           </span>
           <div className="min-w-0">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-              <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">
-                {firstName ? `Welcome back, ${firstName}` : 'Welcome back'}
-              </h1>
-              {pro && <ProBadge />}
-            </div>
+            <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">
+              {firstName ? `Welcome back, ${firstName}` : 'Welcome back'}
+            </h1>
             <p className="mt-1 text-sm text-muted">Here&rsquo;s where your interview prep stands today.</p>
           </div>
         </div>
