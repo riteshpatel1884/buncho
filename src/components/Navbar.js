@@ -10,13 +10,14 @@ import { ProBadge } from './ProBadge';
 import { Search } from './icons';
 import { getOrCreateUser } from '@/lib/user';
 import { getIsPro } from '@/lib/subscription';
+import { isAdmin } from '@/lib/admin';
 
 export default async function Navbar() {
   const { userId } = await auth();
   const user = userId ? await getOrCreateUser() : null;
   const isPro = user ? await getIsPro(user.id) : false;
 
-  const links = [
+    const links = [
     { href: '/problems', label: 'Problems', match: ['/topics'] },
     { href: '/blog', label: 'Blog' },
     ...(userId
@@ -25,6 +26,7 @@ export default async function Navbar() {
           { href: '/dashboard', label: 'Dashboard' },
         ]
       : []),
+    ...(isAdmin(user) ? [{ href: '/admin', label: 'Admin' }] : []),
     { href: '/pricing', label: 'Pricing' },
   ];
 
