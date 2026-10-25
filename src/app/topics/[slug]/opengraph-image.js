@@ -17,12 +17,13 @@ export default async function Image({ params }) {
   } catch {
     // fall through to the generic card
   }
-  if (!t) return renderOg({ eyebrow: 'Interview practice', title: 'AI engineering interview questions' });
+  if (!t) return renderOg({ eyebrow: 'Interview practice', title: 'AI engineering interview questions', cta: 'Practice this topic' });
 
   return renderOg({
     eyebrow: 'Topic',
     title: `${t.name} interview questions`,
     subtitle: t.description ? truncate(t.description, 140) : undefined,
     chips: [`${t._count.problems} problems`, 'AI feedback'],
+    cta: 'Practice this topic',
   });
 }

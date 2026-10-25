@@ -18,11 +18,12 @@ export default async function Image({ params }) {
   } catch {
     // fall through to the generic card
   }
-  if (!p) return renderOg({ eyebrow: 'Interview practice', title: 'AI engineering interview question' });
+  if (!p) return renderOg({ eyebrow: 'Interview practice', title: 'AI engineering interview question', cta: 'Try this question' });
 
   return renderOg({
     eyebrow: p.isChallenge ? 'Production challenge' : `${p.topic.name} interview question`,
     title: truncate(p.title, 120),
     chips: [DIFFICULTY_LABEL[p.difficulty], p.topic.name, `${p.estimatedMinutes} min`].filter(Boolean),
+    cta: 'Try this question',
   });
 }

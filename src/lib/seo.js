@@ -25,7 +25,7 @@ const rawHandle = (process.env.NEXT_PUBLIC_X_HANDLE || '').trim().replace(/^@/, 
 export const X_HANDLE = rawHandle ? `@${rawHandle}` : '';
 export const X_URL = rawHandle ? `https://x.com/${rawHandle}` : '';
 
-export const DEFAULT_OG_IMAGE = '/opengraph-image';
+export const DEFAULT_OG_IMAGE = '/opengraph-image?v=2';
 
 export const absoluteUrl = (path = '/') => `${SITE_URL}${path.startsWith('/') ? path : `/${path}`}`;
 
