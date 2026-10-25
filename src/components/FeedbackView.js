@@ -159,8 +159,7 @@ export default function FeedbackView({ evaluation, rubric = [] }) {
       )}
 
       <p className="mt-8 text-xs text-muted">
-        AI-generated feedback{model ? ` (${model})` : ''}
-        {createdAt ? `, ${new Date(createdAt).toLocaleDateString('en-IN', { dateStyle: 'medium' })}` : ''}. It can make
+        {createdAt ? `, ${new Date(createdAt).toLocaleDateString('en-IN', { dateStyle: 'medium' })}` : ''}. AI-generated feedback can make
         mistakes and is not a prediction of interview results. Compare it with the reference answer below.
       </p>
     </div>
