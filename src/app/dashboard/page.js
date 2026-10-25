@@ -46,14 +46,7 @@ export default async function DashboardPage() {
   const avatarRing = pro ? 'rounded-full bg-gradient-to-br from-amber-300 via-amber-400 to-amber-600 p-[3px] shadow-md shadow-amber-500/30' : '';
 
   return (
-    <div className="relative mx-auto w-full max-w-[80rem] overflow-x-clip px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-      {pro && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-80 bg-gradient-to-b from-amber-400/15 via-amber-300/5 to-transparent"
-        />
-      )}
-
+    <div className="mx-auto w-full max-w-[80rem] overflow-x-clip px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       {/* Header */}
       <header className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-4">
