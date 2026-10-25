@@ -29,7 +29,7 @@ export const DEFAULT_OG_IMAGE = '/opengraph-image?v=2';
 
 export const absoluteUrl = (path = '/') => `${SITE_URL}${path.startsWith('/') ? path : `/${path}`}`;
 
-/* ---------------------------- text helpers --------------------------- */
+
 
 /** Rough readable version of inline LaTeX: \sqrt{d_k} becomes sqrt(dk). Good enough for a snippet. */
 function texToText(tex) {
