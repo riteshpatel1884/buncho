@@ -10,6 +10,7 @@ import { getIsPro } from '@/lib/subscription';
 import { Bookmark } from '@/components/icons';
 import JsonLd from '@/components/JsonLd';
 import { buildMetadata, collectionPageJsonLd, breadcrumbJsonLd, graph, hasActiveFilters } from '@/lib/seo';
+import { ProBadge } from '@/components/ProBadge';
 
 const DESCRIPTION =
   'Curated AI, ML and GenAI interview questions on LLMs, RAG, deep learning, MLOps and system design. Answer in your own words, then get AI feedback and a reference solution.';
@@ -54,7 +55,9 @@ export default async function ProblemsPage({ searchParams }) {
       <JsonLd data={jsonLd} />
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-accent">Practice library</p>
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-accent">
+            Practice library {pro && <ProBadge />}
+          </p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">AI, ML and GenAI interview questions</h1>
           <p className="mt-2 max-w-xl text-sm text-muted">
             Curated AI, ML and GenAI interview questions. Answer in your own words, then get instant AI feedback.

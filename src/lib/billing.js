@@ -1,10 +1,11 @@
 import crypto from 'node:crypto';
 import { prisma } from './prisma';
-import { PRO_PERIOD_DAYS } from './constants';
+import { addMonths } from './pricing';
 
 /**
  * Cashfree Payment Gateway over REST (no extra dependency).
  * Env: CASHFREE_APP_ID, CASHFREE_SECRET_KEY, CASHFREE_ENV ("production" | "sandbox"), NEXT_PUBLIC_APP_URL
+ * Optional: CASHFREE_DEFAULT_PHONE (10 digits). Cashfree needs a phone on every order, and we no longer ask the buyer.
  */
 export const CASHFREE_MODE = process.env.CASHFREE_ENV === 'production' ? 'production' : 'sandbox';
 const BASE = CASHFREE_MODE === 'production' ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg';
@@ -34,6 +35,11 @@ async function cashfree(path, init = {}) {
   return body;
 }
 
+const fallbackPhone = () => {
+  const p = String(process.env.CASHFREE_DEFAULT_PHONE ?? '').replace(/\D/g, '').slice(-10);
+  return /^[6-9]\d{9}$/.test(p) ? p : '9999999999';
+};
+
 export function createCashfreeOrder({ orderId, amountPaise, customerId, phone, email, name, note }) {
   const base = appUrl();
   const https = base.startsWith('https://');
@@ -46,7 +52,7 @@ export function createCashfreeOrder({ orderId, amountPaise, customerId, phone, e
       order_note: note,
       customer_details: {
         customer_id: customerId,
-        customer_phone: phone,
+        customer_phone: phone || fallbackPhone(),
         ...(email && { customer_email: email }),
         ...(name && { customer_name: name.slice(0, 100) }),
       },
@@ -71,7 +77,10 @@ export function verifyWebhookSignature(rawBody, signature, timestamp) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-/** Marks the payment paid and extends Pro. Only the call that flips it to PAID extends the subscription. */
+/**
+ * Marks the payment paid and extends Pro. Only the call that flips it to PAID extends the subscription.
+ * The length comes from the payment row (months + bonus days), so later price changes never affect it.
+ */
 async function grantPro(orderId, cfPaymentId) {
   return prisma.$transaction(async (tx) => {
     const payment = await tx.payment.findUnique({ where: { orderId } });
@@ -86,12 +95,16 @@ async function grantPro(orderId, cfPaymentId) {
     const now = new Date();
     const sub = await tx.subscription.findUnique({ where: { userId: payment.userId } });
     const from = sub && sub.currentPeriodEnd > now ? sub.currentPeriodEnd : now; // paying early adds time on top
-    const end = new Date(from.getTime() + PRO_PERIOD_DAYS * 86400000);
+    const end = new Date(addMonths(from, payment.periodMonths || 1).getTime() + (payment.bonusDays || 0) * 86400000);
     await tx.subscription.upsert({
       where: { userId: payment.userId },
       update: { currentPeriodEnd: end, plan: payment.plan },
       create: { userId: payment.userId, plan: payment.plan, currentPeriodEnd: end },
     });
+
+    if (payment.discountCode) {
+      await tx.discountCode.updateMany({ where: { code: payment.discountCode }, data: { redeemedCount: { increment: 1 } } });
+    }
     return { ok: true };
   });
 }

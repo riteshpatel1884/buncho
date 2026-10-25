@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { getOrCreateUser } from '@/lib/user';
 import { getEntitlements } from '@/lib/subscription';
-import { PRO_PERIOD_DAYS, PRO_PRICE_INR } from '@/lib/constants';
+import { getQuote, monthsLabel } from '@/lib/pricing';
 import CheckoutButton from '@/components/billing/CheckoutButton';
+import { ProBadge } from '@/components/ProBadge';
 import { BackLink, Eyebrow, Gradient, Hero, card } from '@/components/jobs/ui';
 import { Check, Lock } from '@/components/icons';
 import { buildMetadata } from '@/lib/seo';
@@ -47,6 +48,13 @@ function Item({ children, locked = false }) {
 export default async function PricingPage() {
   const user = await getOrCreateUser();
   const ent = await getEntitlements(user?.id ?? null);
+  const quote = await getQuote({ userId: user?.id ?? null });
+  const { settings } = quote;
+
+  const listRupees = Math.round(quote.listPaise / 100);
+  const finalRupees = Math.round(quote.finalPaise / 100);
+  const period = monthsLabel(quote.months);
+  const hasOffer = quote.source === 'offer';
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 pb-20 pt-6 sm:px-6">
@@ -90,16 +98,36 @@ export default async function PricingPage() {
 
         <section
           aria-labelledby="pro-h"
-          className="relative overflow-hidden rounded-2xl border border-accent/40 p-6 sm:p-7"
-          style={{ background: 'linear-gradient(160deg, var(--accent-soft), var(--surface) 65%)' }}
+          className={`relative overflow-hidden rounded-2xl border p-6 sm:p-7 ${
+            ent.isPro ? 'border-amber-400/70 shadow-lg shadow-amber-500/10' : 'border-accent/40'
+          }`}
+          style={{
+            background: ent.isPro
+              ? 'linear-gradient(160deg, rgba(251,191,36,0.16), var(--surface) 65%)'
+              : 'linear-gradient(160deg, var(--accent-soft), var(--surface) 65%)',
+          }}
         >
           <div className="flex items-center justify-between gap-3">
-            <h2 id="pro-h" className="text-lg font-semibold">Buncho Pro</h2>
-            <span className="rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-accent-ink">{ent.isPro ? 'Active' : 'Paid'}</span>
+            <h2 id="pro-h" className="text-lg font-semibold">{settings.proName}</h2>
+            {ent.isPro ? (
+              <ProBadge />
+            ) : (
+              <span className="rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-accent-ink">Paid</span>
+            )}
           </div>
-          <p className="mt-3 text-3xl font-semibold tabular-nums tracking-tight">
-            ₹{PRO_PRICE_INR} <span className="text-sm font-normal text-muted">/ {PRO_PERIOD_DAYS} days</span>
+
+          {hasOffer && (
+            <p className="mt-3 inline-block rounded-full bg-medium/15 px-2.5 py-0.5 text-xs font-semibold text-medium">
+              {settings.offerLabel || quote.dealLabel}
+            </p>
+          )}
+          <p className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 tabular-nums">
+            {quote.discountPaise > 0 && <span className="text-lg text-muted line-through">₹{listRupees}</span>}
+            <span className="text-3xl font-semibold tracking-tight">₹{finalRupees}</span>
+            <span className="text-sm font-normal text-muted">/ {period}</span>
           </p>
+          {quote.bonusDays > 0 && <p className="mt-1 text-sm font-medium text-accent">+ {quote.bonusDays} bonus days free</p>}
+
           <ul className="mt-5 space-y-3 border-t border-line pt-5">
             {PRO.map((f) => <Item key={f}>{f}</Item>)}
           </ul>
@@ -107,16 +135,21 @@ export default async function PricingPage() {
           <div className="mt-6">
             {ent.isPro && (
               <p className="mb-4 rounded-xl bg-surface/70 px-4 py-3 text-sm">
-                Pro is active until <span className="font-semibold">{dateFmt(ent.periodEnd)}</span>. Paying again adds {PRO_PERIOD_DAYS} more days on top.
+                Pro is active until <span className="font-semibold">{dateFmt(ent.periodEnd)}</span>. Paying again adds {period} on top.
               </p>
             )}
-            <CheckoutButton signedIn={Boolean(user)} label={ent.isPro ? `Add ${PRO_PERIOD_DAYS} days` : 'Upgrade to Pro'} price={`₹${PRO_PRICE_INR}`} />
+            <CheckoutButton
+              signedIn={Boolean(user)}
+              open={settings.checkoutOpen}
+              label={ent.isPro ? `Add ${period}` : 'Upgrade to Pro'}
+              price={finalRupees}
+            />
           </div>
         </section>
       </div>
 
       <p className="mx-auto mt-8 max-w-2xl text-center text-xs text-muted">
-        Each payment gives {PRO_PERIOD_DAYS} days of Pro and does not renew automatically. Your answers, plans and results are kept if Pro ends. You just cannot add roles or start new mock assessments beyond the free limits.
+        Each payment gives {period} of Pro and does not renew automatically. Your answers, plans and results are kept if Pro ends. You just cannot add roles or start new mock assessments beyond the free limits.
       </p>
     </div>
   );

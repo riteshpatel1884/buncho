@@ -115,8 +115,9 @@ export const FREE_ROLE_LIMIT = 1;
 export const FREE_MOCK_LIMIT = 1;
 
 export const PRO_PLAN_ID = 'PRO_MONTHLY';
+// Fallbacks only. The live price and period are edited by the admin at /admin/billing (see lib/pricing.js).
 export const PRO_PRICE_INR = 99;
-export const PRO_PERIOD_DAYS = 30;
+export const PRO_PERIOD_MONTHS = 1;
 
 /* ---------- Topic chip order (Problems, Topics and Challenges pages) ---------- */
 

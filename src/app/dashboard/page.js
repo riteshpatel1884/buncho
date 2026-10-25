@@ -12,6 +12,8 @@ import { getInsights } from '@/lib/insights';
 import { attachInsights, getEntitlements } from '@/lib/subscription';
 import { InsightsInline } from '@/components/Insights';
 import PlanCard from '@/components/billing/PlanCard';
+import ProBanner from '@/components/ProBanner';
+import { ProBadge } from '@/components/ProBadge';
 import { listJobs } from '@/lib/jobs/progress';
 import JobPrepCard from '@/components/jobs/JobPrepCard';
 import Section, { Empty, rowClass } from '@/components/dashboard/Section';
@@ -73,23 +75,37 @@ export default async function DashboardPage() {
       <Empty>{empty}</Empty>
     );
 
+  const avatarRing = pro ? 'rounded-full bg-gradient-to-br from-amber-300 via-amber-400 to-amber-600 p-[3px] shadow-md shadow-amber-500/30' : '';
+
   return (
-    <div className="mx-auto w-full max-w-[80rem] px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+    <div className="relative mx-auto w-full max-w-[80rem] px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+      {pro && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-80 bg-gradient-to-b from-amber-400/15 via-amber-300/5 to-transparent"
+        />
+      )}
+
       {/* Header */}
       <header className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-4">
-          {user.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={user.imageUrl} alt="" width={56} height={56} className="h-14 w-14 shrink-0 rounded-full object-cover" />
-          ) : (
-            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-accent-soft text-xl font-semibold text-accent">
-              {(user.name ?? '?').charAt(0).toUpperCase()}
-            </span>
-          )}
+          <span className={`shrink-0 ${avatarRing}`}>
+            {user.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={user.imageUrl} alt="" width={56} height={56} className="h-14 w-14 rounded-full object-cover" />
+            ) : (
+              <span className="grid h-14 w-14 place-items-center rounded-full bg-accent-soft text-xl font-semibold text-accent">
+                {(user.name ?? '?').charAt(0).toUpperCase()}
+              </span>
+            )}
+          </span>
           <div className="min-w-0">
-            <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">
-              {firstName ? `Welcome back, ${firstName}` : 'Welcome back'}
-            </h1>
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+              <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">
+                {firstName ? `Welcome back, ${firstName}` : 'Welcome back'}
+              </h1>
+              {pro && <ProBadge />}
+            </div>
             <p className="mt-1 text-sm text-muted">Here&rsquo;s where your interview prep stands today.</p>
           </div>
         </div>
@@ -105,6 +121,12 @@ export default async function DashboardPage() {
           </Link>
         </div>
       </header>
+
+      {pro && (
+        <div className="mt-6">
+          <ProBanner periodEnd={ent.periodEnd} />
+        </div>
+      )}
 
       {/* Key numbers */}
       <dl className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-6">

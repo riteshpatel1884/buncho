@@ -63,6 +63,13 @@ enum PaymentStatus {
   FAILED
 }
 
+// Phase 8: offers and promo codes (set by the admin at /admin/billing)
+enum OfferType {
+  PERCENT_OFF
+  FLAT_OFF
+  EXTRA_DAYS
+}
+
 // Blog
 enum PostStatus {
   DRAFT
@@ -411,19 +418,59 @@ model Subscription {
   updatedAt        DateTime @updatedAt
 }
 
+// One row (id "default") with the editable Pro pricing, changed by the admin at /admin/billing.
+// If it is missing, the defaults in lib/constants.js are used.
+model BillingSettings {
+  id           String    @id @default("default")
+  proName      String    @default("Buncho Pro")
+  priceInr     Int       @default(99)
+  periodMonths Int       @default(1)
+  // Untick in the admin page to pause all new payments
+  checkoutOpen Boolean   @default(true)
+  // Site-wide offer, applied to everyone automatically until offerEndsAt (if set)
+  offerOn      Boolean   @default(false)
+  offerLabel   String?
+  offerType    OfferType @default(PERCENT_OFF)
+  offerValue   Int       @default(0)
+  offerEndsAt  DateTime?
+  updatedAt    DateTime  @updatedAt
+}
+
+// Promo codes typed in at checkout. A valid code replaces the site-wide offer (they do not stack).
+model DiscountCode {
+  id             String    @id @default(cuid())
+  code           String    @unique // always upper case
+  type           OfferType
+  value          Int // percent, rupees or days depending on type
+  active         Boolean   @default(true)
+  startsAt       DateTime?
+  expiresAt      DateTime?
+  maxRedemptions Int? // null = unlimited
+  perUserLimit   Int       @default(1)
+  redeemedCount  Int       @default(0)
+  note           String?
+  createdAt      DateTime  @default(now())
+}
+
 // One row per Cashfree order. orderId is our own id, sent to Cashfree as order_id.
+// Price, period and bonus are stored on the row, so changing settings later never alters a payment already made.
 model Payment {
-  id          String        @id @default(cuid())
-  orderId     String        @unique
-  userId      String
-  user        User          @relation(fields: [userId], references: [id])
-  plan        String
-  amountPaise Int
-  currency    String        @default("INR")
-  status      PaymentStatus @default(PENDING)
-  cfPaymentId String?
-  paidAt      DateTime?
-  createdAt   DateTime      @default(now())
+  id            String        @id @default(cuid())
+  orderId       String        @unique
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  plan          String
+  amountPaise   Int
+  currency      String        @default("INR")
+  status        PaymentStatus @default(PENDING)
+  cfPaymentId   String?
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  periodMonths  Int           @default(1)
+  bonusDays     Int           @default(0)
+  listPaise     Int           @default(0) // price before any discount (0 on orders made before this column existed)
+  discountPaise Int           @default(0)
+  discountCode  String?
 
   @@index([userId, createdAt])
 }

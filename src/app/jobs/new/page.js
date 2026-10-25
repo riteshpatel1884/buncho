@@ -5,7 +5,8 @@ import JobForm from '@/components/jobs/JobForm';
 import { getEntitlements } from '@/lib/subscription';
 import { BackLink, Eyebrow, Gradient, Hero, card, ctaBtn } from '@/components/jobs/ui';
 import { Check, FileText, Flask, Lock, Tag } from '@/components/icons';
-import { FREE_ROLE_LIMIT, PRO_PRICE_INR } from '@/lib/constants';
+import { FREE_ROLE_LIMIT } from '@/lib/constants';
+import { getProPriceInr } from '@/lib/pricing';
 
 export const metadata = { title: 'Add a role' };
 
@@ -25,6 +26,7 @@ export default async function NewJobPage() {
   const user = await getOrCreateUser();
   if (!user) redirect('/login');
   const ent = await getEntitlements(user.id);
+  const proPrice = await getProPriceInr();
 
   if (!ent.roles.canAdd) {
     return (
@@ -37,7 +39,7 @@ export default async function NewJobPage() {
             The free plan includes {FREE_ROLE_LIMIT} role preparation plan. Delete it to start a new one, or upgrade to Pro and keep a plan for every job you apply to.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <Link href="/pricing" className={ctaBtn}>Upgrade to Pro · ₹{PRO_PRICE_INR}</Link>
+            <Link href="/pricing" className={ctaBtn}>Upgrade to Pro · ₹{proPrice}</Link>
             <Link href="/jobs" className="inline-flex items-center rounded-full border border-line px-5 py-3 text-sm font-semibold hover:border-muted">Back to my role</Link>
           </div>
         </div>

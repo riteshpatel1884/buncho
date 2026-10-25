@@ -5,7 +5,7 @@ import { getOrCreateUser } from '@/lib/user';
 import { getSkill } from '@/lib/jobs/skills';
 import { attachInsights, getIsPro } from '@/lib/subscription';
 import { InsightsInline } from '@/components/Insights';
-import { PRO_PRICE_INR } from '@/lib/constants';
+import { getProPriceInr } from '@/lib/pricing';
 import { Bar } from '@/components/jobs/Parts';
 import { BackLink, Eyebrow, Hero, Ring, Stat, TONE_SOFT, TONE_TEXT, TONE_VAR, card, ctaBtn, toneOf } from '@/components/jobs/ui';
 import { ChevronRight, Lock } from '@/components/icons';
@@ -34,6 +34,7 @@ export default async function MockResultPage({ params }) {
 
   const { questions, partial } = mock.results;
   const pro = await getIsPro(user.id);
+  const proPrice = await getProPriceInr();
   const problemRows = await attachInsights(
     await prisma.problem.findMany({ where: { id: { in: mock.problemIds } }, select: { id: true, slug: true } }),
     pro,
@@ -121,7 +122,7 @@ export default async function MockResultPage({ params }) {
                 Practise it, retake the mock, and Buncho will show how much you improved. Your free mock assessment is used, so another attempt needs Pro. Everything on this page stays yours either way.
               </p>
             </div>
-            <Link href="/pricing" className={`${ctaBtn} shrink-0`}>Unlock unlimited mocks · ₹{PRO_PRICE_INR}</Link>
+            <Link href="/pricing" className={`${ctaBtn} shrink-0`}>Unlock unlimited mocks · ₹{proPrice}</Link>
           </div>
         </section>
       )}

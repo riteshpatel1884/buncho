@@ -7,7 +7,8 @@ import { Bar, PlanRow, SkillRow } from '@/components/jobs/Parts';
 import { ManageRole, StartMockButton } from '@/components/jobs/JobActions';
 import { Avatar, BackLink, Hero, Ring, Stat, TONE_SOFT, card, chip, ctaBtn, toneOf } from '@/components/jobs/ui';
 import { ChevronRight, Flask, Lock } from '@/components/icons';
-import { FREE_MOCK_LIMIT, MOCK_MIN_QUESTIONS, PRO_PRICE_INR } from '@/lib/constants';
+import { FREE_MOCK_LIMIT, MOCK_MIN_QUESTIONS } from '@/lib/constants';
+import { getProPriceInr } from '@/lib/pricing';
 
 export const metadata = { title: 'Role preparation' };
 
@@ -16,6 +17,7 @@ export default async function JobPage({ params }) {
   if (!user) redirect('/login');
   const { id } = await params;
   const ent = await getEntitlements(user.id);
+  const proPrice = await getProPriceInr();
   const pro = ent.isPro;
   const data = await getJobDetail(user.id, id, { pro });
   if (!data) notFound();
@@ -164,7 +166,7 @@ export default async function JobPage({ params }) {
                   <p className="mt-1.5 text-xs text-muted">
                     Your result and feedback stay free to review. With Pro you can retake after practising your weak skills and watch your score move.
                   </p>
-                  <Link href="/pricing" className={`${ctaBtn} mt-4 w-full`}>Unlock unlimited mocks · ₹{PRO_PRICE_INR}</Link>
+                  <Link href="/pricing" className={`${ctaBtn} mt-4 w-full`}>Unlock unlimited mocks · ₹{proPrice}</Link>
                 </div>
               )}
 

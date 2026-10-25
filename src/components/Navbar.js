@@ -6,10 +6,15 @@ import NavLinks from './NavLinks';
 import NavShell from './NavShell';
 import ThemeToggle from './ThemeToggle';
 import MobileMenu from './MobileMenu';
+import { ProBadge } from './ProBadge';
 import { Search } from './icons';
+import { getOrCreateUser } from '@/lib/user';
+import { getIsPro } from '@/lib/subscription';
 
 export default async function Navbar() {
   const { userId } = await auth();
+  const user = userId ? await getOrCreateUser() : null;
+  const isPro = user ? await getIsPro(user.id) : false;
 
   const links = [
     { href: '/problems', label: 'Problems', match: ['/topics'] },
@@ -24,7 +29,7 @@ export default async function Navbar() {
   ];
 
   return (
-    <NavShell>
+    <NavShell premium={isPro}>
       <div className="flex h-full w-full items-center gap-3 px-4 sm:gap-4 sm:px-5">
         <Link
           href="/"
@@ -33,6 +38,7 @@ export default async function Navbar() {
         >
           <Logo />
         </Link>
+        {isPro && <ProBadge className="-ml-1" />}
         <NavLinks links={links} />
 
         <div className="ml-auto flex items-center gap-2">
@@ -49,7 +55,13 @@ export default async function Navbar() {
           </form>
           <ThemeToggle />
           {userId ? (
-            <UserButton />
+            isPro ? (
+              <span className="grid place-items-center rounded-full bg-gradient-to-br from-amber-300 via-amber-400 to-amber-600 p-[2px] shadow-sm shadow-amber-500/40">
+                <UserButton />
+              </span>
+            ) : (
+              <UserButton />
+            )
           ) : (
             <>
               <Link href="/login" className="hidden px-3 py-2 text-sm font-medium text-muted hover:text-ink sm:block">
