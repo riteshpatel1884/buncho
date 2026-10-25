@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { LEVEL_LABEL, LEVEL_STYLE } from '@/lib/blog-constants';
 import { formatDateTimeIST } from '@/lib/datetime';
 import ShareButtons from './ShareButtons';
+import ViewCount from './ViewCount';
 
 const card = 'rounded-xl border border-line bg-surface p-4';
 const label = 'text-xs font-semibold uppercase tracking-wider text-muted';
@@ -45,7 +46,7 @@ export default function PostSidebar({ post, url, related, helpfulCounts }) {
           )}
           <div className="grid grid-cols-2 gap-3 border-t border-line pt-3">
             <div><dt className={label}>Reading time</dt><dd className="mt-0.5">{post.readingMinutes} min</dd></div>
-            <div><dt className={label}>Views</dt><dd className="mt-0.5">{post.views.toLocaleString('en-IN')}</dd></div>
+            <div><dt className={label}>Views</dt><dd className="mt-0.5"><ViewCount slug={post.slug} initial={post.views} /></dd></div>
             <div><dt className={label}>Likes</dt><dd className="mt-0.5">{post._count.likes}</dd></div>
             <div><dt className={label}>Comments</dt><dd className="mt-0.5"><a href="#comments" className="hover:underline">{post._count.comments}</a></dd></div>
           </div>
