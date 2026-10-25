@@ -1,3 +1,5 @@
+import Popup from './Popup';
+
 function Ring({ score, size = 136 }) {
   const stroke = 9;
   const r = (size - stroke) / 2;
@@ -37,6 +39,34 @@ function Ring({ score, size = 136 }) {
 
 const barColor = (s) => (s >= 70 ? 'bg-easy' : s >= 50 ? 'bg-medium' : 'bg-hard');
 
+function TopicScores({ competencies, className }) {
+  return (
+    <ul className={className}>
+      {competencies.map((c) => (
+        <li key={c.key}>
+          <div className="flex items-baseline justify-between gap-3 text-sm">
+            <span className="font-medium">{c.name}</span>
+            <span className="shrink-0 text-xs text-muted">
+              {c.score === null ? 'Not assessed' : <><span className="font-semibold text-ink">{c.score}</span>/100</>}
+            </span>
+          </div>
+          <div
+            className="mt-2 h-2 overflow-hidden rounded-full bg-surface-2"
+            role="progressbar"
+            aria-valuenow={c.score ?? 0}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`${c.name} score`}
+          >
+            <div className={`h-full rounded-full ${barColor(c.score ?? 0)}`} style={{ width: `${c.score ?? 0}%` }} />
+          </div>
+          <p className="mt-1.5 text-xs text-muted">{c.evaluated}/{c.total} answered</p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function ReadinessCard({ readiness, competencies }) {
   const { score, label, provisional, assessed, totalCompetencies, evaluatedProblems } = readiness;
 
@@ -61,29 +91,28 @@ export default function ReadinessCard({ readiness, competencies }) {
         </div>
       </div>
 
-      <ul className="mt-8 grid gap-x-12 gap-y-6 border-t border-line pt-8 md:grid-cols-2">
-        {competencies.map((c) => (
-          <li key={c.key}>
-            <div className="flex items-baseline justify-between gap-3 text-sm">
-              <span className="font-medium">{c.name}</span>
-              <span className="shrink-0 text-xs text-muted">
-                {c.score === null ? 'Not assessed' : <><span className="font-semibold text-ink">{c.score}</span>/100</>}
-              </span>
-            </div>
-            <div
-              className="mt-2 h-2 overflow-hidden rounded-full bg-surface-2"
-              role="progressbar"
-              aria-valuenow={c.score ?? 0}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label={`${c.name} score`}
-            >
-              <div className={`h-full rounded-full ${barColor(c.score ?? 0)}`} style={{ width: `${c.score ?? 0}%` }} />
-            </div>
-            <p className="mt-1.5 text-xs text-muted">{c.evaluated}/{c.total} answered</p>
-          </li>
-        ))}
-      </ul>
+      {/* Tablets and desktops: scores shown inline */}
+      <TopicScores
+        competencies={competencies}
+        className="mt-8 hidden gap-x-12 gap-y-6 border-t border-line pt-8 md:grid md:grid-cols-2"
+      />
+
+      {/* Phones: scores open in a popup */}
+      <div className="mt-6 md:hidden">
+        <Popup
+          title="Topic scores"
+          subtitle={`${assessed} of ${totalCompetencies} topics assessed`}
+          buttonLabel={
+            <>
+              <span>View topic scores</span>
+              <span className="text-xs font-normal text-muted">{assessed}/{totalCompetencies} assessed</span>
+            </>
+          }
+          buttonClassName="flex w-full items-center justify-between gap-3 rounded-xl border border-line bg-surface-2/60 px-4 py-3 text-sm font-semibold transition-colors hover:bg-surface-2"
+        >
+          <TopicScores competencies={competencies} className="space-y-6" />
+        </Popup>
+      </div>
 
       <details className="mt-8 border-t border-line pt-5 text-sm">
         <summary className="cursor-pointer font-semibold">How is this calculated?</summary>

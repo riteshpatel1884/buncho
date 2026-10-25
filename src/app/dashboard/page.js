@@ -2,21 +2,19 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { getOrCreateUser } from '@/lib/user';
-import DifficultyBadge from '@/components/DifficultyBadge';
 import ReadinessCard from '@/components/ReadinessCard';
 import WeeklyActivity from '@/components/WeeklyActivity';
-import { RevisionQueue } from '@/components/InsightLists';
 import { StatsCard } from '@/components/StatsCard';
 import { getUserStats } from '@/lib/problems';
 import { getInsights } from '@/lib/insights';
 import { attachInsights, getEntitlements } from '@/lib/subscription';
-import { InsightsInline } from '@/components/Insights';
 import PlanCard from '@/components/billing/PlanCard';
 import ProBanner from '@/components/ProBanner';
 import { listJobs } from '@/lib/jobs/progress';
 import JobPrepCard from '@/components/jobs/JobPrepCard';
-import Section, { Empty, rowClass } from '@/components/dashboard/Section';
 import StatTile from '@/components/dashboard/StatTile';
+import Greeting from '@/components/dashboard/Greeting';
+import SavedCard from '@/components/dashboard/SavedCard';
 
 export const metadata = { title: 'Dashboard' };
 
@@ -27,16 +25,11 @@ export default async function DashboardPage() {
   const ent = await getEntitlements(user.id);
   const pro = ent.isPro;
 
-  const [progress, bookmarks, stats, insights, jobs] = await Promise.all([
-    prisma.problemProgress.findMany({
-      where: { userId: user.id },
-      orderBy: { lastActivityAt: 'desc' },
-      include: { problem: { select: { slug: true, title: true, difficulty: true } } },
-    }),
+  const [bookmarks, stats, insights, jobs] = await Promise.all([
     prisma.bookmark.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
-      take: 6,
+      take: 500,
       include: { problem: { select: { slug: true, title: true, difficulty: true } } },
     }),
     getUserStats(user.id),
@@ -44,44 +37,20 @@ export default async function DashboardPage() {
     listJobs(user.id),
   ]);
 
-  const completed = progress.filter((p) => p.status === 'COMPLETED');
-  const [revision, recentlySolved, savedList] = await Promise.all([
-    attachInsights(insights.revision, pro),
-    attachInsights(completed.slice(0, 5).map((p) => p.problem), pro),
-    attachInsights(bookmarks.map((b) => b.problem), pro),
-  ]);
+  const savedList = await attachInsights(bookmarks.map((b) => b.problem), pro);
 
   const firstName = user.name?.split(' ')[0];
   const next = insights.recommendations[0];
   const completion = stats.total ? Math.round((stats.solved / stats.total) * 100) : 0;
 
-  const List = ({ items, empty }) =>
-    items.length ? (
-      <ul className="-mx-3 space-y-1">
-        {items.map((item) => (
-          <li key={item.slug}>
-            <Link href={`/problems/${item.slug}`} className={rowClass}>
-              <span className="min-w-0">
-                <span className="block truncate font-medium">{item.title}</span>
-                <InsightsInline pro={pro} problem={item} className="mt-0.5" />
-              </span>
-              <DifficultyBadge difficulty={item.difficulty} plain />
-            </Link>
-          </li>
-        ))}
-      </ul>
-    ) : (
-      <Empty>{empty}</Empty>
-    );
-
   const avatarRing = pro ? 'rounded-full bg-gradient-to-br from-amber-300 via-amber-400 to-amber-600 p-[3px] shadow-md shadow-amber-500/30' : '';
 
   return (
-    <div className="relative mx-auto w-full max-w-[80rem] px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+    <div className="relative mx-auto w-full max-w-[80rem] overflow-x-clip px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       {pro && (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 bg-[radial-gradient(60%_100%_at_50%_0%,rgba(251,191,36,0.10),transparent)]"
+          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-80 bg-gradient-to-b from-amber-400/15 via-amber-300/5 to-transparent"
         />
       )}
 
@@ -98,12 +67,7 @@ export default async function DashboardPage() {
               </span>
             )}
           </span>
-          <div className="min-w-0">
-            <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">
-              {firstName ? `Welcome back, ${firstName}` : 'Welcome back'}
-            </h1>
-            <p className="mt-1 text-sm text-muted">Here&rsquo;s where your interview prep stands today.</p>
-          </div>
+          <Greeting name={firstName} pro={pro} />
         </div>
         <div className="flex shrink-0 flex-wrap gap-3">
           <Link href="/problems" className="rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-surface-2">
@@ -135,26 +99,17 @@ export default async function DashboardPage() {
       <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_24rem]">
         {/* Main column */}
         <div className="min-w-0 space-y-8">
+          <StatsCard stats={stats} signedIn roomy />
           <ReadinessCard readiness={insights.readiness} competencies={insights.competencies} />
-
-          <div className="grid gap-8 xl:grid-cols-2">
-            <RevisionQueue items={revision} pro={pro} />
-            <Section id="recent" title="Recently solved" hint="Problems you have submitted an answer for.">
-              <List items={recentlySolved} empty="Submit an answer to solve your first problem." />
-            </Section>
-          </div>
         </div>
 
         {/* Sidebar */}
         <aside className="min-w-0 space-y-8">
-          <PlanCard ent={ent} />
-          <StatsCard stats={stats} signedIn roomy />
+          {/* Pro members see their plan in the "Plan details" popup on the banner above */}
+          {!pro && <PlanCard ent={ent} />}
           <WeeklyActivity weekly={insights.weekly} />
           <JobPrepCard jobs={jobs.slice(0, 3)} />
-
-          <Section id="saved" title="Saved for later">
-            <List items={savedList} empty="Use Save for later on any problem to collect it here." />
-          </Section>
+          <SavedCard items={savedList} pro={pro} />
         </aside>
       </div>
     </div>
