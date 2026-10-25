@@ -68,7 +68,7 @@ export const COMPETENCIES = [
   { key: 'design', name: 'ML System Design', weight: 5, topics: ['ml-system-design'] },
   { key: 'aisystem', name: 'AI System Design', weight: 4, topics: ['ai-system-design'] },
   { key: 'eval', name: 'LLM Evaluation and Testing', weight: 5, topics: ['llm-evaluation-and-testing'] },
-  { key: 'safety', name: 'AI Safety, Ethics and Responsible AI', weight: 4, topics: ['ai-safety-ethics-responsible-ai'] },
+  { key: 'safety', name: 'AI Safety, Ethics and Responsible AI', weight: 4, topics: ['ai-safety-ethics-and-responsible-ai'] },
   { key: 'infra', name: 'AI Infrastructure and Scalability', weight: 4, topics: ['ai-infrastructure-and-scalability'] },
   { key: 'gateways', name: 'LLM Gateways', weight: 2, topics: ['llm-gateways'] },
   { key: 'prod', name: 'Production AI Engineering', weight: 8, topics: ['production-ai-engineering'] },
