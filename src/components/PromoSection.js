@@ -30,7 +30,7 @@ export default function PromoSection({ ads = {} }) {
       <div className="mb-3 flex items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted">Sponsored</p>
         <Link href="/advertise" className="text-xs font-semibold text-accent hover:underline">
-          Why advertise with us
+          Why advertise with us ?
         </Link>
       </div>
       <div className="grid flex-1 gap-3 sm:grid-cols-2">
