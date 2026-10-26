@@ -49,7 +49,7 @@ export async function createJobTarget({ title, company, jdText }) {
     return { ok: false, error: 'We could not find AI or ML skills in this text. Make sure you pasted the full description, including requirements.' };
   }
 
-  const { items, coverage } = await buildPlan(skills);
+  const { items, coverage } = await buildPlan(skills, { pro: ent.isPro });
   if (!items.length) {
     return { ok: false, error: 'None of the skills in this job are covered by the question bank yet, so we could not build a plan.' };
   }
@@ -79,7 +79,8 @@ export async function regeneratePlan(jobId) {
   if (!job) return { ok: false, error: 'Role not found.' };
 
   const skills = extractSkills(job.jdText);
-  const { items, coverage } = await buildPlan(skills);
+  const ent = await getEntitlements(user.id);
+  const { items, coverage } = await buildPlan(skills, { pro: ent.isPro });
   if (!items.length) return { ok: false, error: 'No matching questions were found.' };
 
   await prisma.$transaction([
@@ -116,13 +117,15 @@ export async function startMock(jobId) {
       id: true, skills: true,
       planItems: {
         orderBy: { priority: 'asc' },
-        select: { problemId: true, skillKeys: true, problem: { select: { difficulty: true, estimatedMinutes: true, isChallenge: true, published: true } } },
+        select: { problemId: true, skillKeys: true, problem: { select: { difficulty: true, estimatedMinutes: true, isChallenge: true, published: true, proOnly: true } } },
       },
     },
   });
   if (!job) return { ok: false, error: 'Role not found.' };
 
-  const eligible = job.planItems.filter((i) => i.problem.published && !i.problem.isChallenge);
+  // Free users never get Pro-only questions in a mock (the mock page shows the full question text)
+  const ent = await getEntitlements(user.id);
+  const eligible = job.planItems.filter((i) => i.problem.published && !i.problem.isChallenge && (ent.isPro || !i.problem.proOnly));
   if (eligible.length < MOCK_MIN_QUESTIONS) {
     return { ok: false, error: `The mock needs at least ${MOCK_MIN_QUESTIONS} written questions in your plan. Refresh the plan after more questions are added.` };
   }
@@ -162,7 +165,6 @@ export async function startMock(jobId) {
     code: 'UPGRADE',
     error: `You have used your ${FREE_MOCK_LIMIT} free mock assessment. Upgrade to Pro for unlimited attempts.`,
   };
-  const ent = await getEntitlements(user.id);
   if (!ent.isPro) {
     const open = await prisma.mockAssessment.findFirst({
       where: { jobId: job.id, userId: user.id, status: 'IN_PROGRESS' },

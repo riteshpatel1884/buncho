@@ -3,6 +3,7 @@ import { ProBadge } from '@/components/ProBadge';
 import { Check } from '@/components/icons';
 
 const PERKS = [
+  'Pro-only system design and case study questions',
   'Multiple role preparation plans',
   'Unlimited mock assessment attempts while subscribed',
   'AI feedback after every assessment',

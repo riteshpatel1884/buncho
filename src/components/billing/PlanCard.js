@@ -3,6 +3,7 @@ import Section from '@/components/dashboard/Section';
 import { Check } from '@/components/icons';
 
 const PRO_PERKS = [
+  'Pro-only system design and case study questions',
   'Multiple role preparation plans',
   'Unlimited mock assessments',
   'Company-wise question insights',

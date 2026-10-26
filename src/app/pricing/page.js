@@ -18,11 +18,12 @@ const FREE = [
   '1 role preparation plan',
   '1 mock assessment attempt total',
   'Full result and AI feedback for that attempt',
-  'Access to the matched question bank',
+  'Access to the free question bank',
   'Basic progress tracking',
 ];
 
 const PRO = [
+  'Pro-only questions: in-depth system design and case study scenarios, with AI feedback and full reference answers',
   'Multiple role preparation plans',
   'Unlimited mock assessment attempts while subscribed',
   'AI feedback after every assessment',
@@ -81,7 +82,7 @@ export default async function PricingPage() {
           <p className="mt-1 text-sm text-muted">Try Buncho before paying</p>
           <ul className="mt-5 space-y-3 border-t border-line pt-5">
             {FREE.map((f) => <Item key={f}>{f}</Item>)}
-            <Item locked>Additional roles and mock attempts require Pro</Item>
+            <Item locked>Pro-only questions, additional roles and mock attempts require Pro</Item>
           </ul>
           {user && !ent.isPro && (
             <div className="mt-6 rounded-xl bg-surface-2/60 px-4 py-3 text-sm">

@@ -3,6 +3,7 @@ import DifficultyBadge from './DifficultyBadge';
 import { PAGE_SIZE, TYPE_LABEL } from '@/lib/constants';
 import { Check, ChevronLeft, ChevronRight, Lock } from './icons';
 import { Companies, Frequency, InsightsInline } from './Insights';
+import { ProBadge } from './ProBadge';
 
 const EDGE = { EASY: 'border-l-easy', MEDIUM: 'border-l-medium', HARD: 'border-l-hard' };
 // Columns follow the width of the list itself (container queries), not the screen, because the list sits in
@@ -50,6 +51,7 @@ export function ProblemRow({ problem, status, number, pro = false }) {
           <span className="block truncate text-sm font-medium group-hover:text-accent">
             <span className="mr-1.5 tabular-nums text-muted">{number}.</span>
             {problem.title}
+            {problem.proOnly && <ProBadge className="ml-2 align-middle" />}
           </span>
           <span className="mt-0.5 block truncate text-xs text-muted @2xl:hidden">
             {problem.topic.name} · {TYPE_LABEL[problem.type]} · {problem.estimatedMinutes} min

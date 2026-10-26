@@ -160,10 +160,12 @@ async function main() {
       continue;
     }
 
-    const { topic, related, challenge, allowDirectReveal = false, ...rest } = p;
+    // proOnly is always written (true or false), so removing the flag in seed-data.js makes the question free again.
+    const { topic, related, challenge, allowDirectReveal = false, proOnly = false, ...rest } = p;
     const data = {
       ...rest,
       allowDirectReveal,
+      proOnly,
       description: read(p, 'question'),
       topicId: topicIds[topic],
       position,
@@ -215,6 +217,7 @@ async function main() {
     linksChanged++;
   }
 
+  console.log(`Pro-only questions in seed-data: ${problems.filter((x) => x.proOnly).length}`);
   console.log(
     `Problems in seed-data: ${problems.length} | new: ${created.length} | updated: ${updated.length} | unchanged (skipped): ${unchanged.length} | topics: ${topics.length} | related links updated: ${linksChanged}`,
   );

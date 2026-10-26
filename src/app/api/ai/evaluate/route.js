@@ -5,6 +5,7 @@ import { getOrCreateUser } from '@/lib/user';
 import { evaluateAnswer, hashContent } from '@/lib/ai/evaluate';
 import { AiUnavailableError } from '@/lib/ai/providers';
 import { AI_EVAL_LIMIT_PER_DAY, AI_EVAL_LIMIT_PER_HOUR } from '@/lib/constants';
+import { assertProblemAccess } from '@/lib/pro-access';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // fallbacks can take a while; raise/lower to match your Vercel plan
@@ -35,6 +36,7 @@ export async function POST(req) {
           type: true,
           difficulty: true,
           published: true,
+          proOnly: true,
           steps: true,
           rubric: true,
           scenarioData: true,
@@ -47,6 +49,10 @@ export async function POST(req) {
   if (!submission || !submission.problem.published) {
     return reply({ ok: false, error: 'Save an answer first.' }, 404);
   }
+
+  // Pro questions: AI feedback needs an active subscription (checked here, not only in the UI).
+  const denied = await assertProblemAccess(submission.problem, user.id);
+  if (denied) return reply({ ...denied, code: 'UPGRADE' }, 403);
 
   // Same answer already evaluated: reuse it, no model call, no quota used.
   const hash = hashContent(submission.content);

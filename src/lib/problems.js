@@ -69,6 +69,7 @@ export async function getProblems({ q, topic, difficulty, type, page, challenge,
           difficulty: true,
           type: true,
           estimatedMinutes: true,
+          proOnly: true,
           topic: { select: { name: true, slug: true } },
           ...insightSelect(pro),
         },
@@ -187,7 +188,7 @@ export async function getUserStats(userId) {
  */
 export async function getUpNext({ userId, currentSlug, limit = 20, pro = false }) {
   const all = shuffled(
-    await prisma.problem.findMany({ where: { published: true }, select: { id: true, slug: true, title: true, difficulty: true } }),
+    await prisma.problem.findMany({ where: { published: true }, select: { id: true, slug: true, title: true, difficulty: true, proOnly: true } }),
   );
   const status = userId ? await getProgressMap(userId, all.map((p) => p.id)) : {};
 
@@ -196,7 +197,7 @@ export async function getUpNext({ userId, currentSlug, limit = 20, pro = false }
   const unsolved = rotated.filter((p) => status[p.id] !== 'COMPLETED');
 
   const items = await attachInsights(
-    unsolved.slice(0, limit).map((p) => ({ slug: p.slug, title: p.title, difficulty: p.difficulty })),
+    unsolved.slice(0, limit).map((p) => ({ slug: p.slug, title: p.title, difficulty: p.difficulty, proOnly: p.proOnly })),
     pro,
   );
   return { items, remaining: unsolved.length };

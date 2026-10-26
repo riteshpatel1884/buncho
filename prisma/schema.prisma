@@ -163,6 +163,9 @@ model Problem {
   hints             String[]
   // If true, users may reveal the solution without submitting an attempt
   allowDirectReveal Boolean     @default(false)
+  // Pro-only question: free users see the title and a short preview, but not the full question, hints, answer editor,
+  // AI feedback, reference answer or community answers. Enforced on the server (see lib/pro-access.js).
+  proOnly           Boolean     @default(false)
   published         Boolean     @default(true)
   position          Int         @default(0)
   createdAt         DateTime    @default(now())
@@ -197,6 +200,7 @@ model Problem {
   @@index([topicId, difficulty])
   @@index([published, difficulty])
   @@index([isChallenge, published])
+  @@index([proOnly, published])
 }
 
 // Authoritative, admin-curated. Kept separate from user content on purpose.

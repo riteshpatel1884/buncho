@@ -4,7 +4,7 @@ import { ChevronRight } from './icons';
 import Popup from './Popup';
 import PlanDetails from './billing/PlanDetails';
 
-const PERKS = ['Unlimited mock assessments', 'Company-wise insights', 'Question frequency data', 'Advanced revision'];
+const PERKS = ['Pro-only questions', 'Unlimited mock assessments', 'Company-wise insights', 'Question frequency data', 'Advanced revision'];
 const dateFmt = (d) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' });
 
 /**

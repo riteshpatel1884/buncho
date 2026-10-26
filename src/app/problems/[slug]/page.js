@@ -4,6 +4,9 @@ import { prisma } from '@/lib/prisma';
 import { getOrCreateUser } from '@/lib/user';
 import { getCommunityAnswers } from '@/lib/community';
 import { getIsPro } from '@/lib/subscription';
+import { canAccessProblem, previewMarkdown } from '@/lib/pro-access';
+import ProLock from '@/components/ProLock';
+import { ProBadge } from '@/components/ProBadge';
 import { InsightsPanel } from '@/components/Insights';
 import { hashContent } from '@/lib/ai/evaluate';
 import { DIFFICULTY_LABEL, TYPE_LABEL } from '@/lib/constants';
@@ -68,12 +71,16 @@ export default async function ProblemPage({ params, searchParams }) {
   });
   if (!problem) notFound();
 
-  const steps = asArray(problem.steps);
-  const rubric = asArray(problem.rubric);
-  const scenarioData = asArray(problem.scenarioData);
-
   const user = await getOrCreateUser();
   const [neighbors, pro] = await Promise.all([getProblemNeighbors(slug), user ? getIsPro(user.id) : false]);
+
+  // Pro-only question and no active Pro plan: only a short preview of the question is used below. The full text, hints,
+  // steps, scenario data, reference answer and community answers are never read into the page.
+  const locked = !canAccessProblem(problem, pro);
+  const teaser = locked ? previewMarkdown(problem.description) : null;
+  const steps = locked ? [] : asArray(problem.steps);
+  const rubric = locked ? [] : asArray(problem.rubric);
+  const scenarioData = locked ? [] : asArray(problem.scenarioData);
   const upNext = await getUpNext({ userId: user?.id ?? null, currentSlug: slug, pro });
 
   let progress = null;
@@ -106,7 +113,7 @@ export default async function ProblemPage({ params, searchParams }) {
 
   // The reference answer and community content are only queried once the user has earned access,
   // so neither reaches the browser of someone who hasn't unlocked them.
-  const unlocked = Boolean(user && (submission || progress?.solutionRevealed));
+  const unlocked = Boolean(user && !locked && (submission || progress?.solutionRevealed));
   const [solution, community] = unlocked
     ? await Promise.all([
         prisma.expertSolution.findUnique({ where: { problemId: problem.id } }),
@@ -143,6 +150,7 @@ export default async function ProblemPage({ params, searchParams }) {
         <Link href={`/topics/${problem.topic.slug}`} className={`${pill} hover:text-ink`}>{problem.topic.name}</Link>
         <span className={pill}>{TYPE_LABEL[problem.type]}</span>
         <span className={pill}>{problem.estimatedMinutes} min</span>
+        {problem.proOnly && <ProBadge />}
         <BookmarkButton problemId={problem.id} slug={slug} initial={bookmarked} signedIn={Boolean(user)} pill />
         {progress?.status === 'COMPLETED' && <span className="rounded-full bg-easy/12 px-2.5 py-0.5 text-xs font-semibold text-easy">Completed</span>}
       </div>
@@ -151,7 +159,16 @@ export default async function ProblemPage({ params, searchParams }) {
       <InsightsPanel pro={pro} problem={pro ? { askedFrequency: problem.askedFrequency, askedByCompanies: problem.askedByCompanies } : null} />
 
       <section aria-label="Problem statement" className="mt-5">
-        <Markdown>{problem.description}</Markdown>
+        <Markdown>{locked ? teaser.text : problem.description}</Markdown>
+        {locked && (
+          <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-surface-2 px-4 py-3 text-sm text-muted">
+            <Lock width={15} height={15} className="shrink-0" />
+            <span>
+              {teaser.truncated ? 'The rest of this question is for Pro members.' : 'Hints, AI feedback and the reference answer are for Pro members.'}
+            </span>
+            <Link href="/pricing" className="font-semibold text-accent hover:underline">Unlock with Pro</Link>
+          </p>
+        )}
       </section>
 
       {scenarioData.length > 0 && (
@@ -188,9 +205,11 @@ export default async function ProblemPage({ params, searchParams }) {
         </section>
       )}
 
-      <div className="mt-6">
-        <Hints hints={problem.hints} />
-      </div>
+      {!locked && (
+        <div className="mt-6">
+          <Hints hints={problem.hints} />
+        </div>
+      )}
 
       <div className="mt-6 divide-y divide-line border-y border-line">
         {problem.related.length > 0 && (
@@ -222,7 +241,11 @@ export default async function ProblemPage({ params, searchParams }) {
     <section aria-labelledby="feedback-heading">
       <h2 id="feedback-heading" className="text-lg font-semibold">AI feedback</h2>
 
-      {!unlocked ? (
+      {locked ? (
+        <div className="mt-4">
+          <ProLock compact signedIn={Boolean(user)} title="AI feedback is a Pro feature for this question" />
+        </div>
+      ) : !unlocked ? (
         <div className="mt-4 flex flex-col items-start gap-3 rounded-lg bg-surface-2 px-5 py-6">
           <p className="flex items-center gap-2 font-medium">
             <Lock width={18} height={18} /> Locked until you attempt this problem
@@ -312,7 +335,11 @@ export default async function ProblemPage({ params, searchParams }) {
   const communityPane = (
     <section aria-labelledby="community-heading">
       <h2 id="community-heading" className="text-lg font-semibold">Community solutions</h2>
-      {community ? (
+      {locked ? (
+        <div className="mt-4">
+          <ProLock compact signedIn={Boolean(user)} title="Community answers are a Pro feature for this question" />
+        </div>
+      ) : community ? (
         <CommunitySection data={community} slug={slug} />
       ) : (
         <p className="mt-4 flex items-center gap-2 text-sm text-muted">
@@ -341,7 +368,7 @@ export default async function ProblemPage({ params, searchParams }) {
       { name: problem.topic.name, path: `/topics/${problem.topic.slug}` },
       { name: problem.title, path: `/problems/${slug}` },
     ]),
-    problemJsonLd(problem),
+    problemJsonLd(locked ? { ...problem, description: teaser.text } : problem),
   );
 
   return (
@@ -389,7 +416,11 @@ export default async function ProblemPage({ params, searchParams }) {
               <Code width={16} height={16} className="text-go" /> Answer
             </div>
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-              {user ? (
+              {locked ? (
+                <div className="p-4">
+                  <ProLock signedIn={Boolean(user)} />
+                </div>
+              ) : user ? (
                 <>
                   <AnswerEditor
                     problemId={problem.id}

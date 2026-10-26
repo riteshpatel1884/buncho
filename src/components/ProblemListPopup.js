@@ -5,6 +5,7 @@ import Link from 'next/link';
 import DifficultyBadge from './DifficultyBadge';
 import { List } from './icons';
 import { InsightsInline } from './Insights';
+import { ProBadge } from './ProBadge';
 
 export default function ProblemListPopup({ items, remaining, signedIn, pro = false }) {
   const [open, setOpen] = useState(false);
@@ -66,7 +67,10 @@ export default function ProblemListPopup({ items, remaining, signedIn, pro = fal
                     className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm hover:bg-surface-2"
                   >
                     <span className="min-w-0">
-                      <span className="block truncate">{p.title}</span>
+                      <span className="flex items-center gap-2">
+                        <span className="truncate">{p.title}</span>
+                        {p.proOnly && <ProBadge className="shrink-0" />}
+                      </span>
                       {p.attempted && <span className="text-xs text-medium">Attempted</span>}
                       <InsightsInline pro={pro} problem={p} className="mt-0.5" />
                     </span>

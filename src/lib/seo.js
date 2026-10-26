@@ -202,7 +202,7 @@ export const problemJsonLd = (problem) => ({
   learningResourceType: problem.isChallenge ? 'Production incident exercise' : 'Interview practice question',
   educationalLevel: LEVEL[problem.difficulty] ?? DIFFICULTY_LABEL[problem.difficulty],
   timeRequired: `PT${Math.max(1, problem.estimatedMinutes || 10)}M`,
-  isAccessibleForFree: true,
+  isAccessibleForFree: !problem.proOnly,
   about: problem.topic.name,
   teaches: problem.subcategory || problem.topic.name,
   ...(problem.roles?.length > 0 && { audience: { '@type': 'Audience', audienceType: problem.roles.join(', ') } }),

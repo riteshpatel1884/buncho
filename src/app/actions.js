@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { getOrCreateUser } from '@/lib/user';
 import { MAX_ANSWER_LENGTH, MIN_ANSWER_LENGTH } from '@/lib/constants';
+import { assertProblemAccess } from '@/lib/pro-access';
 
 async function requireUser() {
   const user = await getOrCreateUser();
@@ -15,7 +16,7 @@ async function getProblemStub(problemId) {
   if (typeof problemId !== 'string') return null;
   return prisma.problem.findFirst({
     where: { id: problemId, published: true },
-    select: { id: true, slug: true, allowDirectReveal: true },
+    select: { id: true, slug: true, allowDirectReveal: true, proOnly: true },
   });
 }
 
@@ -29,6 +30,8 @@ export async function saveSubmission(problemId, content) {
   const user = await requireUser();
   const problem = await getProblemStub(problemId);
   if (!problem) return { ok: false, error: 'This problem no longer exists.' };
+  const locked = await assertProblemAccess(problem, user.id);
+  if (locked) return locked;
 
   const text = String(content ?? '').trim();
   if (text.length < MIN_ANSWER_LENGTH) {
@@ -66,6 +69,8 @@ export async function revealSolution(problemId) {
   const user = await requireUser();
   const problem = await getProblemStub(problemId);
   if (!problem) return { ok: false, error: 'This problem no longer exists.' };
+  const locked = await assertProblemAccess(problem, user.id);
+  if (locked) return locked;
 
   const key = { userId_problemId: { userId: user.id, problemId: problem.id } };
   if (!problem.allowDirectReveal) {
@@ -88,6 +93,8 @@ export async function setCompleted(problemId, completed) {
   const user = await requireUser();
   const problem = await getProblemStub(problemId);
   if (!problem) return { ok: false, error: 'This problem no longer exists.' };
+  const locked = await assertProblemAccess(problem, user.id);
+  if (locked) return locked;
 
   const key = { userId_problemId: { userId: user.id, problemId: problem.id } };
   const [progress, submission] = await Promise.all([

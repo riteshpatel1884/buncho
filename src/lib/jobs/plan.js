@@ -27,9 +27,10 @@ function relevance(skill, p) {
  *  - items: [{ problemId, skillKeys, priority, reason }] in the order they should be practised
  *  - coverage: { [skillKey]: number of matching questions in the whole bank }, so gaps are shown honestly
  */
-export async function buildPlan(skills) {
+export async function buildPlan(skills, { pro = false } = {}) {
   const problems = await prisma.problem.findMany({
-    where: { published: true },
+    // Pro-only questions are only planned for Pro users, so a free plan never links to a locked question
+    where: { published: true, ...(pro ? {} : { proOnly: false }) },
     select: {
       id: true, title: true, subcategory: true, description: true, difficulty: true, estimatedMinutes: true,
       topic: { select: { slug: true } },

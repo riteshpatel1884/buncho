@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { getOrCreateUser } from '@/lib/user';
+import { getIsPro } from '@/lib/subscription';
 import Markdown from '@/components/Markdown';
 import MockRunner from '@/components/jobs/MockRunner';
 import { ctaBtn } from '@/components/jobs/ui';
@@ -38,8 +39,11 @@ export default async function MockPage({ params }) {
 
   const rows = await prisma.problem.findMany({
     where: { id: { in: mock.problemIds } },
-    select: { id: true, title: true, description: true, difficulty: true, estimatedMinutes: true, topic: { select: { name: true } } },
+    select: { id: true, title: true, description: true, difficulty: true, estimatedMinutes: true, proOnly: true, topic: { select: { name: true } } },
   });
+  // If Pro ended after this mock started, Pro-only question text is withheld
+  const pro = await getIsPro(user.id);
+  for (let i = rows.length - 1; i >= 0; i -= 1) if (rows[i].proOnly && !pro) rows.splice(i, 1);
   const order = new Map(mock.problemIds.map((pid, i) => [pid, i]));
   rows.sort((a, b) => order.get(a.id) - order.get(b.id));
 
