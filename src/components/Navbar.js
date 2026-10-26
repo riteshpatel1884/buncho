@@ -35,11 +35,11 @@ export default async function Navbar() {
   // On phones the account lives inside the hamburger menu
   const profile = userId ? { name: user?.name ?? null, email: user?.email ?? null, imageUrl: user?.imageUrl ?? null } : null;
 
-  // Gold search bar for Pro members
+  // Pro members: a soft yellow tint that sits on the navbar colour (pale in light mode, faint gold in dark mode)
   const searchBox = isPro
-    ? 'bg-gradient-to-br from-amber-300 via-amber-400 to-amber-500 text-amber-950 shadow-sm shadow-amber-500/30 placeholder:text-amber-900/70'
+    ? 'border border-amber-400/40 bg-amber-400/20 text-amber-950 placeholder:text-amber-900/60 focus:border-amber-500 focus:bg-amber-400/30 dark:border-amber-300/25 dark:bg-amber-300/10 dark:text-amber-50 dark:placeholder:text-amber-200/60 dark:focus:border-amber-300/50 dark:focus:bg-amber-300/15'
     : 'bg-surface-2 placeholder:text-muted';
-  const searchIcon = isPro ? 'text-amber-900' : 'text-muted';
+  const searchIcon = isPro ? 'text-amber-800 dark:text-amber-300' : 'text-muted';
 
   return (
     <NavShell premium={isPro}>
@@ -72,7 +72,7 @@ export default async function Navbar() {
               name="q"
               type="search"
               placeholder="Search problems"
-              className={`h-9 w-52 rounded-full pl-9 pr-3 text-sm outline-none transition-[width] duration-300 group-data-[compact=true]/nav:h-8 group-data-[compact=true]/nav:w-40 ${searchBox}`}
+              className={`h-9 w-52 rounded-full pl-9 pr-3 text-sm outline-none transition-[width,background-color,border-color] duration-300 group-data-[compact=true]/nav:h-8 group-data-[compact=true]/nav:w-40 ${searchBox}`}
             />
           </form>
 

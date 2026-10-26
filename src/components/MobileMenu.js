@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { useClerk } from '@clerk/nextjs';
 import { Close, Menu } from './icons';
 
-const GOLD = 'bg-gradient-to-br from-amber-300 via-amber-400 to-amber-600 text-amber-950 shadow-sm shadow-amber-500/40 hover:opacity-90';
+const GOLD = 'border border-amber-400/40 bg-amber-400/20 text-amber-800 hover:bg-amber-400/30 dark:border-amber-300/25 dark:bg-amber-300/10 dark:text-amber-300';
 const rowBtn = 'block w-full py-3 text-left text-lg font-medium';
 
 // cta: optional extra link at the end of the menu, e.g. { href: '/register', label: 'Sign up' }

@@ -3,7 +3,7 @@
 import { Moon, Sun } from './icons';
 
 // The icon swap is pure CSS (dark: variants), so there is no hydration mismatch.
-// premium: gold circle for Pro members.
+// premium: soft gold tint for Pro members, matching the navbar.
 export default function ThemeToggle({ premium = false }) {
   function toggle() {
     const root = document.documentElement;
@@ -23,7 +23,7 @@ export default function ThemeToggle({ premium = false }) {
       title="Switch theme"
       className={`grid h-9 w-9 place-items-center rounded-full transition-colors ${
         premium
-          ? 'bg-gradient-to-br from-amber-300 via-amber-400 to-amber-600 text-amber-950 shadow-sm shadow-amber-500/40 hover:opacity-90'
+          ? 'border border-amber-400/40 bg-amber-400/20 text-amber-800 hover:bg-amber-400/30 dark:border-amber-300/25 dark:bg-amber-300/10 dark:text-amber-300 dark:hover:bg-amber-300/20'
           : 'text-ink hover:text-accent'
       }`}
     >
