@@ -70,6 +70,19 @@ enum OfferType {
   EXTRA_DAYS
 }
 
+// User reports sent from the /report page and shown in /admin/reports
+enum SupportKind {
+  PROBLEM
+  PRO_PLAN
+  OTHER
+}
+
+enum SupportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
 // Blog
 enum PostStatus {
   DRAFT
@@ -115,6 +128,8 @@ model User {
   mockAttemptsUsed Int              @default(0)
   subscription     Subscription?
   payments         Payment[]
+  // User reports (/report)
+  supportReports   SupportReport[]
   // Blog
   blogPosts        BlogPost[]
   blogLikes        BlogLike[]
@@ -176,6 +191,8 @@ model Problem {
   evaluations      Evaluation[]
   // Phase 7
   jobPlanItems     JobPlanItem[]
+  // User reports (/report)
+  supportReports   SupportReport[]
 
   @@index([topicId, difficulty])
   @@index([published, difficulty])
@@ -473,6 +490,31 @@ model Payment {
   discountCode  String?
 
   @@index([userId, createdAt])
+}
+
+/* ---------- User reports (the /report page, shown in /admin/reports) ---------- */
+
+// A problem a user reports: a mistake in a question or its solution, a Pro plan or payment issue, or anything else.
+// Not to be confused with Report above, which is a user flagging someone else's community answer.
+model SupportReport {
+  id            String        @id @default(cuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind          SupportKind
+  issue         String // key from ISSUES in lib/support.js
+  problemId     String?
+  problem       Problem?      @relation(fields: [problemId], references: [id], onDelete: SetNull)
+  details       String        @db.Text
+  transactionId String? // payment / UPI / bank reference, for Pro plan reports
+  contactEmail  String?
+  status        SupportStatus @default(OPEN)
+  adminNote     String?       @db.Text // reply shown to the user on /report
+  createdAt     DateTime      @default(now())
+  resolvedAt    DateTime?
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@index([problemId])
 }
 
 /* ---------- Blog ---------- */

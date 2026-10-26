@@ -25,7 +25,7 @@ import { getProblemNeighbors, getUpNext } from '@/lib/problems';
 import JsonLd from '@/components/JsonLd';
 import { buildMetadata, breadcrumbJsonLd, fitTitle, graph, plainText, problemJsonLd, truncate } from '@/lib/seo';
 
-import { ChevronLeft, ChevronRight, Code, FileText, Flask, Lock, Users } from '@/components/icons';
+import { ChevronLeft, ChevronRight, Code, FileText, Flag, Flask, Lock, Users } from '@/components/icons';
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
@@ -129,6 +129,7 @@ export default async function ProblemPage({ params, searchParams }) {
 
   const pill = 'rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-medium text-muted';
   const sectionTitle = 'cursor-pointer list-none text-sm font-semibold marker:hidden [&::-webkit-details-marker]:hidden';
+  const reportBtn = 'inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-2';
 
   const description = (
     <article>
@@ -205,6 +206,14 @@ export default async function ProblemPage({ params, searchParams }) {
             </ul>
           </details>
         )}
+      </div>
+
+      {/* Report a mistake in this question */}
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+        <p className="text-xs text-muted">Found a mistake in this question?</p>
+        <Link href={`/report?type=problem&problem=${slug}&issue=incorrect-question`} className={reportBtn}>
+          <Flag width={14} height={14} /> Report a problem
+        </Link>
       </div>
     </article>
   );
@@ -283,6 +292,13 @@ export default async function ProblemPage({ params, searchParams }) {
             ) : (
               <p className="mt-3 text-sm text-muted">No reference answer has been added for this problem yet.</p>
             )}
+            {/* Report a mistake in the reference answer */}
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+              <p className="text-xs text-muted">Spotted a mistake in this answer?</p>
+              <Link href={`/report?type=problem&problem=${slug}&issue=incorrect-solution`} className={reportBtn}>
+                <Flag width={14} height={14} /> Report a problem
+              </Link>
+            </div>
           </details>
 
           <div className="mt-6 border-t border-line pt-5">

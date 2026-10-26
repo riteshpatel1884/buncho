@@ -21,6 +21,7 @@ const COLUMNS = [
       { href: '/dashboard#saved', label: 'Saved problems' },
       { href: '/privacy', label: 'Privacy' },
       { href: '/terms', label: 'Terms' },
+      { href: '/report', label: 'Report a problem' },
     ],
   },
   {
