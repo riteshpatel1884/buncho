@@ -10,11 +10,13 @@ import { ProBadge } from './ProBadge';
 import { Search } from './icons';
 import { getOrCreateUser } from '@/lib/user';
 import { getIsPro } from '@/lib/subscription';
+import { isAdmin } from '@/lib/admin';
 
 export default async function Navbar() {
   const { userId } = await auth();
   const user = userId ? await getOrCreateUser() : null;
   const isPro = user ? await getIsPro(user.id) : false;
+  const admin = Boolean(user) && isAdmin(user);
 
   const links = [
     { href: '/problems', label: 'Problems', match: ['/topics'] },
@@ -26,10 +28,18 @@ export default async function Navbar() {
         ]
       : []),
     { href: '/pricing', label: 'Pricing' },
+    // Only admins ever get this link
+    ...(admin ? [{ href: '/admin', label: 'Admin' }] : []),
   ];
 
   // On phones the account lives inside the hamburger menu
   const profile = userId ? { name: user?.name ?? null, email: user?.email ?? null, imageUrl: user?.imageUrl ?? null } : null;
+
+  // Gold search bar for Pro members
+  const searchBox = isPro
+    ? 'bg-gradient-to-br from-amber-300 via-amber-400 to-amber-500 text-amber-950 shadow-sm shadow-amber-500/30 placeholder:text-amber-900/70'
+    : 'bg-surface-2 placeholder:text-muted';
+  const searchIcon = isPro ? 'text-amber-900' : 'text-muted';
 
   return (
     <NavShell premium={isPro}>
@@ -56,13 +66,13 @@ export default async function Navbar() {
         <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
           <form action="/problems" role="search" className="relative hidden lg:block">
             <label htmlFor="nav-search" className="sr-only">Search problems</label>
-            <Search width={16} height={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+            <Search width={16} height={16} className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${searchIcon}`} />
             <input
               id="nav-search"
               name="q"
               type="search"
               placeholder="Search problems"
-              className="h-9 w-52 rounded-full bg-surface-2 pl-9 pr-3 text-sm outline-none transition-[width] duration-300 placeholder:text-muted group-data-[compact=true]/nav:h-8 group-data-[compact=true]/nav:w-40"
+              className={`h-9 w-52 rounded-full pl-9 pr-3 text-sm outline-none transition-[width] duration-300 group-data-[compact=true]/nav:h-8 group-data-[compact=true]/nav:w-40 ${searchBox}`}
             />
           </form>
 

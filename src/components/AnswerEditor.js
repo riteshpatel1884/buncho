@@ -39,7 +39,7 @@ const PLACEHOLDER = {
 };
 
 const HINT = {
-  python: 'Write code and explain your reasoning in # comments or """docstrings""". Dictated text is added as a # comment.',
+  python: 'Write code and explain your reasoning in # comments or """docstrings""". Dictated text is added as one # comment line.',
 };
 
 // Works out the language and editor text from a saved answer
@@ -81,6 +81,8 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
   const activeRef = useRef(0);
   const langRef = useRef(codeLang);
   langRef.current = codeLang;
+  // True while dictated words are still being added to the same comment line (one line per dictation session)
+  const lineOpenRef = useRef(false);
   const [everSaved, setEverSaved] = useState(hasSubmission);
   const [message, setMessage] = useState(null);
   const [evaluating, setEvaluating] = useState(false);
@@ -97,6 +99,7 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
 
   function changeLanguage(next) {
     setCodeLang(next);
+    lineOpenRef.current = false;
     try {
       localStorage.setItem(LANGUAGE_KEY, next);
     } catch {}
@@ -119,13 +122,19 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
     [compose],
   );
 
-  // Dictated phrases go to the end of the answer (or of the focused step), as a comment in code languages
+  // Dictated phrases go to the end of the answer (or of the focused step). In code languages they are written
+  // as a comment: the first phrase of a dictation session starts a new "# ..." line and every later phrase of
+  // that session continues on the same line.
   const appendSpeech = useCallback(
     (chunk) => {
       const prefix = commentPrefix(langRef.current);
+      const continueLine = lineOpenRef.current;
+      lineOpenRef.current = true;
+
       const join = (prev) => {
         const base = prev.replace(/\s+$/, '');
         if (!prefix) return base ? `${base} ${chunk}` : chunk;
+        if (continueLine && base) return `${base} ${chunk}`;
         return `${base ? `${base}\n` : ''}${prefix}${chunk}`;
       };
       if (stepList) {
@@ -147,10 +156,20 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
     onFinalText: appendSpeech,
   });
 
+  function startDictation() {
+    lineOpenRef.current = false; // a new session starts a new comment line
+    start();
+  }
+
+  function stopDictation() {
+    lineOpenRef.current = false;
+    stop();
+  }
+
   const dirty = content !== savedText;
 
   function handleSave() {
-    if (listening) stop();
+    if (listening) stopDictation();
     setMessage(null);
     startTransition(async () => {
       const res = await saveSubmission(problemId, content);
@@ -192,7 +211,7 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
           <>
             <button
               type="button"
-              onClick={listening ? stop : start}
+              onClick={listening ? stopDictation : startDictation}
               aria-pressed={listening}
               className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                 listening ? 'bg-hard text-white' : 'bg-surface-2 text-ink hover:bg-line'
@@ -247,9 +266,13 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
                   minHeight="7rem"
                   onFocus={() => {
                     activeRef.current = i;
+                    lineOpenRef.current = false;
                     setActive(i);
                   }}
-                  onChange={(value) => setParts((prev) => fit(prev.map((p, j) => (j === i ? value : p)), i))}
+                  onChange={(value) => {
+                    lineOpenRef.current = false; // the learner typed, so the next dictated phrase starts a fresh line
+                    setParts((prev) => fit(prev.map((p, j) => (j === i ? value : p)), i));
+                  }}
                 />
               </div>
             </div>
@@ -263,7 +286,10 @@ export default function AnswerEditor({ problemId, initialContent = '', hasSubmis
             label="Your answer"
             placeholder={PLACEHOLDER[codeLang]}
             minHeight="16rem"
-            onChange={(value) => setText(limitText(value, codeLang))}
+            onChange={(value) => {
+              lineOpenRef.current = false; // the learner typed, so the next dictated phrase starts a fresh line
+              setText(limitText(value, codeLang));
+            }}
           />
         </div>
       )}
