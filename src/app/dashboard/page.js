@@ -62,17 +62,6 @@ export default async function DashboardPage() {
           </span>
           <Greeting name={firstName} pro={pro} />
         </div>
-        <div className="flex shrink-0 flex-wrap gap-3">
-          <Link href="/problems" className="rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-surface-2">
-            Browse problems
-          </Link>
-          <Link
-            href={next ? `/problems/${next.slug}` : '/problems'}
-            className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink transition-opacity hover:opacity-90"
-          >
-            {next ? 'Next problem' : 'Start practicing'}
-          </Link>
-        </div>
       </header>
 
       {pro && (
