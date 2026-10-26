@@ -97,6 +97,21 @@ enum PostLevel {
   ADVANCED
 }
 
+// Sponsor banners on /problems: the two columns of the "Sponsored" section
+enum AdSlot {
+  SLOT_1
+  SLOT_2
+}
+
+enum AdStatus {
+  PENDING_PAYMENT // checkout started, not paid yet
+  PAID // paid, waiting for the admin to approve
+  APPROVED // approved by the admin. Shown while startsAt <= now < endsAt
+  REJECTED // admin said no (refund by hand in the Dodo dashboard)
+  ENDED // admin ended it early
+  FAILED // the checkout could not be created
+}
+
 /* ---------- Core models (Phase 1-2) ---------- */
 
 model User {
@@ -135,6 +150,8 @@ model User {
   blogLikes        BlogLike[]
   blogComments     BlogComment[]
   blogFeedback     BlogFeedback[]
+  // Sponsor banners
+  adBookings       AdBooking[]
 
   @@index([email])
 }
@@ -493,6 +510,51 @@ model Payment {
   discountPaise Int           @default(0)
   discountCode  String?
 
+  @@index([userId, createdAt])
+}
+
+/* ---------- Sponsor banners (the "Sponsored" section on /problems) ---------- */
+
+// One row per banner purchase, paid through Dodo Payments. The flow is PENDING_PAYMENT -> PAID -> APPROVED.
+// A banner is live while status is APPROVED and now is between startsAt and endsAt, so expiry needs no cron job.
+// Price, currency and period are stored on the row, so changing the env prices later never alters a booking.
+model AdBooking {
+  id            String   @id @default(cuid())
+  orderId       String   @unique // our own id ("ad_..."), sent to Dodo as metadata.order_id
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  slot          AdSlot
+  status        AdStatus @default(PENDING_PAYMENT)
+
+  // What the advertiser wants shown
+  companyName   String
+  tagline       String
+  description   String?  @db.Text
+  linkUrl       String
+  logoUrl       String?
+  ctaLabel      String   @default("Learn more")
+  contactEmail  String
+
+  // Payment (Dodo)
+  amountCents   Int
+  currency      String   @default("USD")
+  periodMonths  Int      @default(1)
+  dodoSessionId String?
+  dodoPaymentId String?
+  paymentMethod String?
+  payerEmail    String?
+  paidAt        DateTime?
+
+  // Review and schedule (set by the admin)
+  reviewedAt    DateTime?
+  startsAt      DateTime?
+  endsAt        DateTime?
+  adminNote     String?  @db.Text
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status, slot, endsAt])
   @@index([userId, createdAt])
 }
 

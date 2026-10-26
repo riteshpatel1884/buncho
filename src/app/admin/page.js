@@ -24,6 +24,12 @@ const ICONS = {
       <path d="M2 10h20" />
     </>
   ),
+  ads: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M3 9h18M9 9v11" />
+    </>
+  ),
   blog: (
     <>
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -53,13 +59,15 @@ export default async function AdminHomePage() {
   const now = new Date();
   // A failed count shows "—" instead of breaking the whole page
   const safe = (p) => p.catch(() => null);
-  const [users, activePro, posts, drafts, openAnswers, openSupport] = await Promise.all([
+  const [users, activePro, posts, drafts, openAnswers, openSupport, adsAwaiting, adsLive] = await Promise.all([
     safe(prisma.user.count()),
     safe(prisma.subscription.count({ where: { currentPeriodEnd: { gt: now } } })),
     safe(prisma.blogPost.count()),
     safe(prisma.blogPost.count({ where: { status: { in: ['DRAFT', 'UNPUBLISHED'] } } })),
     safe(prisma.communityAnswer.count({ where: { reports: { some: { status: 'OPEN' } } } })),
     safe(prisma.supportReport.count({ where: { status: 'OPEN' } })),
+    safe(prisma.adBooking.count({ where: { status: 'PAID' } })),
+    safe(prisma.adBooking.count({ where: { status: 'APPROVED', endsAt: { gt: now } } })),
   ]);
   const n = (v) => (v === null ? '—' : v.toLocaleString('en-IN'));
   const waiting = (openAnswers ?? 0) + (openSupport ?? 0);
@@ -79,6 +87,14 @@ export default async function AdminHomePage() {
       title: 'Pricing and offers',
       text: 'Set the Pro price, run offers, create promo codes and check recent payments.',
       stat: `${n(activePro)} active Pro`,
+    },
+    {
+      href: '/admin/ads',
+      icon: 'ads',
+      title: 'Sponsor ads',
+      text: 'Banners people paid for on the problems page. See who paid, then approve to put a banner live.',
+      stat: adsAwaiting ? `${n(adsAwaiting)} awaiting approval` : `${n(adsLive)} live`,
+      attention: (adsAwaiting ?? 0) > 0,
     },
     {
       href: '/admin/blog',
@@ -101,6 +117,7 @@ export default async function AdminHomePage() {
     { href: '/admin/blog/new', label: 'New blog post' },
     { href: '/admin/users/export', label: 'Download all users (CSV)', plain: true },
     { href: '/pricing', label: 'View pricing page' },
+    { href: '/advertise', label: 'View advertise page' },
   ];
 
   return (
