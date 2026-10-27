@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { getOrCreateUser } from '@/lib/user';
 import { getEntitlements } from '@/lib/subscription';
 import { getQuote, monthsLabel } from '@/lib/pricing';
+import { dodoConfigured } from '@/lib/dodo';
+import { formatMoney } from '@/lib/money';
 import CheckoutButton from '@/components/billing/CheckoutButton';
 import { ProBadge } from '@/components/ProBadge';
 import { BackLink, Eyebrow, Gradient, Hero, card } from '@/components/jobs/ui';
@@ -49,8 +51,12 @@ function Item({ children, locked = false }) {
 export default async function PricingPage() {
   const user = await getOrCreateUser();
   const ent = await getEntitlements(user?.id ?? null);
-  const quote = await getQuote({ userId: user?.id ?? null });
+  const [quote, usdQuote] = await Promise.all([
+    getQuote({ userId: user?.id ?? null }),
+    getQuote({ userId: user?.id ?? null, currency: 'USD' }),
+  ]);
   const { settings } = quote;
+  const usdEnabled = dodoConfigured();
 
   const listRupees = Math.round(quote.listPaise / 100);
   const finalRupees = Math.round(quote.finalPaise / 100);
@@ -127,6 +133,11 @@ export default async function PricingPage() {
             <span className="text-3xl font-semibold tracking-tight">₹{finalRupees}</span>
             <span className="text-sm font-normal text-muted">/ {period}</span>
           </p>
+          {usdEnabled && (
+            <p className="mt-1 text-sm text-muted tabular-nums">
+              or {formatMoney(usdQuote.finalPaise, 'USD')} USD if you pay in another currency
+            </p>
+          )}
           {quote.bonusDays > 0 && <p className="mt-1 text-sm font-medium text-accent">+ {quote.bonusDays} bonus days free</p>}
 
           <ul className="mt-5 space-y-3 border-t border-line pt-5">
@@ -144,6 +155,8 @@ export default async function PricingPage() {
               open={settings.checkoutOpen}
               label={ent.isPro ? `Add ${period}` : 'Upgrade to Pro'}
               price={finalRupees}
+              priceUsdCents={usdQuote.finalPaise}
+              usdEnabled={usdEnabled}
             />
           </div>
         </section>

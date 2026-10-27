@@ -8,6 +8,9 @@ export const OFFER_TYPES = {
   EXTRA_DAYS: 'Bonus days free',
 };
 
+export const PRO_PRICE_USD_CENTS = 299;
+const MIN_MINOR = 100; // ₹1 or $1: the lowest price the payment providers can charge
+
 export const monthsLabel = (n) => (n === 1 ? '1 month' : `${n} months`);
 export const normalizeCode = (s) => String(s ?? '').toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 24);
 
@@ -23,6 +26,7 @@ export function addMonths(date, n) {
 const DEFAULTS = {
   proName: 'Buncho Pro',
   priceInr: PRO_PRICE_INR,
+  priceUsdCents: PRO_PRICE_USD_CENTS,
   periodMonths: PRO_PERIOD_MONTHS,
   checkoutOpen: true,
   offerOn: false,
@@ -40,6 +44,7 @@ export const getBillingSettings = cache(async () => {
     return {
       proName: row.proName || DEFAULTS.proName,
       priceInr: row.priceInr,
+      priceUsdCents: row.priceUsdCents ?? DEFAULTS.priceUsdCents,
       periodMonths: row.periodMonths,
       checkoutOpen: row.checkoutOpen,
       offerOn: row.offerOn,
@@ -63,11 +68,19 @@ export function describeDeal(type, value) {
 
 const siteOfferActive = (s) => s.offerOn && s.offerValue > 0 && (!s.offerEndsAt || s.offerEndsAt > new Date());
 
-function dealFor(type, value, listRupees) {
-  if (type === 'PERCENT_OFF') return { discountRupees: Math.round((listRupees * Math.min(value, 99)) / 100), bonusDays: 0 };
-  if (type === 'FLAT_OFF') return { discountRupees: Math.min(value, listRupees - 1), bonusDays: 0 };
-  if (type === 'EXTRA_DAYS') return { discountRupees: 0, bonusDays: value };
-  return { discountRupees: 0, bonusDays: 0 };
+// A flat offer is written in rupees, so it only makes sense when paying in INR.
+const worksIn = (currency, type) => currency === 'INR' || type !== 'FLAT_OFF';
+
+/** Discount in minor units (paise or cents). INR percent discounts stay in whole rupees. */
+function dealFor(type, value, listMinor, currency) {
+  if (type === 'PERCENT_OFF') {
+    const pct = Math.min(value, 99);
+    const discountMinor = currency === 'INR' ? Math.round(((listMinor / 100) * pct) / 100) * 100 : Math.round((listMinor * pct) / 100);
+    return { discountMinor, bonusDays: 0 };
+  }
+  if (type === 'FLAT_OFF') return { discountMinor: Math.max(0, Math.min(value * 100, listMinor - MIN_MINOR)), bonusDays: 0 };
+  if (type === 'EXTRA_DAYS') return { discountMinor: 0, bonusDays: value };
+  return { discountMinor: 0, bonusDays: 0 };
 }
 
 /** Checks a promo code for this user. Returns { ok: true, row } or { ok: false, error }. */
@@ -88,13 +101,14 @@ export async function findUsableCode(raw, userId) {
 }
 
 /**
- * The price a visitor pays right now. A valid promo code replaces the site-wide offer (they do not stack).
- * Whole rupees only, and never below ₹1 because the payment provider cannot charge less.
+ * The price a visitor pays right now, in INR (default) or USD. A valid promo code replaces the site-wide offer.
+ * All money fields are minor units: paise for INR, cents for USD (the names keep "Paise" so older code still works).
  * If a code was given but is invalid, `error` is set and the normal (offer or list) price is returned.
  */
-export async function getQuote({ userId = null, code = '' } = {}) {
+export async function getQuote({ userId = null, code = '', currency = 'INR' } = {}) {
+  const cur = currency === 'USD' ? 'USD' : 'INR';
   const settings = await getBillingSettings();
-  const listRupees = settings.priceInr;
+  const listMinor = cur === 'USD' ? settings.priceUsdCents : settings.priceInr * 100;
 
   let deal = null;
   let source = null;
@@ -103,28 +117,31 @@ export async function getQuote({ userId = null, code = '' } = {}) {
 
   if (String(code ?? '').trim()) {
     const found = await findUsableCode(code, userId);
-    if (found.ok) {
+    if (!found.ok) {
+      error = found.error;
+    } else if (!worksIn(cur, found.row.type)) {
+      error = 'That code only works when paying in INR.';
+    } else {
       deal = { type: found.row.type, value: found.row.value };
       source = 'code';
       usedCode = found.row.code;
-    } else {
-      error = found.error;
     }
   }
-  if (!deal && siteOfferActive(settings)) {
+  if (!deal && siteOfferActive(settings) && worksIn(cur, settings.offerType)) {
     deal = { type: settings.offerType, value: settings.offerValue };
     source = 'offer';
   }
 
-  const { discountRupees, bonusDays } = deal ? dealFor(deal.type, deal.value, listRupees) : { discountRupees: 0, bonusDays: 0 };
-  const finalRupees = Math.max(1, listRupees - discountRupees);
+  const { discountMinor, bonusDays } = deal ? dealFor(deal.type, deal.value, listMinor, cur) : { discountMinor: 0, bonusDays: 0 };
+  const finalMinor = Math.max(MIN_MINOR, listMinor - discountMinor);
 
   return {
     settings,
+    currency: cur,
     months: settings.periodMonths,
-    listPaise: listRupees * 100,
-    finalPaise: finalRupees * 100,
-    discountPaise: (listRupees - finalRupees) * 100,
+    listPaise: listMinor,
+    finalPaise: finalMinor,
+    discountPaise: Math.max(0, listMinor - finalMinor),
     bonusDays,
     dealLabel: deal ? describeDeal(deal.type, deal.value) : '',
     source,

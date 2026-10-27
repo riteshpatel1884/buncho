@@ -44,6 +44,7 @@ export async function saveSettings(formData) {
 
   const proName = text(formData, 'proName', 40);
   const priceInr = int(formData, 'priceInr');
+  const priceUsdCents = Math.round(Number(String(formData.get('priceUsd') ?? '').trim()) * 100);
   const periodMonths = int(formData, 'periodMonths');
   const checkoutOpen = formData.get('checkoutOpen') === 'on';
   const offerOn = formData.get('offerOn') === 'on';
@@ -54,6 +55,7 @@ export async function saveSettings(formData) {
 
   if (proName.length < 2) back('error', 'Give the plan a name (at least 2 characters).');
   if (!Number.isInteger(priceInr) || priceInr < 1 || priceInr > 100000) back('error', 'Price must be a whole number from ₹1 to ₹100000.');
+  if (!Number.isInteger(priceUsdCents) || priceUsdCents < 100 || priceUsdCents > 100000) back('error', 'The USD price must be from $1 to $1000.');
   if (!Number.isInteger(periodMonths) || periodMonths < 1 || periodMonths > 24) back('error', 'Period must be 1 to 24 months.');
   if (offerEndsAt === undefined) back('error', 'The offer end date is not valid.');
   if (offerOn) {
@@ -64,6 +66,7 @@ export async function saveSettings(formData) {
   const data = {
     proName,
     priceInr,
+    priceUsdCents,
     periodMonths,
     checkoutOpen,
     offerOn,

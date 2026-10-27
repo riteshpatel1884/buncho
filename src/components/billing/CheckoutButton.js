@@ -4,6 +4,8 @@ import { useState, useTransition } from 'react';
 import { previewPrice, startCheckout } from '@/app/billing-actions';
 import Spinner from '@/components/Spinner';
 import { ctaBtn } from '@/components/jobs/ui';
+import { formatMoney } from '@/lib/money';
+import CurrencyDialog from './CurrencyDialog';
 
 const SDK = 'https://sdk.cashfree.com/js/v3/cashfree.js';
 
@@ -19,16 +21,21 @@ function loadSdk() {
   });
 }
 
-// price: rupees the buyer pays now (site-wide offer already included). open: false when the admin paused upgrades.
-export default function CheckoutButton({ signedIn, label = 'Upgrade to Pro', price, open = true }) {
+/**
+ * price: rupees the buyer pays now in INR (site-wide offer already included).
+ * priceUsdCents: the same in US cents, for "other currency". usdEnabled: false when Dodo is not set up.
+ * open: false when the admin paused upgrades.
+ */
+export default function CheckoutButton({ signedIn, label = 'Upgrade to Pro', price, priceUsdCents, usdEnabled = false, open = true }) {
   const [codeOpen, setCodeOpen] = useState(false);
   const [code, setCode] = useState('');
-  const [applied, setApplied] = useState(null); // { code, finalRupees, message }
+  const [applied, setApplied] = useState(null); // { code, inrRupees, usdCents, message }
   const [codeError, setCodeError] = useState(null);
   const [error, setError] = useState(null);
+  const [chooserOpen, setChooserOpen] = useState(false);
+  const [payingWith, setPayingWith] = useState(null); // 'INR' | 'USD' | null
   const [pending, start] = useTransition();
   const [checking, startCheck] = useTransition();
-  const [redirecting, setRedirecting] = useState(false);
 
   if (!signedIn) {
     return (
@@ -66,31 +73,44 @@ export default function CheckoutButton({ signedIn, label = 'Upgrade to Pro', pri
     setCodeError(null);
   }
 
-  function pay(e) {
-    e.preventDefault();
+  function openChooser() {
     setError(null);
+    setPayingWith(null);
+    setChooserOpen(true);
+  }
+
+  function pay(currency) {
+    setError(null);
+    setPayingWith(currency);
     start(async () => {
       try {
-        const res = await startCheckout({ code: applied ? applied.code : '' });
-        if (!res.ok) return setError(res.error);
+        const res = await startCheckout({ code: applied ? applied.code : '', currency });
+        if (!res.ok) {
+          setPayingWith(null);
+          return setError(res.error);
+        }
+        if (res.provider === 'DODO') {
+          window.location.assign(res.url); // Dodo hosted checkout
+          return;
+        }
         await loadSdk();
         const cashfree = window.Cashfree({ mode: res.mode });
-        setRedirecting(true);
         await cashfree.checkout({ paymentSessionId: res.paymentSessionId, redirectTarget: '_self' });
       } catch (err) {
         // Catch everything here so a failure shows a message instead of crashing the whole page.
         console.error(err);
-        setRedirecting(false);
+        setPayingWith(null);
         setError(err?.message || 'Could not open the payment window. Please try again.');
       }
     });
   }
 
-  const busy = pending || redirecting;
-  const shown = applied ? applied.finalRupees : price;
+  const busy = pending || Boolean(payingWith);
+  const shownInr = applied ? applied.inrRupees : price;
+  const shownUsd = applied ? applied.usdCents : priceUsdCents;
 
   return (
-    <form onSubmit={pay} className="space-y-3">
+    <div className="space-y-3">
       {applied ? (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-accent/40 bg-accent-soft px-3.5 py-2.5 text-sm">
           <span className="font-medium text-accent">{applied.message}</span>
@@ -106,6 +126,12 @@ export default function CheckoutButton({ signedIn, label = 'Upgrade to Pro', pri
               id="promo-code"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (code.trim() && !checking) apply();
+                }
+              }}
               maxLength={24}
               autoComplete="off"
               placeholder="ENTER CODE"
@@ -129,12 +155,26 @@ export default function CheckoutButton({ signedIn, label = 'Upgrade to Pro', pri
         </button>
       )}
 
-      <button type="submit" disabled={busy} aria-busy={busy} className={`${ctaBtn} w-full`}>
+      <button type="button" onClick={openChooser} disabled={busy} aria-haspopup="dialog" className={`${ctaBtn} w-full`}>
         {busy && <Spinner size={14} />}
-        {busy ? 'Opening payment…' : shown != null ? `${label} · ₹${shown}` : label}
+        {label}
+        {shownInr != null && ` · ${formatMoney(shownInr * 100, 'INR')}`}
       </button>
-      {error && <p role="alert" className="text-xs text-hard">{error}</p>}
-      <p className="text-center text-[0.7rem] text-muted">Secure payment by Cashfree. UPI, cards and net banking.</p>
-    </form>
+      <p className="text-center text-[0.7rem] text-muted">
+        Pay in INR (UPI, cards, net banking){usdEnabled && shownUsd != null ? ` or in another currency (${formatMoney(shownUsd, 'USD')} USD)` : ''}.
+      </p>
+
+      <CurrencyDialog
+        open={chooserOpen}
+        onClose={() => !busy && setChooserOpen(false)}
+        busyWith={payingWith}
+        error={error}
+        inrRupees={shownInr ?? 0}
+        usdCents={shownUsd ?? 0}
+        usdEnabled={usdEnabled && shownUsd != null}
+        note={applied && !applied.message.includes('INR payments only') ? null : applied ? 'Your promo code only applies to INR payments.' : null}
+        onPick={pay}
+      />
+    </div>
   );
 }

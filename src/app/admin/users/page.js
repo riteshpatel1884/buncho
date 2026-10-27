@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { getOrCreateUser } from '@/lib/user';
 import { isAdmin } from '@/lib/admin';
 import { PAGE_SIZE, PLAN_FILTERS, SORTS, buildWhere, loadUsers, parseUserParams, planOf } from '@/lib/admin-users';
+import { formatMoney } from '@/lib/money';
 import { ProBadge } from '@/components/ProBadge';
 
 export const metadata = { title: 'Users' };
@@ -12,7 +13,12 @@ export const dynamic = 'force-dynamic';
 const DAY = 86400000;
 const dateFmt = (d) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
 const dateTimeFmt = (d) => d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
-const rupees = (paise) => `₹${(paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+
+// What a user has paid in total, per currency, e.g. "₹99 + $2.99". Rupees and dollars are never added together.
+const paidText = (u) =>
+  [u.paidPaise > 0 && formatMoney(u.paidPaise, 'INR'), u.paidUsdCents > 0 && formatMoney(u.paidUsdCents, 'USD')]
+    .filter(Boolean)
+    .join(' + ');
 
 function ago(d, now) {
   const days = Math.floor((now.getTime() - d.getTime()) / DAY);
@@ -205,7 +211,7 @@ export default async function AdminUsersPage({ searchParams }) {
                     <td className="px-4 py-3 text-right tabular-nums">
                       {u.paidOrders ? (
                         <>
-                          <p className="font-semibold">{rupees(u.paidPaise)}</p>
+                          <p className="font-semibold">{paidText(u) || '—'}</p>
                           <p className="text-xs text-muted">{u.paidOrders} order{u.paidOrders === 1 ? '' : 's'}</p>
                         </>
                       ) : (

@@ -1,14 +1,22 @@
 import crypto from 'node:crypto';
 
 /**
- * Dodo Payments over REST (no extra dependency), used for the sponsor banners.
+ * Dodo Payments over REST (no extra dependency). Used for sponsor banners and for Pro payments in other currencies.
  * Env: DODO_PAYMENTS_API_KEY, DODO_PAYMENTS_ENV ("live_mode" | "test_mode"), DODO_PAYMENTS_WEBHOOK_SECRET,
- *      DODO_AD_PRODUCT_ID (a one-time USD product with "Pay What You Want" turned on), NEXT_PUBLIC_APP_URL
+ *      DODO_AD_PRODUCT_ID  (one-time USD product with "Pay What You Want" on, for banners),
+ *      DODO_PRO_PRODUCT_ID (same kind of product, named "Buncho Pro", for Pro payments),
+ *      NEXT_PUBLIC_APP_URL
  */
 export const DODO_MODE = process.env.DODO_PAYMENTS_ENV === 'live_mode' ? 'live_mode' : 'test_mode';
 const BASE = DODO_MODE === 'live_mode' ? 'https://live.dodopayments.com' : 'https://test.dodopayments.com';
 
 export const appUrl = () => (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
+
+/** The Pro product. Falls back to the banner product if you have not made a separate one yet. */
+export const proProductId = () => process.env.DODO_PRO_PRODUCT_ID || process.env.DODO_AD_PRODUCT_ID || '';
+
+/** True when paying in other currencies can work (shown to the buyer as available or not). */
+export const dodoConfigured = () => Boolean(process.env.DODO_PAYMENTS_API_KEY && proProductId());
 
 function apiKey() {
   const key = process.env.DODO_PAYMENTS_API_KEY;
@@ -31,17 +39,18 @@ async function dodo(path, init = {}) {
 }
 
 /**
- * Creates a hosted checkout for one banner. The amount is sent per session (Pay What You Want product),
+ * Creates a hosted checkout. The amount is sent per session (Pay What You Want product),
  * in the lowest currency unit (cents). Returns { session_id, checkout_url }.
+ * productId defaults to the banner product, so the sponsor flow keeps working unchanged.
  */
-export async function createDodoCheckout({ orderId, amountCents, email, name, returnUrl, metadata }) {
-  const productId = process.env.DODO_AD_PRODUCT_ID;
-  if (!productId) throw new Error('Set DODO_AD_PRODUCT_ID to the id of your Pay What You Want product.');
+export async function createDodoCheckout({ orderId, amountCents, email, name, returnUrl, metadata, productId }) {
+  const product = productId || process.env.DODO_AD_PRODUCT_ID;
+  if (!product) throw new Error('Set DODO_AD_PRODUCT_ID or DODO_PRO_PRODUCT_ID to the id of your Pay What You Want product.');
 
   const body = await dodo('/checkouts', {
     method: 'POST',
     body: JSON.stringify({
-      product_cart: [{ product_id: productId, quantity: 1, amount: amountCents }],
+      product_cart: [{ product_id: product, quantity: 1, amount: amountCents }],
       ...(email && { customer: { email, ...(name && { name: String(name).slice(0, 100) }) } }),
       return_url: returnUrl,
       metadata: { order_id: orderId, ...metadata },

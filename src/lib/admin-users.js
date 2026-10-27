@@ -69,8 +69,9 @@ export async function loadUsers({ where, sort = 'new', skip = 0, take = PAGE_SIZ
       _count: { _all: true },
       _max: { lastActivityAt: true },
     }),
+    // Grouped by currency as well, so rupees and dollars are never added together
     prisma.payment.groupBy({
-      by: ['userId'],
+      by: ['userId', 'currency'],
       where: { userId: { in: ids }, status: 'PAID' },
       _count: { _all: true },
       _sum: { amountPaise: true },
@@ -79,7 +80,14 @@ export async function loadUsers({ where, sort = 'new', skip = 0, take = PAGE_SIZ
 
   const solvedBy = new Map(solved.map((r) => [r.userId, r._count._all]));
   const activityBy = new Map(activity.map((r) => [r.userId, r]));
-  const paidBy = new Map(paid.map((r) => [r.userId, r]));
+  const paidBy = new Map();
+  paid.forEach((r) => {
+    const row = paidBy.get(r.userId) ?? { orders: 0, inrPaise: 0, usdCents: 0 };
+    row.orders += r._count._all;
+    if (r.currency === 'INR') row.inrPaise += r._sum.amountPaise ?? 0;
+    if (r.currency === 'USD') row.usdCents += r._sum.amountPaise ?? 0;
+    paidBy.set(r.userId, row);
+  });
 
   return users.map((u) => ({
     id: u.id,
@@ -91,8 +99,9 @@ export async function loadUsers({ where, sort = 'new', skip = 0, take = PAGE_SIZ
     solved: solvedBy.get(u.id) ?? 0,
     attempted: activityBy.get(u.id)?._count._all ?? 0,
     lastActive: activityBy.get(u.id)?._max.lastActivityAt ?? null,
-    paidOrders: paidBy.get(u.id)?._count._all ?? 0,
-    paidPaise: paidBy.get(u.id)?._sum.amountPaise ?? 0,
+    paidOrders: paidBy.get(u.id)?.orders ?? 0, // all currencies
+    paidPaise: paidBy.get(u.id)?.inrPaise ?? 0, // INR only
+    paidUsdCents: paidBy.get(u.id)?.usdCents ?? 0, // USD only
     roles: u._count.jobTargets,
     mocks: u.mockAttemptsUsed,
   }));

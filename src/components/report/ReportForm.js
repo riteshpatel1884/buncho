@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { searchProblemsForReport, submitReport } from '@/app/report/actions';
 import { ISSUES, KIND_HELP, KIND_LABEL, MAX_DETAILS, MIN_DETAILS, SUPPORT_KINDS } from '@/lib/support';
+import { formatMoney } from '@/lib/money';
 import Spinner from '@/components/Spinner';
 
 const input =
@@ -13,7 +14,6 @@ const label = 'text-sm font-medium';
 
 const PAYMENT_STATUS = { PAID: 'Paid', PENDING: 'Pending', FAILED: 'Failed' };
 const dateFmt = (iso) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });
-const rupees = (paise) => `₹${(paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
 export default function ReportForm({ initialKind, initialIssue, initialProblem, accountEmail, proUntil, payments }) {
   const router = useRouter();
@@ -244,7 +244,7 @@ export default function ReportForm({ initialKind, initialIssue, initialProblem, 
                               on ? 'border-accent bg-accent-soft' : 'border-line bg-surface hover:border-muted'
                             }`}
                           >
-                            <span className="tabular-nums">{dateFmt(p.createdAt)} · {rupees(p.amountPaise)}</span>
+                            <span className="tabular-nums">{dateFmt(p.createdAt)} · {formatMoney(p.amountPaise, p.currency)}</span>
                             <span className="text-xs font-semibold text-muted">{PAYMENT_STATUS[p.status] ?? p.status}</span>
                           </button>
                         </li>
@@ -266,7 +266,7 @@ export default function ReportForm({ initialKind, initialIssue, initialProblem, 
                     if (e.target.value) setNoTransaction(false);
                   }}
                   maxLength={64}
-                  placeholder="UPI reference (UTR), Cashfree payment ID or order ID"
+                  placeholder="UPI reference (UTR), Cashfree or Dodo payment ID, or order ID"
                   className={`${input} mt-2`}
                   autoComplete="off"
                 />

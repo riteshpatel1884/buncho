@@ -16,15 +16,20 @@ export default async function BillingReturnPage({ searchParams }) {
   const user = await getOrCreateUser();
   if (!user) redirect('/login?redirect_url=%2Fpricing');
 
-  const { order_id: orderId } = await searchParams;
+  const sp = await searchParams;
+  const orderId = sp?.order_id;
   if (typeof orderId !== 'string' || !/^bnc_[a-z0-9]{20,40}$/.test(orderId)) redirect('/pricing');
 
-  const payment = await prisma.payment.findFirst({ where: { orderId, userId: user.id }, select: { id: true } });
+  const payment = await prisma.payment.findFirst({ where: { orderId, userId: user.id }, select: { id: true, provider: true } });
   if (!payment) redirect('/pricing');
+
+  // Dodo adds ?payment_id=... to the return URL. It is only a hint: the payment is re-checked with Dodo.
+  const rawPid = typeof sp?.payment_id === 'string' ? sp.payment_id : null;
+  const paymentId = payment.provider === 'DODO' && rawPid && /^[A-Za-z0-9_-]{5,64}$/.test(rawPid) ? rawPid : null;
 
   let state;
   try {
-    state = await verifyAndSettle(orderId);
+    state = await verifyAndSettle(orderId, paymentId);
   } catch (err) {
     console.error('[billing] return verification failed', orderId, err);
     state = 'pending';
@@ -33,6 +38,7 @@ export default async function BillingReturnPage({ searchParams }) {
 
   const shell = 'mx-auto w-full max-w-lg px-4 py-20 text-center sm:px-6';
   const box = 'rounded-3xl border border-line bg-surface p-8 sm:p-10';
+  const ghost = 'inline-flex items-center rounded-full border border-line px-5 py-3 text-sm font-semibold hover:border-muted';
 
   if (state === 'paid') {
     return (
@@ -45,7 +51,7 @@ export default async function BillingReturnPage({ searchParams }) {
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Link href="/jobs" className={ctaBtn}>Go to job prep</Link>
-            <Link href="/problems" className="inline-flex items-center rounded-full border border-line px-5 py-3 text-sm font-semibold hover:border-muted">Browse questions</Link>
+            <Link href="/problems" className={ghost}>Browse questions</Link>
           </div>
         </div>
       </div>
@@ -58,11 +64,12 @@ export default async function BillingReturnPage({ searchParams }) {
         <div className={box}>
           <h1 className="text-2xl font-semibold tracking-tight">Confirming your payment</h1>
           <p className="mt-2 text-sm text-muted">
-            We have not received confirmation from your bank yet. UPI payments can take a minute. If money was deducted, Pro switches on automatically as soon as it is confirmed. You do not need to pay again.
+            We have not received confirmation yet. UPI and card payments can take a minute. If money was deducted, Pro switches on automatically as soon as it is confirmed. You do not need to pay again.
           </p>
+          <p className="mt-2 text-sm text-muted">If you closed the payment page without paying, nothing was charged and you can start again from the pricing page.</p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <Link href={`/billing/return?order_id=${orderId}`} className={ctaBtn}>Check again</Link>
-            <Link href="/pricing" className="inline-flex items-center rounded-full border border-line px-5 py-3 text-sm font-semibold hover:border-muted">Back to pricing</Link>
+            <Link href={`/billing/return?order_id=${orderId}${paymentId ? `&payment_id=${paymentId}` : ''}`} className={ctaBtn}>Check again</Link>
+            <Link href="/pricing" className={ghost}>Back to pricing</Link>
           </div>
         </div>
       </div>

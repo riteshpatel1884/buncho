@@ -41,7 +41,7 @@ export default async function ReportPage({ searchParams }) {
       where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
       take: 5,
-      select: { orderId: true, amountPaise: true, status: true, createdAt: true },
+      select: { orderId: true, amountPaise: true, currency: true, status: true, createdAt: true },
     }),
     prisma.supportReport.findMany({
       where: { userId: user.id },
@@ -69,6 +69,7 @@ export default async function ReportPage({ searchParams }) {
           payments={payments.map((p) => ({
             orderId: p.orderId,
             amountPaise: p.amountPaise,
+            currency: p.currency,
             status: p.status,
             createdAt: p.createdAt.toISOString(),
           }))}

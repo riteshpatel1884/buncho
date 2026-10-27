@@ -6,6 +6,7 @@ import { isAdmin } from '@/lib/admin';
 import { moderateAnswer } from '@/app/community-actions';
 import { REPORT_REASON_LABEL } from '@/lib/constants';
 import { KIND_LABEL, STATUS_LABEL, SUPPORT_KINDS, issueLabel } from '@/lib/support';
+import { formatMoney } from '@/lib/money';
 import Markdown from '@/components/Markdown';
 import PendingButton from '@/components/PendingButton';
 import { updateSupportReport } from './actions';
@@ -18,7 +19,6 @@ const STATUS_FILTERS = ['OPEN', 'RESOLVED', 'DISMISSED', 'ALL'];
 
 const dateTime = (d) => d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
 const dateOnly = (d) => d.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' });
-const rupees = (paise) => `₹${(paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
 const KIND_STYLE = {
   PROBLEM: 'bg-accent-soft text-accent',
@@ -126,14 +126,23 @@ async function SupportTab({ status, kind, page }) {
     }),
   ]);
 
-  // Check the transaction IDs people typed against our own payments
+  // Check the transaction IDs people typed against our own payments (our order id, Cashfree id or Dodo id)
   const txIds = [...new Set(reports.map((r) => r.transactionId).filter(Boolean))];
   const userIds = [...new Set(reports.filter((r) => r.kind === 'PRO_PLAN').map((r) => r.userId))];
   const [matched, recent] = await Promise.all([
     txIds.length
       ? prisma.payment.findMany({
-          where: { OR: [{ orderId: { in: txIds } }, { cfPaymentId: { in: txIds } }] },
-          select: { orderId: true, cfPaymentId: true, status: true, amountPaise: true, createdAt: true, userId: true },
+          where: { OR: [{ orderId: { in: txIds } }, { cfPaymentId: { in: txIds } }, { dodoPaymentId: { in: txIds } }] },
+          select: {
+            orderId: true,
+            cfPaymentId: true,
+            dodoPaymentId: true,
+            status: true,
+            amountPaise: true,
+            currency: true,
+            createdAt: true,
+            userId: true,
+          },
         })
       : [],
     userIds.length
@@ -141,7 +150,7 @@ async function SupportTab({ status, kind, page }) {
           where: { userId: { in: userIds } },
           orderBy: { createdAt: 'desc' },
           take: 100,
-          select: { orderId: true, status: true, amountPaise: true, createdAt: true, userId: true },
+          select: { orderId: true, status: true, amountPaise: true, currency: true, createdAt: true, userId: true },
         })
       : [],
   ]);
@@ -149,6 +158,7 @@ async function SupportTab({ status, kind, page }) {
   matched.forEach((p) => {
     matchBy.set(p.orderId, p);
     if (p.cfPaymentId) matchBy.set(p.cfPaymentId, p);
+    if (p.dodoPaymentId) matchBy.set(p.dodoPaymentId, p);
   });
   const recentBy = new Map();
   recent.forEach((p) => {
@@ -240,7 +250,7 @@ async function SupportTab({ status, kind, page }) {
                       {r.transactionId &&
                         (match ? (
                           <p className={match.userId === r.userId ? 'text-easy' : 'font-semibold text-hard'}>
-                            Matches our order {match.orderId}: {match.status}, {rupees(match.amountPaise)}, {dateOnly(match.createdAt)}
+                            Matches our order {match.orderId}: {match.status}, {formatMoney(match.amountPaise, match.currency)}, {dateOnly(match.createdAt)}
                             {match.userId !== r.userId && ' (this order belongs to a different account!)'}
                           </p>
                         ) : (
@@ -249,7 +259,7 @@ async function SupportTab({ status, kind, page }) {
                       {lastPayments.length > 0 && (
                         <p className="text-xs text-muted">
                           Their latest orders:{' '}
-                          {lastPayments.map((p) => `${p.orderId} (${p.status}, ${rupees(p.amountPaise)})`).join(' · ')}
+                          {lastPayments.map((p) => `${p.orderId} (${p.status}, ${formatMoney(p.amountPaise, p.currency)})`).join(' · ')}
                         </p>
                       )}
                     </div>
