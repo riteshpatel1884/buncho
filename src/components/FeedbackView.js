@@ -1,11 +1,58 @@
 import Markdown from './Markdown';
 import { AI_RUBRIC, AI_RUBRIC_LABEL } from '@/lib/constants';
 
+// Score at or above this means the answer is interview ready
+const READY_SCORE = 75;
+
 const BANDS = [
   { min: 85, label: 'Excellent', cls: 'text-easy' },
-  { min: 70, label: 'Good', cls: 'text-easy' },
+  { min: READY_SCORE, label: 'Good', cls: 'text-easy' },
   { min: 50, label: 'Partial', cls: 'text-medium' },
   { min: 0, label: 'Needs work', cls: 'text-hard' },
+];
+
+// Shown under the score. Pick the first entry whose min the score reaches.
+const READINESS = [
+  {
+    min: 85,
+    range: '85–100',
+    title: 'Interview ready',
+    text: 'Strong answer. You would do well with this in a real interview. Skim the follow-up questions below to stay sharp.',
+    cls: 'text-easy',
+    dot: 'bg-easy',
+  },
+  {
+    min: READY_SCORE,
+    range: '75–84',
+    title: 'Interview ready',
+    text: 'You can relax: answers scoring 75 or more are interview ready. The tips below are only polish.',
+    cls: 'text-easy',
+    dot: 'bg-easy',
+  },
+  {
+    min: 60,
+    range: '60–74',
+    title: 'Almost there',
+    text: 'A few more points and this is interview ready (75+). Cover what is missing below and try again.',
+    cls: 'text-medium',
+    dot: 'bg-medium',
+  },
+  {
+    min: 40,
+    range: '40–59',
+    title: 'Needs improvement',
+    text: 'Good start, but not interview ready yet. Work through "What\'s missing" and rewrite your answer.',
+    cls: 'text-medium',
+    dot: 'bg-medium',
+  },
+  {
+    min: 0,
+    range: '0–39',
+    title: 'Needs more work',
+    text: 'Read the reference solution first, then rewrite the answer in your own words.',
+    cls: 'text-hard',
+    dot: 'bg-hard',
+  },
 ];
 
 const RESULT = {
@@ -41,6 +88,7 @@ function Bullets({ items }) {
 export default function FeedbackView({ evaluation, rubric = [] }) {
   const { score, scores, feedback: f = {}, model, createdAt } = evaluation;
   const band = BANDS.find((b) => score >= b.min);
+  const ready = READINESS.find((r) => score >= r.min);
   const strengths = f.strengths ?? [];
   const missing = f.missing ?? [];
   const inaccuracies = f.inaccuracies ?? [];
@@ -74,6 +122,16 @@ export default function FeedbackView({ evaluation, rubric = [] }) {
             </li>
           ))}
         </ul>
+
+        {/* Interview readiness, based on the score */}
+        <div className="flex basis-full items-start gap-2.5 border-t border-line pt-3">
+          <span aria-hidden="true" className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${ready.dot}`} />
+          <p className="min-w-0 text-sm">
+            <span className={`font-semibold ${ready.cls}`}>{ready.title}</span>
+            <span className="ml-2 text-xs text-muted tabular-nums">Score {ready.range}</span>
+            <span className="mt-0.5 block text-muted">{ready.text}</span>
+          </p>
+        </div>
       </div>
 
       {f.summary && (

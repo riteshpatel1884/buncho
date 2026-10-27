@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Popup from './Popup';
 
 const PRESETS = [1, 2, 3, 4, 5, 10];
 const MIN_PER_DAY = 1;
@@ -23,8 +24,9 @@ function duration(days) {
 }
 
 /**
- * Pace planner: questions left divided by a daily target = days to finish.
- * Everything is live: it recalculates from how many questions the visitor still has to solve.
+ * Pace planner: a slim bar (title + button) that opens the full planner in a popup.
+ * Questions left divided by a daily target = days to finish.
+ * State lives here, so the chosen target is kept while the popup is closed.
  */
 export default function PacePlanner({ remaining, total, signedIn }) {
   const [perDay, setPerDay] = useState(4);
@@ -55,10 +57,12 @@ export default function PacePlanner({ remaining, total, signedIn }) {
 
   if (left <= 0) {
     return (
-      <section aria-label="Daily pace planner" className="rounded-2xl border border-line bg-gradient-to-br from-accent-soft to-surface p-6 text-center">
+      <section
+        aria-label="Daily pace planner"
+        className="rounded-2xl border border-line bg-gradient-to-br from-accent-soft to-surface px-4 py-3 sm:px-5"
+      >
         <p className="text-xs font-semibold uppercase tracking-widest text-accent">Pace planner</p>
-        <h2 className="mt-2 text-xl font-semibold">You have solved every question. Nothing left to plan.</h2>
-        <p className="mt-1 text-sm text-muted">New questions are added regularly, and this planner will pick them up automatically.</p>
+        <h2 className="text-base font-semibold">You have solved every question. Nothing left to plan.</h2>
       </section>
     );
   }
@@ -68,79 +72,66 @@ export default function PacePlanner({ remaining, total, signedIn }) {
   const long = duration(days);
   const perWeek = perDay * 7;
 
-  return (
-    <section
-      aria-label="Daily pace planner"
-      className="relative overflow-hidden rounded-2xl border border-line bg-gradient-to-br from-accent-soft via-surface to-surface p-5 sm:p-7"
-    >
-      <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-accent/10 blur-3xl" />
-
-      <div className="relative grid gap-6 lg:grid-cols-[1.15fr_1fr] lg:items-center">
-        {/* Left: title and custom target */}
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-accent">Pace planner</p>
-          <h2 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">How fast do you want to finish?</h2>
-          <p className="mt-1.5 text-sm text-muted">
-            {signedIn ? (
-              <>You have <span className="font-semibold text-ink tabular-nums">{left}</span> questions left to solve.</>
-            ) : (
-              <>The library has <span className="font-semibold text-ink tabular-nums">{left}</span> questions.</>
-            )}{' '}
-            Pick a daily target and see exactly when you will be done.
-          </p>
-
-          <div className="mt-5 rounded-xl border border-line bg-surface/70 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <label htmlFor="pace-range" className="text-sm font-medium">Your own target</label>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => choose(perDay - 1)}
-                  disabled={perDay <= MIN_PER_DAY}
-                  aria-label="One question less per day"
-                  className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-lg leading-none hover:bg-surface-2 disabled:opacity-40"
-                >
-                  −
-                </button>
-                <span className="min-w-[4.5rem] text-center text-sm font-semibold tabular-nums">{perDay} / day</span>
-                <button
-                  type="button"
-                  onClick={() => choose(perDay + 1)}
-                  disabled={perDay >= MAX_PER_DAY}
-                  aria-label="One question more per day"
-                  className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-lg leading-none hover:bg-surface-2 disabled:opacity-40"
-                >
-                  +
-                </button>
-              </div>
+  const body = (
+    <div>
+      <div className="grid gap-5 lg:grid-cols-[1.15fr_1fr] lg:items-center">
+        {/* Left: custom target */}
+        <div className="rounded-xl border border-line bg-surface-2/40 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <label htmlFor="pace-range" className="text-sm font-medium">Your own target</label>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => choose(perDay - 1)}
+                disabled={perDay <= MIN_PER_DAY}
+                aria-label="One question less per day"
+                className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-lg leading-none hover:bg-surface-2 disabled:opacity-40"
+              >
+                −
+              </button>
+              <span className="min-w-[4.5rem] text-center text-sm font-semibold tabular-nums">{perDay} / day</span>
+              <button
+                type="button"
+                onClick={() => choose(perDay + 1)}
+                disabled={perDay >= MAX_PER_DAY}
+                aria-label="One question more per day"
+                className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-surface text-lg leading-none hover:bg-surface-2 disabled:opacity-40"
+              >
+                +
+              </button>
             </div>
-            <input
-              id="pace-range"
-              type="range"
-              min={MIN_PER_DAY}
-              max={MAX_PER_DAY}
-              value={perDay}
-              onChange={(e) => choose(parseInt(e.target.value, 10))}
-              className="mt-3 w-full accent-accent"
-            />
-            <div className="mt-1 flex justify-between text-[0.7rem] text-muted tabular-nums">
-              <span>{MIN_PER_DAY}</span>
-              <span>{MAX_PER_DAY} per day</span>
-            </div>
+          </div>
+          <input
+            id="pace-range"
+            type="range"
+            min={MIN_PER_DAY}
+            max={MAX_PER_DAY}
+            value={perDay}
+            onChange={(e) => choose(parseInt(e.target.value, 10))}
+            className="mt-3 w-full accent-accent"
+          />
+          <div className="mt-1 flex justify-between text-[0.7rem] text-muted tabular-nums">
+            <span>{MIN_PER_DAY}</span>
+            <span>{MAX_PER_DAY} per day</span>
           </div>
         </div>
 
         {/* Right: the answer */}
-        <div className="rounded-2xl border border-accent/40 bg-surface/80 p-5 text-center sm:p-6">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted">At {perDay} question{perDay === 1 ? '' : 's'} a day</p>
+        <div className="rounded-2xl border border-accent/40 bg-surface p-5 text-center">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted">
+            At {perDay} question{perDay === 1 ? '' : 's'} a day
+          </p>
           <p className="mt-2 flex items-baseline justify-center gap-2">
-            <span className="text-5xl font-semibold leading-none tracking-tight text-accent tabular-nums sm:text-6xl">{days.toLocaleString('en-IN')}</span>
+            <span className="text-5xl font-semibold leading-none tracking-tight text-accent tabular-nums">
+              {days.toLocaleString('en-IN')}
+            </span>
             <span className="text-lg font-semibold">{days === 1 ? 'day' : 'days'}</span>
           </p>
           {long && <p className="mt-1 text-sm font-medium text-muted">{long} to finish everything</p>}
 
           <p className="mt-4 rounded-lg bg-surface-2 px-3 py-2 text-xs tabular-nums text-muted">
-            {left} left ÷ {perDay} per day = <span className="font-semibold text-ink">{days} {days === 1 ? 'day' : 'days'}</span>
+            {left} left ÷ {perDay} per day ={' '}
+            <span className="font-semibold text-ink">{days} {days === 1 ? 'day' : 'days'}</span>
           </p>
 
           <div className="mt-4 grid grid-cols-2 gap-2 text-left">
@@ -157,7 +148,7 @@ export default function PacePlanner({ remaining, total, signedIn }) {
       </div>
 
       {/* Quick targets */}
-      <div className="relative mt-6">
+      <div className="mt-6">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted">Compare quick targets</p>
         <ul className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
           {PRESETS.map((n) => {
@@ -177,13 +168,41 @@ export default function PacePlanner({ remaining, total, signedIn }) {
                   <span className={`mt-1 block text-xl font-semibold leading-none tabular-nums ${on ? '' : 'text-accent'}`}>
                     {d.toLocaleString('en-IN')} <span className="text-xs font-medium">{d === 1 ? 'day' : 'days'}</span>
                   </span>
-                  <span className={`mt-1 block text-[0.7rem] ${on ? 'opacity-80' : 'text-muted'}`}>{duration(d) ?? 'quick win'}</span>
+                  <span className={`mt-1 block text-[0.7rem] ${on ? 'opacity-80' : 'text-muted'}`}>
+                    {duration(d) ?? 'quick win'}
+                  </span>
                 </button>
               </li>
             );
           })}
         </ul>
       </div>
+    </div>
+  );
+
+  return (
+    <section
+      aria-label="Daily pace planner"
+      className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-gradient-to-br from-accent-soft via-surface to-surface px-4 py-3 sm:px-5"
+    >
+      <div className="min-w-0">
+        <p className="text-xs font-semibold uppercase tracking-widest text-accent">Pace planner</p>
+        <h2 className="truncate text-base font-semibold tracking-tight sm:text-lg">How fast do you want to finish?</h2>
+      </div>
+
+      <Popup
+        wide
+        buttonLabel="Plan my pace"
+        buttonClassName="shrink-0 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:opacity-90"
+        title="Pace planner"
+        subtitle={
+          signedIn
+            ? `You have ${left} questions left to solve. Pick a daily target.`
+            : `The library has ${left} questions. Pick a daily target.`
+        }
+      >
+        {body}
+      </Popup>
     </section>
   );
 }
