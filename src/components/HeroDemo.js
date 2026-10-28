@@ -117,124 +117,129 @@ export default function HeroDemo() {
     `transition-all duration-500 ${step >= n ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'}`;
 
   return (
-    <div className="panel overflow-hidden shadow-xl shadow-black/10" aria-hidden="true">
-      <div className="flex h-9 items-center gap-2 border-b border-line bg-surface-2 px-3 text-xs">
-        <span className="h-2.5 w-2.5 rounded-full bg-hard" />
-        <span className="h-2.5 w-2.5 rounded-full bg-medium" />
-        <span className="h-2.5 w-2.5 rounded-full bg-easy" />
-        <span className="ml-3 text-muted">buncho / problems / reduce-rag-hallucinations</span>
-      </div>
-
-      <div className="grid sm:grid-cols-2">
-        {/* Left: problem description, then the AI feedback tab after submit */}
-        <div className="p-4">
-          <div className="flex gap-4 border-b border-line pb-0 text-xs font-medium">
-            <span className={tab(!showFeedback)}>Description</span>
-            <span className={tab(showFeedback)}>AI Feedback</span>
-            <span className={tab(false)}>Community</span>
-          </div>
-
-          {showFeedback ? (
-            <div className="mt-4 h-[13rem] overflow-hidden">
-              <div className="flex items-center gap-4 rounded-lg bg-surface-2 p-3">
-                <div className="w-20 shrink-0">
-                  <p className={`text-2xl font-semibold tabular-nums ${b.cls}`}>
-                    {score}
-                    <span className="text-sm font-medium text-muted">/100</span>
-                  </p>
-                  <p className={`text-xs font-semibold ${b.cls}`}>{b.label}</p>
-                </div>
-                <ul className="grid min-w-0 flex-1 grid-cols-2 gap-x-3 gap-y-1.5">
-                  {RUBRIC.map((r) => (
-                    <li key={r.label}>
-                      <div className="flex justify-between text-[0.65rem] text-muted">
-                        <span>{r.label}</span>
-                        <span className="tabular-nums">
-                          {Math.round(r.value * progress)}/{r.max}
-                        </span>
-                      </div>
-                      <div className="mt-0.5 h-1 overflow-hidden rounded-full bg-line">
-                        <div className="h-full rounded-full bg-accent" style={{ width: `${(r.value / r.max) * progress * 100}%` }} />
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <p className={`mt-3 text-xs leading-relaxed ${reveal(1)}`}>
-                Strong diagnosis-first approach. Add how you would measure retrieval quality, and what the bot should do when the evidence is missing.
-              </p>
-
-              <div className={`mt-3 ${reveal(2)}`}>
-                <p className="text-xs font-semibold">What you got right</p>
-                <p className="mt-1 text-xs text-muted">Separates retrieval failures from generation failures before changing anything.</p>
-              </div>
-
-              <div className={`mt-3 ${reveal(3)}`}>
-                <p className="text-xs font-semibold">What&rsquo;s missing</p>
-                <ul className="mt-1 space-y-1 text-xs text-muted">
-                  <li>Retrieval metrics such as recall@k, and reranking.</li>
-                  <li>Letting the model say &ldquo;I don&rsquo;t know&rdquo; when evidence is absent.</li>
-                </ul>
-              </div>
-            </div>
-          ) : (
-            <>
-              <p className="mt-4 text-base font-semibold leading-snug">How would you reduce hallucinations in a RAG application?</p>
-              <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                <span className="rounded-full bg-medium/12 px-2.5 py-0.5 font-semibold text-medium">Medium</span>
-                <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-muted">RAG and Vector Databases</span>
-              </div>
-              <p className="mt-3 text-sm leading-relaxed text-muted">
-                Your support bot answers confidently, but sometimes with facts that are not in your documents. Walk through how you would find the cause and fix it.
-              </p>
-            </>
-          )}
+    <div className="relative min-w-0" aria-hidden="true">
+      <div className="panel select-none overflow-hidden !rounded-2xl shadow-2xl shadow-black/20">
+        <div className="flex h-9 items-center gap-2 border-b border-line bg-surface-2 px-3 text-xs">
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-hard" />
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-medium" />
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-easy" />
+          <span className="ml-3 min-w-0 truncate text-muted">buncho / problems / reduce-rag-hallucinations</span>
         </div>
 
-        {/* Right: the answer editor */}
-        <div className="border-t border-line sm:border-l sm:border-t-0">
-          <div className="flex h-9 items-center gap-2 border-b border-line bg-surface-2 px-4 text-xs font-medium">
-            <span className="text-go">&lt;/&gt;</span> Answer
+        <div className="grid grid-cols-[minmax(0,1fr)] sm:grid-cols-2">
+          {/* Left: problem description, then the AI feedback tab after submit */}
+          <div className="min-w-0 p-4">
+            <div className="flex gap-4 border-b border-line pb-0 text-xs font-medium">
+              <span className={tab(!showFeedback)}>Description</span>
+              <span className={tab(showFeedback)}>AI Feedback</span>
+              <span className={tab(false)}>Community</span>
+            </div>
+
+            {showFeedback ? (
+              <div className="mt-4 h-[15.5rem] overflow-hidden sm:h-[14rem]">
+                <div className="flex items-center gap-4 rounded-xl bg-surface-2 p-3">
+                  <div className="w-20 shrink-0">
+                    <p className={`text-2xl font-semibold tabular-nums ${b.cls}`}>
+                      {score}
+                      <span className="text-sm font-medium text-muted">/100</span>
+                    </p>
+                    <p className={`text-xs font-semibold ${b.cls}`}>{b.label}</p>
+                  </div>
+                  <ul className="grid min-w-0 flex-1 grid-cols-2 gap-x-3 gap-y-1.5">
+                    {RUBRIC.map((r) => (
+                      <li key={r.label}>
+                        <div className="flex justify-between gap-2 text-[0.65rem] text-muted">
+                          <span>{r.label}</span>
+                          <span className="tabular-nums">
+                            {Math.round(r.value * progress)}/{r.max}
+                          </span>
+                        </div>
+                        <div className="mt-0.5 h-1 overflow-hidden rounded-full bg-line">
+                          <div className="h-full rounded-full bg-accent" style={{ width: `${(r.value / r.max) * progress * 100}%` }} />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Score is above 75, so only the improvement tips and follow-ups are shown */}
+                <p className={`mt-3 text-xs leading-relaxed ${reveal(1)}`}>
+                  Strong diagnosis-first approach. You are interview ready.
+                </p>
+
+                <div className={`mt-3 ${reveal(2)}`}>
+                  <p className="text-xs font-semibold">How to improve your answer</p>
+                  <ul className="mt-1 space-y-1 text-xs text-muted">
+                    <li>Add retrieval metrics such as recall@k, and reranking.</li>
+                    <li>Let the model say &ldquo;I don&rsquo;t know&rdquo; when evidence is absent.</li>
+                  </ul>
+                </div>
+
+                <div className={`mt-3 ${reveal(3)}`}>
+                  <p className="text-xs font-semibold">Follow-up questions an interviewer might ask</p>
+                  <ul className="mt-1 space-y-1 text-xs text-muted">
+                    <li>How would you measure the hallucination rate automatically?</li>
+                  </ul>
+                </div>
+              </div>
+            ) : (
+              <>
+                <p className="mt-4 text-base font-semibold leading-snug">How would you reduce hallucinations in a RAG application?</p>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                  <span className="rounded-full bg-medium/12 px-2.5 py-0.5 font-semibold text-medium">Medium</span>
+                  <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-muted">RAG and Vector Databases</span>
+                </div>
+                <p className="mt-3 hidden text-sm leading-relaxed text-muted sm:block">
+                  Your support bot answers confidently, but sometimes with facts that are not in your documents. Walk through how you would find the cause and fix it.
+                </p>
+              </>
+            )}
           </div>
 
-          {/* Fixed minimum height so the card doesn't jump while the text grows */}
-          <div className="min-h-[12rem] p-4 font-mono text-[0.8rem] leading-relaxed">
-            {finalText}
-            {finalText && interimText ? ' ' : ''}
-            <span className="text-muted">{interimText}</span>
-            {listening && <span className="ml-0.5 inline-block h-3.5 w-0.5 translate-y-0.5 animate-pulse bg-accent" />}
-          </div>
+          {/* Right: the answer editor */}
+          <div className="min-w-0 border-t border-line sm:border-l sm:border-t-0">
+            <div className="flex h-9 items-center gap-2 border-b border-line bg-surface-2 px-4 text-xs font-medium">
+              <span className="text-go">&lt;/&gt;</span> Answer
+            </div>
 
-          <div className="flex items-center justify-between gap-3 border-t border-line px-4 py-3">
-            <span className="flex min-w-0 items-center gap-3">
-              {listening ? (
-                <span className="inline-flex shrink-0 items-center gap-2 rounded-md bg-hard px-3 py-1.5 text-xs font-semibold text-white">
-                  <span className="h-2 w-2 rounded-full bg-white" /> Stop dictating
-                </span>
-              ) : (
-                <span className="inline-flex shrink-0 items-center gap-2 rounded-md bg-surface-2 px-3 py-1.5 text-xs font-semibold text-ink">
-                  <Mic width={13} height={13} /> Dictate
-                </span>
-              )}
-              {listening && (
-                <span className="flex h-5 items-center gap-[3px]">
-                  {BARS.map((d, i) => (
-                    <span key={i} className="wave-bar block h-4 w-[3px] rounded-full bg-hard" style={{ animationDelay: `${d}s` }} />
-                  ))}
-                </span>
-              )}
-              {phase === 'analysing' && <span className="animate-pulse truncate text-xs text-muted">Analysing your answer…</span>}
-              {showFeedback && <span className="truncate text-xs font-medium text-easy">Feedback ready</span>}
-            </span>
+            {/* Fixed minimum height so the card doesn't jump while the text grows */}
+            <div className="min-h-[10.5rem] break-words p-4 font-mono text-[0.78rem] leading-relaxed sm:min-h-[12.5rem] sm:text-[0.8rem]">
+              {finalText}
+              {finalText && interimText ? ' ' : ''}
+              <span className="text-muted">{interimText}</span>
+              {listening && <span className="ml-0.5 inline-block h-3.5 w-0.5 translate-y-0.5 animate-pulse bg-accent" />}
+            </div>
 
-            <span
-              className={`shrink-0 rounded-md bg-go px-4 py-1.5 text-xs font-semibold text-go-ink transition-opacity ${
-                phase === 'analysing' ? 'animate-pulse' : ''
-              } ${showFeedback ? 'opacity-50' : ''}`}
-            >
-              {phase === 'analysing' ? 'Getting feedback…' : showFeedback ? 'Save & re-evaluate' : 'Submit'}
-            </span>
+            <div className="flex items-center justify-between gap-3 border-t border-line px-4 py-3">
+              <span className="flex min-w-0 items-center gap-3">
+                {listening ? (
+                  <span className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-hard px-3 py-1.5 text-xs font-semibold text-white">
+                    <span className="h-2 w-2 rounded-full bg-white" /> Stop
+                  </span>
+                ) : (
+                  <span className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-surface-2 px-3 py-1.5 text-xs font-semibold text-ink">
+                    <Mic width={13} height={13} /> Dictate
+                  </span>
+                )}
+                {listening && (
+                  <span className="flex h-5 items-center gap-[3px]">
+                    {BARS.map((d, i) => (
+                      <span key={i} className="wave-bar block h-4 w-[3px] rounded-full bg-hard" style={{ animationDelay: `${d}s` }} />
+                    ))}
+                  </span>
+                )}
+                {phase === 'analysing' && <span className="animate-pulse truncate text-xs text-muted">Analysing your answer…</span>}
+                {showFeedback && <span className="truncate text-xs font-medium text-easy">Feedback ready</span>}
+              </span>
+
+              <span
+                className={`shrink-0 rounded-lg bg-go px-4 py-1.5 text-xs font-semibold text-go-ink transition-opacity ${
+                  phase === 'analysing' ? 'animate-pulse' : ''
+                } ${showFeedback ? 'opacity-50' : ''}`}
+              >
+                {phase === 'analysing' ? 'Getting feedback…' : showFeedback ? 'Re-evaluate' : 'Submit'}
+              </span>
+            </div>
           </div>
         </div>
       </div>
