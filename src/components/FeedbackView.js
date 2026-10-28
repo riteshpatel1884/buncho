@@ -88,6 +88,8 @@ function Bullets({ items }) {
 export default function FeedbackView({ evaluation, rubric = [] }) {
   const { score, scores, feedback: f = {}, model, createdAt } = evaluation;
   const band = BANDS.find((b) => score >= b.min);
+  // Above 75: show only "How to improve" and "Follow-up questions"
+  const showDetails = score <= 75;
   const ready = READINESS.find((r) => score >= r.min);
   const strengths = f.strengths ?? [];
   const missing = f.missing ?? [];
@@ -165,13 +167,13 @@ export default function FeedbackView({ evaluation, rubric = [] }) {
         </Section>
       )}
 
-      {strengths.length > 0 && (
+      {showDetails && strengths.length > 0 && (
         <Section title="What you got right">
           <Bullets items={strengths} />
         </Section>
       )}
 
-      {missing.length > 0 && (
+      {showDetails && missing.length > 0 && (
         <Section title="What's missing">
           <Bullets items={missing} />
         </Section>
@@ -196,7 +198,7 @@ export default function FeedbackView({ evaluation, rubric = [] }) {
         </Section>
       )}
 
-      {f.reasoningFeedback && (
+      {showDetails && f.reasoningFeedback && (
         <Section title="Reasoning">
           <div className="text-sm">
             <Markdown>{f.reasoningFeedback}</Markdown>
