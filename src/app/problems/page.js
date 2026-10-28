@@ -2,13 +2,11 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import ProblemFilters from '@/components/ProblemFilters';
 import ProblemList from '@/components/ProblemList';
-import { ProgressCard } from '@/components/ProblemStats';
-import PromoSection from '@/components/PromoSection';
+import { NextUpCard, ProgressCard } from '@/components/ProblemStats';
 import PacePlanner from '@/components/PacePlanner';
 import { getProblems, getProgressMap, getTopics, getUserStats, parseFilters } from '@/lib/problems';
 import { getOrCreateUser } from '@/lib/user';
 import { getIsPro } from '@/lib/subscription';
-import { getLiveAds } from '@/lib/ads';
 import { Bookmark } from '@/components/icons';
 import JsonLd from '@/components/JsonLd';
 import { buildMetadata, collectionPageJsonLd, breadcrumbJsonLd, graph, hasActiveFilters } from '@/lib/seo';
@@ -35,12 +33,7 @@ export default async function ProblemsPage({ searchParams }) {
   const filters = parseFilters(await searchParams);
   const user = await getOrCreateUser();
   const pro = user ? await getIsPro(user.id) : false;
-  const [topics, result, stats, ads] = await Promise.all([
-    getTopics(),
-    getProblems({ ...filters, pro }),
-    getUserStats(user?.id ?? null),
-    getLiveAds(),
-  ]);
+  const [topics, result, stats] = await Promise.all([getTopics(), getProblems({ ...filters, pro, userId: user?.id ?? null }), getUserStats(user?.id ?? null)]);
   const statusMap = user ? await getProgressMap(user.id, result.items.map((p) => p.id)) : {};
 
   const { page, ...rest } = filters;
@@ -84,14 +77,14 @@ export default async function ProblemsPage({ searchParams }) {
         <PacePlanner remaining={Math.max(0, stats.total - stats.solved)} total={stats.total} signedIn={Boolean(user)} />
       </div>
 
-      <section aria-label="Your stats" className="mt-4 grid gap-4 md:grid-cols-[2fr_3fr]">
+      <section aria-label="Your stats" className="mt-4 grid gap-4 md:grid-cols-[3fr_2fr]">
         <ProgressCard stats={stats} signedIn={Boolean(user)} />
-        <PromoSection ads={ads} />
+        <NextUpCard stats={stats} signedIn={Boolean(user)} />
       </section>
 
       <div className="mt-8">
         <Suspense fallback={<div className="h-24" />}>
-          <ProblemFilters topics={topics} solved={user ? stats.solved : null} total={user ? stats.total : result.total} />
+          <ProblemFilters topics={topics} signedIn={Boolean(user)} solved={user ? stats.solved : null} total={user ? stats.total : result.total} />
         </Suspense>
       </div>
 

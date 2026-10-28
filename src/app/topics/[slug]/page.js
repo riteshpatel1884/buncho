@@ -49,7 +49,7 @@ export default async function TopicPage({ params, searchParams }) {
   const filters = { ...parseFilters(await searchParams), topic: slug };
   const user = await getOrCreateUser();
   const pro = user ? await getIsPro(user.id) : false;
-  const [allTopics, result, stats] = await Promise.all([getTopics(), getProblems({ ...filters, pro }), getUserStats(user?.id ?? null)]);
+  const [allTopics, result, stats] = await Promise.all([getTopics(), getProblems({ ...filters, pro, userId: user?.id ?? null }), getUserStats(user?.id ?? null)]);
   const statusMap = user ? await getProgressMap(user.id, result.items.map((p) => p.id)) : {};
 
   const { page, topic: _t, ...rest } = filters;
@@ -89,7 +89,7 @@ export default async function TopicPage({ params, searchParams }) {
         </header>
 
         <Suspense fallback={null}>
-          <ProblemFilters topics={allTopics} currentTopic={slug} total={result.total} />
+          <ProblemFilters topics={allTopics} currentTopic={slug} signedIn={Boolean(user)} total={result.total} />
         </Suspense>
 
         <ProblemList result={result} statusMap={statusMap} basePath={`/topics/${slug}`} params={queryParams} pro={pro} />

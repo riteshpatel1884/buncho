@@ -26,6 +26,10 @@ function shuffled(rows) {
     .map((x) => x.r);
 }
 
+/** Allowed values for the Pro/Free and Solved/Not solved filters (also used by the filter bar). */
+export const ACCESS_FILTERS = ['pro', 'free'];
+export const STATUS_FILTERS = ['solved', 'unsolved'];
+
 /** Turns untrusted search params into a safe filter object. */
 export function parseFilters(sp = {}) {
   const str = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
@@ -34,17 +38,24 @@ export function parseFilters(sp = {}) {
     topic: str(sp.topic, 80),
     difficulty: DIFFICULTIES.includes(sp.difficulty) ? sp.difficulty : '',
     type: PROBLEM_TYPES.includes(sp.type) ? sp.type : '',
+    access: ACCESS_FILTERS.includes(sp.access) ? sp.access : '',
+    status: STATUS_FILTERS.includes(sp.status) ? sp.status : '',
     page: Math.max(1, parseInt(sp.page, 10) || 1),
   };
 }
 
-export async function getProblems({ q, topic, difficulty, type, page, challenge, pro = false }) {
+// userId is only needed for the solved / not solved filter; signed-out visitors have no progress, so it is ignored.
+export async function getProblems({ q, topic, difficulty, type, access, status, page, challenge, pro = false, userId = null }) {
   const where = {
     published: true,
     ...(challenge && { isChallenge: true }),
     ...(topic && { topic: { slug: topic } }),
     ...(difficulty && { difficulty }),
     ...(type && { type }),
+    ...(access === 'pro' && { proOnly: true }),
+    ...(access === 'free' && { proOnly: false }),
+    ...(userId && status === 'solved' && { progress: { some: { userId, status: 'COMPLETED' } } }),
+    ...(userId && status === 'unsolved' && { progress: { none: { userId, status: 'COMPLETED' } } }),
     ...(q && {
       OR: [
         { title: { contains: q, mode: 'insensitive' } },

@@ -26,7 +26,7 @@ export default async function ChallengesPage({ searchParams }) {
   const filters = { ...parseFilters(await searchParams), challenge: true };
   const user = await getOrCreateUser();
   const pro = user ? await getIsPro(user.id) : false;
-  const [topics, result] = await Promise.all([getTopics({ challenge: true }), getProblems({ ...filters, pro })]);
+  const [topics, result] = await Promise.all([getTopics({ challenge: true }), getProblems({ ...filters, pro, userId: user?.id ?? null })]);
   const statusMap = user ? await getProgressMap(user.id, result.items.map((p) => p.id)) : {};
 
   const { page, challenge, ...rest } = filters;
@@ -57,7 +57,7 @@ export default async function ChallengesPage({ searchParams }) {
 
       <div className="mt-8">
         <Suspense fallback={<div className="h-24" />}>
-          <ProblemFilters topics={topics} total={result.total} />
+          <ProblemFilters topics={topics} signedIn={Boolean(user)} total={result.total} />
         </Suspense>
       </div>
 

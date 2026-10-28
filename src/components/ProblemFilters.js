@@ -20,7 +20,7 @@ const pillCls = (on) =>
  * On /problems the pills filter in place. On a topic page (currentTopic is set) they are links to the other topics.
  * solved: number | null. When null, only the problem count is shown.
  */
-export default function ProblemFilters({ topics = [], currentTopic, solved = null, total = 0 }) {
+export default function ProblemFilters({ topics = [], currentTopic, signedIn = false, solved = null, total = 0 }) {
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
@@ -50,7 +50,7 @@ export default function ProblemFilters({ topics = [], currentTopic, solved = nul
 
   const difficulty = sp.get('difficulty') ?? '';
   const activeTopic = onTopicPage ? currentTopic : sp.get('topic') ?? '';
-  const hasFilters = Boolean(sp.get('q') || difficulty || sp.get('type') || (!onTopicPage && sp.get('topic')));
+  const hasFilters = Boolean(sp.get('q') || difficulty || sp.get('type') || sp.get('access') || sp.get('status') || (!onTopicPage && sp.get('topic')));
 
   return (
     <div className="space-y-4" aria-busy={pending}>
@@ -113,6 +113,24 @@ export default function ProblemFilters({ topics = [], currentTopic, solved = nul
             <option key={t} value={t}>{TYPE_LABEL[t]}</option>
           ))}
         </select>
+
+        <label htmlFor="access" className="sr-only">Pro or free</label>
+        <select id="access" value={sp.get('access') ?? ''} onChange={(e) => update({ access: e.target.value })} className={selectCls}>
+          <option value="">Pro &amp; Free</option>
+          <option value="pro">Pro only</option>
+          <option value="free">Free only</option>
+        </select>
+
+        {signedIn && (
+          <>
+            <label htmlFor="status" className="sr-only">Progress</label>
+            <select id="status" value={sp.get('status') ?? ''} onChange={(e) => update({ status: e.target.value })} className={selectCls}>
+              <option value="">Solved &amp; Not solved</option>
+              <option value="solved">Solved</option>
+              <option value="unsolved">Not solved</option>
+            </select>
+          </>
+        )}
 
         {hasFilters && (
           <button

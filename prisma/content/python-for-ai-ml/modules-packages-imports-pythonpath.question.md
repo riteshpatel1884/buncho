@@ -1,0 +1,1 @@
+Explain modules, packages and the import system. What is PYTHONPATH? A teammate's script fails with `ModuleNotFoundError: No module named 'myproj'` when run from another folder. How do you fix it properly?
