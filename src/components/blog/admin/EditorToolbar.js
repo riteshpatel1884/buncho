@@ -20,7 +20,7 @@ function Btn({ active, label, onClick, disabled, children }) {
 
 const Sep = () => <span className="mx-1 h-5 w-px bg-line" aria-hidden="true" />;
 
-export default function EditorToolbar({ editor, onImage }) {
+export default function EditorToolbar({ editor, onImage, children }) {
   const [linkOpen, setLinkOpen] = useState(false);
   const [href, setHref] = useState('');
   const [linkError, setLinkError] = useState(null);
@@ -141,6 +141,8 @@ export default function EditorToolbar({ editor, onImage }) {
         <Btn label="Undo" disabled={!s.canUndo} onClick={() => chain().undo().run()}>↶</Btn>
         <Btn label="Redo" disabled={!s.canRedo} onClick={() => chain().redo().run()}>↷</Btn>
       </div>
+
+      {children}
 
       {s.table && (
         <div role="toolbar" aria-label="Table" className="flex flex-wrap items-center gap-1 border-t border-line bg-surface-2 px-2 py-1 text-xs">

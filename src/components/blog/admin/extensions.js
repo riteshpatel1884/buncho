@@ -1,13 +1,10 @@
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import TextAlign from '@tiptap/extension-text-align';
-import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { TableKit } from '@tiptap/extension-table';
 import { Placeholder } from '@tiptap/extensions';
 import { Node, mergeAttributes } from '@tiptap/core';
-import { createLowlight, common } from 'lowlight';
-
-const lowlight = createLowlight(common);
+import { CodeBlockPro, lowlight } from './codeBlockPro';
 
 /** Note / tip / warning box. Stored as { type: 'callout', attrs: { variant } } and rendered by RichContent. */
 export const Callout = Node.create({
@@ -85,7 +82,7 @@ const BlogImage = Image.extend({
   },
 });
 
-export function buildExtensions() {
+export function buildExtensions(kind = 'BLOG') {
   return [
     StarterKit.configure({
       // H1 is reserved for the article title
@@ -93,12 +90,17 @@ export function buildExtensions() {
       codeBlock: false,
       link: { openOnClick: false, autolink: true, HTMLAttributes: { rel: 'noopener noreferrer' } },
     }),
-    CodeBlockLowlight.configure({ lowlight, defaultLanguage: null }),
+    CodeBlockPro.configure({ lowlight, defaultLanguage: null }),
     BlogImage.configure({ inline: false, allowBase64: false }),
     TextAlign.configure({ types: ['heading', 'paragraph'] }),
     TableKit.configure({ table: { resizable: false } }),
     Callout,
     Faq,
-    Placeholder.configure({ placeholder: 'Start writing. Use the toolbar for headings, code blocks, tables and callouts.' }),
+    Placeholder.configure({
+      placeholder:
+        kind === 'CODING'
+          ? 'Explain the idea, then add code. Type ```python and a space for a code block, or use the Code button.'
+          : 'Start writing. Use the toolbar for headings, code blocks, tables and callouts.',
+    }),
   ];
 }

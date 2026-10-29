@@ -19,6 +19,7 @@ const DIFF_BADGE = { EASY: 'bg-easy/12 text-easy', MEDIUM: 'bg-medium/12 text-me
  */
 export default function ArticleView({ post, related = [], practice = [], viewer = {}, helpfulCounts = { yes: 0, no: 0 }, comments = [], preview = false }) {
   const category = CATEGORY_BY_SLUG[post.category];
+  const coding = post.kind === 'CODING';
   const headings = buildHeadingIndex(post.content);
   const url = absoluteUrl(`/blog/${post.slug}`);
   const loginHref = `/login?redirect_url=${encodeURIComponent(`/blog/${post.slug}`)}`;
@@ -36,19 +37,20 @@ export default function ArticleView({ post, related = [], practice = [], viewer 
       <ReadingProgress />
       {!preview && <ViewTracker slug={post.slug} />}
 
-      <div className="mx-auto w-full max-w-[72rem]">
+      <div className={`mx-auto w-full ${coding ? 'max-w-[78rem]' : 'max-w-[72rem]'}`}>
       <header className="max-w-[48rem]">
         <Breadcrumbs items={crumbs} />
         {category && (
           <p className="mt-6 text-xs font-semibold uppercase tracking-widest text-accent">
             {category.group} / {category.name}
+            {coding && <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 font-mono normal-case tracking-normal">{'</>'} Coding notes</span>}
           </p>
         )}
         <h1 className="mt-2 max-w-[48rem] text-3xl font-bold leading-tight tracking-tight sm:text-4xl">{post.title}</h1>
         {post.excerpt && <p className="mt-3 max-w-[48rem] text-lg leading-relaxed text-muted">{post.excerpt}</p>}
       </header>
 
-      <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,48rem)_20rem]">
+      <div className={`mt-8 grid gap-8 ${coding ? 'xl:grid-cols-[minmax(0,54rem)_20rem]' : 'xl:grid-cols-[minmax(0,48rem)_20rem]'}`}>
         <article className="min-w-0" id="article-body">
           {post.keyTakeaways?.length > 0 && (
             <section aria-labelledby="takeaways-heading" className="mt-8 rounded-xl border border-line bg-accent-soft/50 p-5">

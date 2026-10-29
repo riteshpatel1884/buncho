@@ -32,6 +32,7 @@ export default function PostCard({ post, priority = false, large = false }) {
               {category.name}
             </Link>
           )}
+          {post.kind === 'CODING' && <span className="rounded-full bg-accent-soft px-2 py-0.5 font-mono font-semibold text-accent">{'</>'} Code</span>}
           {post.level && <span className={`rounded-full px-2 py-0.5 font-semibold ${LEVEL_STYLE[post.level]}`}>{LEVEL_LABEL[post.level]}</span>}
         </div>
         <h3 className={`mt-2 font-semibold leading-snug tracking-tight ${large ? 'text-2xl' : 'text-lg'}`}>

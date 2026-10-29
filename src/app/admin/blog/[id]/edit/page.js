@@ -15,6 +15,7 @@ export default async function EditPostPage({ params }) {
   // Only plain, serialisable values go to the client component
   const initial = {
     id: post.id,
+    kind: post.kind,
     title: post.title,
     slug: post.slug,
     excerpt: post.excerpt,

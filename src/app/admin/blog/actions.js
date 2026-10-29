@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { getOrCreateUser } from '@/lib/user';
 import { isAdmin } from '@/lib/admin';
-import { LEVELS, LIMITS, CATEGORY_BY_SLUG, RESOURCE_TYPES, RESERVED_SLUGS } from '@/lib/blog-constants';
+import { LEVELS, LIMITS, CATEGORY_BY_SLUG, POST_KINDS, RESOURCE_TYPES, RESERVED_SLUGS } from '@/lib/blog-constants';
 import { docToText, readingMinutes, safeUrl, sanitizeDoc, slugify } from '@/lib/blog-content';
 import { cleanTags, validatePost } from '@/lib/blog-validate';
 import { formatDateTimeIST } from '@/lib/datetime';
@@ -60,6 +60,7 @@ function normalise(input) {
     .slice(0, LIMITS.resourcesMax);
 
   return {
+    kind: POST_KINDS.includes(input.kind) ? input.kind : 'BLOG',
     title: text(input.title, LIMITS.title),
     slug: slugify(text(input.slug, 120), LIMITS.slugMax),
     excerpt: text(input.excerpt, LIMITS.excerptMax + 50),
@@ -159,7 +160,7 @@ async function savePostInner(input, { source = 'manual', baseVersion = null } = 
   const now = new Date();
   const updated = await prisma.blogPost.update({
     where: { id: existing.id },
-    data: { ...data, slug, previousSlugs, lastEditedAt: now },
+    data: { ...data, kind: undefined, slug, previousSlugs, lastEditedAt: now }, // the type is chosen once, at creation
   });
   await snapshot(existing.id, data, { force: source === 'manual' });
   if (isLiveStatus(existing)) refresh(updated, existing);

@@ -587,3 +587,62 @@ aside.callout[data-variant]::before {
 }
 
 html, body { overflow-x: clip; }
+
+
+
+
+/* ---------- Coding notes ---------- */
+
+/* Public code blocks: file name, copy button, line numbers, highlighted lines, output and terminal variants */
+.code-block-title { display: flex; min-width: 0; align-items: center; gap: 0.6rem; }
+.code-block-file { font-family: var(--f-mono), monospace; font-size: 0.8rem; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.code-block-file + .code-block-lang::before { content: '·'; margin-right: 0.6rem; }
+.code-copy { border-radius: 0.375rem; padding: 0.15rem 0.55rem; font-size: 0.75rem; font-weight: 500; color: var(--muted); }
+.code-copy:hover { background: var(--line); color: var(--ink); }
+.prose-blog pre { tab-size: 4; }
+.prose-blog pre code { display: block; width: max-content; min-width: 100%; }
+.prose-blog pre.has-ln code { counter-reset: ln; }
+.prose-blog .code-line { display: inline-block; min-width: 100%; }
+.prose-blog pre.has-ln .code-line::before {
+  counter-increment: ln;
+  content: counter(ln);
+  display: inline-block;
+  width: 2.2em;
+  margin-right: 1.1em;
+  text-align: right;
+  color: var(--muted);
+  opacity: 0.7;
+  user-select: none;
+}
+.prose-blog .code-line.is-hl { background: color-mix(in srgb, var(--accent) 16%, transparent); box-shadow: inset 3px 0 0 var(--accent); }
+.prose-blog .code-block--output pre { background: var(--surface-2); font-size: 0.84rem; }
+.prose-blog .code-block--output .code-block-bar { background: var(--accent-soft); }
+.prose-blog .code-block--output .code-block-lang { color: var(--accent); font-weight: 700; }
+.prose-blog .code-block--terminal pre { background: #101113; color: #e6e6e6; }
+.prose-blog .code-block--terminal .code-block-bar { background: #1b1c1f; border-color: #2b2d31; }
+.prose-blog .code-block--terminal .code-block-lang { color: #9aa0a6; }
+.prose-blog .code-block--terminal .code-copy { color: #9aa0a6; }
+.prose-blog .callout-pitfall { border-left-color: var(--hard); }
+.prose-blog .callout-pitfall .callout-title { color: var(--hard); }
+
+/* Coding editor: preferences from the View menu are data attributes on .blog-editor */
+.blog-editor .ProseMirror :is(h2, h3, h4) { scroll-margin-top: 13rem; }
+.blog-editor .ProseMirror pre { tab-size: var(--tab, 2); position: relative; padding-top: 1.9rem; }
+.blog-editor[data-size='sm'] .ProseMirror pre { font-size: 0.78rem; }
+.blog-editor[data-size='lg'] .ProseMirror pre { font-size: 1rem; }
+.blog-editor[data-wrap='on'] .ProseMirror pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.blog-editor .ProseMirror pre::before {
+  content: attr(data-filename);
+  position: absolute; left: 1.1rem; top: 0.45rem;
+  font-family: var(--f-mono), monospace; font-size: 0.72rem; color: var(--muted);
+}
+.blog-editor .ProseMirror pre:not([data-filename])::before { content: 'code'; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.06em; }
+.blog-editor .ProseMirror pre[data-variant='output']::before { content: 'Output'; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.blog-editor .ProseMirror pre[data-variant='output'] { background: var(--surface-2); }
+.blog-editor .ProseMirror pre[data-variant='terminal'] { background: #101113; color: #e6e6e6; }
+.blog-editor .ProseMirror pre[data-variant='terminal']::before { content: 'Terminal'; color: #9aa0a6; text-transform: uppercase; letter-spacing: 0.06em; }
+.blog-editor .ProseMirror pre[data-lines='true']::after {
+  content: '# line numbers on'; position: absolute; right: 0.9rem; top: 0.45rem;
+  font-family: var(--f-mono), monospace; font-size: 0.68rem; color: var(--muted); opacity: 0.7;
+}
+.blog-editor .ProseMirror .line-hl { background: color-mix(in srgb, var(--accent) 22%, transparent); border-radius: 2px; }

@@ -53,7 +53,9 @@ const NODE_TYPES = new Set([
   'horizontalRule', 'hardBreak', 'image', 'table', 'tableRow', 'tableHeader', 'tableCell', 'callout', 'faq',
 ]);
 const MARK_TYPES = new Set(['bold', 'italic', 'underline', 'strike', 'code', 'link']);
-const CALLOUTS = new Set(['info', 'tip', 'warning']);
+const CALLOUTS = new Set(['info', 'tip', 'warning', 'pitfall']);
+const CODE_VARIANTS = new Set(['code', 'output', 'terminal']);
+const LINE_RANGES = /^\d{1,4}(?:-\d{1,4})?(?:,\d{1,4}(?:-\d{1,4})?)*$/;
 const MAX_DEPTH = 12;
 const MAX_NODES = 30000;
 
@@ -92,7 +94,15 @@ function cleanAttrs(node) {
       return { start: int(a.start, 1, 100000) ?? 1 };
     case 'codeBlock': {
       const language = typeof a.language === 'string' && /^[a-z0-9+#-]{1,20}$/i.test(a.language) ? a.language.toLowerCase() : null;
-      return { language };
+      // Optional coding-notes attributes are stored only when they are used, so old posts stay unchanged
+      const out = { language };
+      const filename = str(a.filename, 80).replace(/[^\w.\-/@+# ]/g, '').trim();
+      if (filename) out.filename = filename;
+      const highlight = str(a.highlight, 60).replace(/\s/g, '');
+      if (highlight && LINE_RANGES.test(highlight)) out.highlight = highlight;
+      if (a.lineNumbers === true) out.lineNumbers = true;
+      if (CODE_VARIANTS.has(a.variant) && a.variant !== 'code') out.variant = a.variant;
+      return out;
     }
     case 'image': {
       const src = safeUrl(a.src, { mailto: false });
@@ -197,6 +207,41 @@ export function countWords(doc) {
     else if (['paragraph', 'heading'].includes(n.type)) prose += wordCount(nodeText(n));
   });
   return { prose, code };
+}
+
+/** "2,4-6" becomes Set {2,4,5,6}. Invalid pieces are ignored; capped so a hostile value cannot build a huge set. */
+export function parseLineRanges(spec, max = 2000) {
+  const out = new Set();
+  if (typeof spec !== 'string') return out;
+  for (const part of spec.split(',')) {
+    const [a, b = a] = part.trim().split('-').map(Number);
+    if (!Number.isInteger(a) || !Number.isInteger(b) || a < 1) continue;
+    for (let n = a; n <= Math.min(b, a + max) && out.size < max; n += 1) out.add(n);
+  }
+  return out;
+}
+
+export function hasCodeBlockWithoutLanguage(doc) {
+  let found = false;
+  walk(doc, (n) => {
+    if (n.type === 'codeBlock' && !n.attrs?.language && (n.attrs?.variant ?? 'code') === 'code') found = true;
+  });
+  return found;
+}
+
+/** Numbers for the coding editor's status bar. */
+export function codeStats(doc) {
+  let blocks = 0;
+  let lines = 0;
+  const languages = new Set();
+  walk(doc, (n) => {
+    if (n.type !== 'codeBlock') return;
+    blocks += 1;
+    const text = nodeText(n);
+    lines += text ? text.split('\n').length : 0;
+    if (n.attrs?.language && (n.attrs?.variant ?? 'code') !== 'output') languages.add(n.attrs.language);
+  });
+  return { ...countWords(doc), blocks, lines, languages: [...languages], minutes: readingMinutes(doc) };
 }
 
 export function readingMinutes(doc) {

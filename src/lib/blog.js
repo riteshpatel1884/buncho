@@ -21,6 +21,7 @@ export const isLive = (post, now = new Date()) =>
 
 const cardSelect = {
   id: true,
+  kind: true,
   slug: true,
   title: true,
   excerpt: true,

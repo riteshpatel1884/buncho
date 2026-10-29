@@ -1,5 +1,5 @@
-import { CATEGORY_BY_SLUG, LIMITS, RESERVED_SLUGS, RESOURCE_TYPES } from './blog-constants';
-import { SLUG_PATTERN, collectImages, countWords, safeUrl } from './blog-content';
+import { CATEGORY_BY_SLUG, KIND_LABEL, LIMITS, RESERVED_SLUGS, RESOURCE_TYPES } from './blog-constants';
+import { SLUG_PATTERN, collectImages, countWords, hasCodeBlockWithoutLanguage, safeUrl } from './blog-content';
 
 /**
  * Rules a post must pass before it can go public. The same function runs in the editor (to disable the Publish
@@ -38,7 +38,11 @@ export function validatePost(post, { now = new Date(), schedule = null } = {}) {
   else if (seoTitle.length > LIMITS.seoTitleMax) warn('seoTitle', `SEO title may be cut off in search results (over ${LIMITS.seoTitleMax} characters).`);
   else if (!seoTitle) warn('seoTitle', 'No SEO title set. The article title will be used.');
 
-  if (!CATEGORY_BY_SLUG[post.category]) err('category', 'Choose a category.');
+  const kind = post.kind === 'CODING' ? 'CODING' : 'BLOG';
+  const coding = kind === 'CODING';
+  const category = CATEGORY_BY_SLUG[post.category];
+  if (!category) err('category', 'Choose a category.');
+  else if ((category.kind ?? 'BLOG') !== kind) err('category', `This category does not belong to ${KIND_LABEL[kind].toLowerCase()}. Choose another.`);
 
   const tags = post.tags ?? [];
   if (tags.length < 1) err('tags', 'Add at least one tag.');
@@ -55,10 +59,19 @@ export function validatePost(post, { now = new Date(), schedule = null } = {}) {
   }
 
   const content = post.content;
-  const { prose } = countWords(content);
-  if (prose < LIMITS.minWords) err('content', `Write at least ${LIMITS.minWords} words (now ${prose}).`);
+  const { prose, code } = countWords(content);
   const headings = (content?.content ?? []).filter((n) => n.type === 'heading').length;
-  if (prose >= LIMITS.minWords && headings === 0) err('content', 'Add at least one H2 section heading.');
+  if (coding) {
+    // Coding notes are judged on their code as much as their prose
+    const minWords = LIMITS.minCodingWords;
+    if (prose < minWords) err('content', `Explain the code in at least ${minWords} words of text (now ${prose}).`);
+    if (code === 0) err('content', 'Add at least one code block.');
+    if (headings === 0) warn('content', 'No headings yet. H2 headings power the outline and the table of contents.');
+    if (hasCodeBlockWithoutLanguage(content)) warn('content', 'Some code blocks have no language, so they will not be highlighted properly.');
+  } else {
+    if (prose < LIMITS.minWords) err('content', `Write at least ${LIMITS.minWords} words (now ${prose}).`);
+    if (prose >= LIMITS.minWords && headings === 0) err('content', 'Add at least one H2 section heading.');
+  }
 
   const missingAlt = collectImages(content).filter((img) => !(img.alt ?? '').trim()).length;
   if (missingAlt) err('content', `${missingAlt} image${missingAlt > 1 ? 's are' : ' is'} missing alt text.`);

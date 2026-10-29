@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { requireAdminPage } from '@/lib/blog-admin';
 import { effectiveStatus, liveWhere } from '@/lib/blog';
-import { CATEGORY_BY_SLUG, POST_STATUSES, STATUS_LABEL } from '@/lib/blog-constants';
+import { CATEGORY_BY_SLUG, KIND_LABEL, POST_KINDS, POST_STATUSES, STATUS_LABEL } from '@/lib/blog-constants';
 import { formatDateTimeIST } from '@/lib/datetime';
 import RowActions from '@/components/blog/admin/RowActions';
 
@@ -21,9 +21,11 @@ export default async function AdminBlogPage({ searchParams }) {
   const sp = await searchParams;
   const q = String(sp.q ?? '').trim().slice(0, 80);
   const status = POST_STATUSES.includes(sp.status) ? sp.status : '';
+  const kind = POST_KINDS.includes(sp.kind) ? sp.kind : '';
   const now = new Date();
 
   const where = {
+    ...(kind && { kind }),
     ...(q && { OR: [{ title: { contains: q, mode: 'insensitive' } }, { slug: { contains: q, mode: 'insensitive' } }, { tags: { has: q.toLowerCase() } }] }),
     // "Published" in the filter means live now, including scheduled posts whose time has passed
     ...(status === 'PUBLISHED' && liveWhere(now)),
@@ -38,7 +40,7 @@ export default async function AdminBlogPage({ searchParams }) {
       orderBy: { updatedAt: 'desc' },
       take: 100,
       select: {
-        id: true, slug: true, title: true, status: true, category: true, featured: true, publishedAt: true, lastEditedAt: true, views: true,
+        id: true, kind: true, slug: true, title: true, status: true, category: true, featured: true, publishedAt: true, lastEditedAt: true, views: true,
         _count: { select: { likes: true, comments: true } },
       },
     }),
@@ -90,6 +92,11 @@ export default async function AdminBlogPage({ searchParams }) {
           <option value="">All statuses</option>
           {POST_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
         </select>
+        <label htmlFor="admin-kind" className="sr-only">Type</label>
+        <select id="admin-kind" name="kind" defaultValue={kind} className="h-9 rounded-md border border-line bg-surface px-2 text-sm">
+          <option value="">All types</option>
+          {POST_KINDS.map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
+        </select>
         <button type="submit" className="h-9 rounded-md bg-surface-2 px-4 text-sm font-medium hover:bg-line">Filter</button>
       </form>
 
@@ -114,7 +121,7 @@ export default async function AdminBlogPage({ searchParams }) {
                 <tr key={p.id} className="align-top">
                   <td className="px-4 py-3">
                     <Link href={`/admin/blog/${p.id}/edit`} className="font-medium hover:underline">{p.title}</Link>
-                    <p className="mt-0.5 text-xs text-muted">/{p.slug}{CATEGORY_BY_SLUG[p.category] && ` · ${CATEGORY_BY_SLUG[p.category].name}`}{p.featured && ' · Featured'}</p>
+                    <p className="mt-0.5 text-xs text-muted">/{p.slug}{CATEGORY_BY_SLUG[p.category] && ` · ${CATEGORY_BY_SLUG[p.category].name}`}{p.kind === 'CODING' && ' · Coding notes'}{p.featured && ' · Featured'}</p>
                   </td>
                   <td className="px-3 py-3">
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${BADGE[st]}`}>{STATUS_LABEL[st]}</span>

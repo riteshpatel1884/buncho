@@ -12,6 +12,22 @@ export const BLOG_CATEGORIES = [
   { slug: 'ai-careers', name: 'AI Careers', group: 'Career', description: 'Interview preparation, skills and career paths for AI and ML engineers.' },
 ];
 
+// Coding notes live in the same blog pipeline; `kind: 'CODING'` keeps their categories apart from the articles.
+BLOG_CATEGORIES.push(
+  { slug: 'python-notes', name: 'Python', group: 'Coding Notes', kind: 'CODING', description: 'Python notes with runnable snippets: syntax, standard library, idioms and gotchas.' },
+  { slug: 'data-science-code', name: 'NumPy and Pandas', group: 'Coding Notes', kind: 'CODING', description: 'Data wrangling and numerical code: arrays, dataframes, plotting and performance.' },
+  { slug: 'ml-code', name: 'ML Code', group: 'Coding Notes', kind: 'CODING', description: 'Training loops, evaluation code and framework snippets for machine learning.' },
+  { slug: 'javascript-notes', name: 'JavaScript and TypeScript', group: 'Coding Notes', kind: 'CODING', description: 'JavaScript and TypeScript notes: language features, async code and tooling.' },
+  { slug: 'sql-notes', name: 'SQL', group: 'Coding Notes', kind: 'CODING', description: 'Queries, joins, window functions and schema design notes.' },
+  { slug: 'dsa-notes', name: 'Data Structures and Algorithms', group: 'Coding Notes', kind: 'CODING', description: 'Implementations and patterns for data structures and algorithms.' },
+  { slug: 'bash-notes', name: 'Linux and Bash', group: 'Coding Notes', kind: 'CODING', description: 'Shell commands, scripts and Linux tooling.' },
+  { slug: 'git-notes', name: 'Git and DevOps', group: 'Coding Notes', kind: 'CODING', description: 'Git workflows, Docker and CI snippets.' },
+);
+
+export const POST_KINDS = ['BLOG', 'CODING'];
+export const KIND_LABEL = { BLOG: 'Blog article', CODING: 'Coding notes' };
+export const categoriesFor = (kind) => BLOG_CATEGORIES.filter((c) => (c.kind ?? 'BLOG') === kind);
+
 export const CATEGORY_BY_SLUG = Object.fromEntries(BLOG_CATEGORIES.map((c) => [c.slug, c]));
 
 export const LEVELS = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
@@ -57,6 +73,7 @@ export const LIMITS = {
   takeawaysMax: 6,
   resourcesMax: 8,
   minWords: 150,
+  minCodingWords: 30, // coding notes are mostly code, so far less prose is needed
 };
 
 // These would be shadowed by the static /blog/category and /blog/feed.xml routes
@@ -79,10 +96,26 @@ export const CODE_LANGUAGES = [
   ['java', 'Java'],
   ['go', 'Go'],
   ['rust', 'Rust'],
+  ['c', 'C'],
+  ['csharp', 'C#'],
+  ['php', 'PHP'],
+  ['ruby', 'Ruby'],
+  ['kotlin', 'Kotlin'],
+  ['swift', 'Swift'],
+  ['r', 'R'],
+  ['graphql', 'GraphQL'],
+  ['diff', 'Diff'],
+  ['ini', 'INI / TOML'],
+  ['makefile', 'Makefile'],
+  ['python-repl', 'Python REPL'],
 ];
+
+// A code block is plain code, the output it printed, or a terminal session
+export const CODE_VARIANTS = { code: 'Code', output: 'Output', terminal: 'Terminal' };
 
 export const CALLOUT_VARIANTS = {
   info: { label: 'Note' },
   tip: { label: 'Tip' },
   warning: { label: 'Warning' },
+  pitfall: { label: 'Common mistake' },
 };

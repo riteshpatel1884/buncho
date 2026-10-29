@@ -16,6 +16,11 @@ enum Difficulty {
   HARD
 }
 
+enum PostKind {
+  BLOG
+  CODING
+}
+
 enum ProblemType {
   CONCEPTUAL
   PRACTICAL
@@ -608,6 +613,7 @@ model BlogPost {
   slug          String     @unique
   // Old slugs keep working: the article route redirects them (301) to the current slug
   previousSlugs String[]
+  kind PostKind @default(BLOG)
   title         String
   excerpt       String     @default("") @db.Text // subtitle shown under the title and on cards
   // TipTap/ProseMirror JSON. Never HTML: the public page renders it node by node into React elements.
@@ -643,7 +649,8 @@ model BlogPost {
   comments  BlogComment[]
   feedback  BlogFeedback[]
   revisions BlogRevision[]
-
+  
+  @@index([kind, status, publishedAt]) 
   @@index([status, publishedAt])
   @@index([category, status, publishedAt])
   @@index([featured, status])

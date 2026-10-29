@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import { buildExtensions } from './extensions';
@@ -10,7 +11,7 @@ import PracticePicker from './PracticePicker';
 import { Field, ResourcesField, Section, TagInput, inputCls } from './fields';
 import { uploadImage } from './upload';
 import { savePost, publishPost, unpublishPost, listRevisions, getRevision } from '@/app/admin/blog/actions';
-import { BLOG_CATEGORIES, LEVELS, LEVEL_LABEL, LIMITS, RESOURCE_LABEL } from '@/lib/blog-constants';
+import { KIND_LABEL, LEVELS, LEVEL_LABEL, LIMITS, RESOURCE_LABEL, categoriesFor } from '@/lib/blog-constants';
 import { EMPTY_DOC, slugify } from '@/lib/blog-content';
 import { validatePost } from '@/lib/blog-validate';
 import { fromISTInputValue } from '@/lib/datetime';
@@ -19,12 +20,20 @@ import { fromISTInputValue } from '@/lib/datetime';
    unusable "temporary client references"). A JSON round trip turns them into plain objects. */
 const plain = (doc) => JSON.parse(JSON.stringify(doc));
 
+// Coding-only tools are a separate chunk: blog articles never download it, and the coding editor paints first.
+const lazy = (name, fallback = null) => dynamic(() => import('./CodingTools').then((m) => m[name]), { ssr: false, loading: () => fallback });
+const CodingBar = lazy('CodingBar', <div className="h-11 border-t border-line" />);
+const Outline = lazy('Outline');
+const StatsBar = lazy('StatsBar');
+const CodingTips = lazy('CodingTips');
+
 const AUTOSAVE_MS = 3000;
-const blank = {
+const blank = (kind) => ({
+  kind,
   id: null, title: '', slug: '', excerpt: '', content: EMPTY_DOC, category: '', tags: [], level: '', keyTakeaways: [],
   resources: [], practiceProblemIds: [], coverImage: '', coverAlt: '', seoTitle: '', metaDescription: '', canonicalUrl: '', featured: false,
   status: 'DRAFT', live: false, scheduledFor: '', version: null,
-};
+});
 
 const STATE_TEXT = {
   saved: 'All changes saved',
@@ -35,8 +44,11 @@ const STATE_TEXT = {
 };
 const STATE_DOT = { saved: 'bg-easy', unsaved: 'bg-medium', saving: 'bg-muted', error: 'bg-hard', conflict: 'bg-hard' };
 
-export default function PostEditor({ initial }) {
-  const start = initial ?? blank;
+export default function PostEditor({ initial, kind: newKind = 'BLOG' }) {
+  const start = initial ?? blank(newKind);
+  const kind = start.kind === 'CODING' ? 'CODING' : 'BLOG';
+  const coding = kind === 'CODING';
+  const [zen, setZen] = useState(false);
   const [form, setForm] = useState(() => ({ ...start }));
   const [doc, setDoc] = useState(start.content);
   const [meta, setMeta] = useState({ id: start.id, status: start.status, live: start.live, version: start.version });
@@ -65,7 +77,7 @@ export default function PostEditor({ initial }) {
   metaRef.current = meta;
 
   const editor = useEditor({
-    extensions: buildExtensions(),
+    extensions: buildExtensions(kind),
     content: start.content,
     immediatelyRender: false, // avoids a hydration mismatch in the Next.js App Router
     editorProps: { attributes: { class: 'prose-blog px-5 py-5', 'aria-label': 'Article content' } },
@@ -167,9 +179,9 @@ export default function PostEditor({ initial }) {
   /* ------------------------------ validation ----------------------------- */
   const schedule = form.scheduledFor ? fromISTInputValue(form.scheduledFor) : null;
   const { errors, warnings } = useMemo(
-    () => validatePost({ ...form, content: doc }, { schedule: form.scheduledFor ? schedule ?? new Date(NaN) : null }),
+    () => validatePost({ ...form, kind, content: doc }, { schedule: form.scheduledFor ? schedule ?? new Date(NaN) : null }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [form, doc],
+    [form, doc, kind],
   );
   const err = (field) => errors.find((e) => e.field === field)?.message;
   const canPublish = errors.length === 0 && !busy && saveState !== 'saving';
@@ -259,12 +271,13 @@ export default function PostEditor({ initial }) {
   const statusLabel = meta.live ? 'Live' : meta.status === 'SCHEDULED' ? 'Scheduled' : meta.status === 'UNPUBLISHED' ? 'Unpublished' : 'Draft';
 
   return (
-    <div ref={rootRef} className="mx-auto w-full max-w-[90rem] px-4 pb-20 sm:px-6">
+    <div ref={rootRef} className="mx-auto w-full max-w-[90rem] px-4 pb-20 sm:px-6" data-kind={kind}>
       {/* Top bar */}
       <div ref={barRef} className="sticky top-16 z-30 -mx-4 mb-6 border-b border-line bg-surface/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
         <div className="flex flex-wrap items-center gap-3">
           <Link href="/admin/blog" className="text-sm text-muted hover:text-ink">← All articles</Link>
           <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-semibold">{statusLabel}</span>
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${coding ? 'bg-accent-soft text-accent' : 'bg-surface-2 text-muted'}`}>{coding ? '</> ' : ''}{KIND_LABEL[kind]}</span>
           <p className="flex items-center gap-2 text-sm" role="status" aria-live="polite">
             <span className={`h-2 w-2 rounded-full ${STATE_DOT[saveState]}`} aria-hidden="true" />
             <span>{STATE_TEXT[saveState]}</span>
@@ -289,9 +302,9 @@ export default function PostEditor({ initial }) {
         {message && <p role="status" className={`mt-2 text-sm ${saveState === 'error' || saveState === 'conflict' ? 'text-hard' : 'text-muted'}`}>{message}</p>}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className={`grid gap-6 ${zen ? '' : 'lg:grid-cols-[minmax(0,1fr)_22rem]'}`}>
         {/* Writing column */}
-        <div className="min-w-0 space-y-4">
+        <div className={`min-w-0 space-y-4 ${zen ? 'mx-auto w-full max-w-[60rem]' : ''}`}>
           <div>
             <label htmlFor="post-title" className="sr-only">Article title (H1)</label>
             <textarea
@@ -303,7 +316,7 @@ export default function PostEditor({ initial }) {
                 const title = e.target.value.replace(/\n/g, ' ');
                 set(slugTouched ? { title } : { title, slug: slugify(title) });
               }}
-              placeholder="Article title"
+              placeholder={coding ? 'Note title, e.g. Python list comprehensions' : 'Article title'}
               className="w-full resize-none bg-transparent text-3xl font-bold leading-tight tracking-tight outline-none placeholder:text-muted/60"
             />
             {err('title') && form.title && <p className="text-xs text-hard">{err('title')}</p>}
@@ -313,17 +326,24 @@ export default function PostEditor({ initial }) {
             <textarea id="post-excerpt" rows={2} value={form.excerpt} onChange={(e) => set({ excerpt: e.target.value })} className={inputCls} />
           </Field>
 
-          <div className="blog-editor rounded-lg border border-line bg-surface">
-            {editor ? <EditorToolbar editor={editor} onImage={openImage} /> : <div className="h-12" />}
+          {coding && <CodingTips />}
+          <div className="blog-editor rounded-lg border border-line bg-surface" data-size="md" data-wrap="off">
+            {editor ? (
+              <EditorToolbar editor={editor} onImage={openImage}>
+                {coding && <CodingBar editor={editor} zen={zen} onZen={setZen} />}
+              </EditorToolbar>
+            ) : <div className="h-12" />}
             <EditorContent editor={editor} />
+            {coding && <StatsBar doc={doc} />}
           </div>
           {err('content') && <p className="text-sm text-hard">{err('content')}</p>}
 
-          <PracticePicker value={form.practiceProblemIds ?? []} onChange={(practiceProblemIds) => set({ practiceProblemIds })} />
+          {!coding && <PracticePicker value={form.practiceProblemIds ?? []} onChange={(practiceProblemIds) => set({ practiceProblemIds })} />}
         </div>
 
         {/* Settings column */}
-        <aside className="min-w-0 space-y-3 lg:sticky lg:top-[calc(4rem+var(--editor-bar-h,3.75rem)+1rem)] lg:max-h-[calc(100dvh-4rem-var(--editor-bar-h,3.75rem)-2rem)] lg:self-start lg:overflow-y-auto lg:pr-1" aria-label="Article settings">
+        <aside hidden={zen} className="min-w-0 space-y-3 lg:sticky lg:top-[calc(4rem+var(--editor-bar-h,3.75rem)+1rem)] lg:max-h-[calc(100dvh-4rem-var(--editor-bar-h,3.75rem)-2rem)] lg:self-start lg:overflow-y-auto lg:pr-1" aria-label="Article settings">
+          {coding && editor && <Section title="Outline"><Outline doc={doc} editor={editor} /></Section>}
           <Section title={`Publishing checklist (${errors.length ? `${errors.length} to fix` : 'ready'})`}>
             {errors.length === 0 ? (
               <p className="text-sm text-easy">Everything required is filled in.</p>
@@ -353,7 +373,7 @@ export default function PostEditor({ initial }) {
             <Field id="post-category" label="Category" error={err('category')}>
               <select id="post-category" value={form.category} onChange={(e) => set({ category: e.target.value })} className={inputCls}>
                 <option value="">Choose…</option>
-                {BLOG_CATEGORIES.map((c) => <option key={c.slug} value={c.slug}>{c.group} / {c.name}</option>)}
+                {categoriesFor(kind).map((c) => <option key={c.slug} value={c.slug}>{c.group} / {c.name}</option>)}
               </select>
             </Field>
             <Field id="post-tags" label="Tags" hint="Used for search, filters and related articles." error={err('tags')}>

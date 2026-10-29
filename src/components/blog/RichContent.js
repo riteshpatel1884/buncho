@@ -1,9 +1,9 @@
-import { createElement as h } from 'react';
+import { createElement as h, Fragment } from 'react';
 import { createLowlight, common } from 'lowlight';
 import { CALLOUT_VARIANTS } from '@/lib/blog-constants';
-import { safeUrl } from '@/lib/blog-content';
+import { parseLineRanges, safeUrl } from '@/lib/blog-content';
 import { SITE_URL } from '@/lib/seo';
-import CopyCodeButton from './CopyCodeButton';
+import CodeCopyHandler from './CodeCopyHandler';
 
 /*
  * Server-side renderer for the stored article JSON. It builds React elements node by node, so there is no
@@ -33,22 +33,49 @@ function hastToReact(node, key) {
 // Languages tried when a code block has no language set. Kept small so detection stays accurate.
 const AUTO_SUBSET = ['python', 'javascript', 'typescript', 'bash', 'json', 'sql', 'yaml', 'xml', 'css', 'java', 'cpp', 'go', 'dockerfile'];
 
-/** Returns { nodes, language }. With no language chosen, the language is detected from the code itself. */
+/**
+ * Returns { nodes, hast, language }. `nodes` is React output; `hast` is the raw highlight tree (used to split
+ * code into lines). With no language chosen, the language is detected from the code itself.
+ */
 function highlight(code, language) {
   try {
     if (!language || language === 'plaintext') {
       const found = lowlight.highlightAuto(code, { subset: AUTO_SUBSET });
       const detected = found.data?.language;
       if (detected && (found.data?.relevance ?? 0) >= 3) {
-        return { nodes: found.children.map((c, i) => hastToReact(c, i)), language: detected };
+        return { nodes: found.children.map((c, i) => hastToReact(c, i)), hast: found.children, language: detected };
       }
       return { nodes: code, language: 'code' };
     }
     if (!lowlight.registered(language)) return { nodes: code, language };
-    return { nodes: lowlight.highlight(language, code).children.map((c, i) => hastToReact(c, i)), language };
+    const hast = lowlight.highlight(language, code).children;
+    return { nodes: hast.map((c, i) => hastToReact(c, i)), hast, language };
   } catch {
     return { nodes: code, language: language || 'code' };
   }
+}
+
+/** Splits highlighted output into lines (re-opening any span that crosses a newline) for line numbers and highlighting. */
+function toLines(nodes) {
+  if (typeof nodes === 'string') return nodes.split('\n').map((l) => [l]);
+  const lines = [[]];
+  const walk = (list, wrappers) =>
+    list.forEach((n) => {
+      if (n.type === 'text') {
+        n.value.split('\n').forEach((part, i) => {
+          if (i) lines.push([]);
+          if (!part) return;
+          const line = lines[lines.length - 1];
+          let el = part;
+          for (let w = wrappers.length - 1; w >= 0; w -= 1) el = h('span', { key: line.length, className: wrappers[w] }, el);
+          line.push(el);
+        });
+      } else if (n.type === 'element') {
+        walk(n.children ?? [], [...wrappers, [].concat(n.properties?.className ?? []).join(' ')]);
+      }
+    });
+  walk(nodes, []);
+  return lines;
 }
 
 const plain = (node) => (node.content ?? []).map((c) => (c.type === 'text' ? c.text : plain(c))).join('');
@@ -116,18 +143,32 @@ function renderNode(node, ctx, key) {
     case 'horizontalRule':
       return h('hr', { key });
     case 'codeBlock': {
+      ctx.hasCode = true;
       const code = plain(node);
-      const { nodes, language } = highlight(code, a.language);
+      const variant = a.variant === 'output' || a.variant === 'terminal' ? a.variant : 'code';
+      // Output is shown as printed; a terminal session defaults to shell highlighting
+      const { nodes, hast, language } = variant === 'output' ? { nodes: code, language: 'output' } : highlight(code, a.language || (variant === 'terminal' ? 'bash' : null));
+      const label = variant === 'output' ? 'Output' : variant === 'terminal' ? 'Terminal' : language;
+
+      // Line mode is only used when a block asks for numbers or highlighted lines, so ordinary blocks render as before
+      const marked = a.highlight ? parseLineRanges(a.highlight) : new Set();
+      const lineMode = Boolean(a.lineNumbers) || marked.size > 0;
+      let body = nodes;
+      if (lineMode) {
+        const lines = toLines(hast ?? nodes); // raw highlight tree when there is one, plain text otherwise
+        if (lines.length > 1 && lines[lines.length - 1].length === 0) lines.pop();
+        body = lines.map((ln, i) => h('span', { key: i, className: `code-line${marked.has(i + 1) ? ' is-hl' : ''}` }, h(Fragment, null, ln), '\n'));
+      }
       return h(
         'div',
-        { key, className: 'code-block' },
+        { key, className: `code-block code-block--${variant}` },
         h(
           'div',
           { className: 'code-block-bar' },
-          h('span', { className: 'code-block-lang' }, language),
-          h(CopyCodeButton, { code }),
+          h('span', { className: 'code-block-title' }, a.filename && h('span', { className: 'code-block-file' }, a.filename), h('span', { className: 'code-block-lang' }, label)),
+          h('button', { type: 'button', 'data-copy': '', className: 'code-copy', 'aria-label': 'Copy code to clipboard' }, 'Copy'),
         ),
-        h('pre', { tabIndex: 0 }, h('code', { className: `language-${language}` }, nodes)),
+        h('pre', { tabIndex: 0, className: a.lineNumbers ? 'has-ln' : undefined }, h('code', { className: `language-${language}` }, body)),
       );
     }
     case 'image': {
@@ -197,6 +238,12 @@ function renderNode(node, ctx, key) {
 
 /** `headings` must come from buildHeadingIndex(doc) for the same document. */
 export default function RichContent({ doc, headings }) {
-  const ctx = { headings, cursor: 0 };
-  return <div className="prose-blog">{renderChildren(doc ?? { content: [] }, ctx)}</div>;
+  const ctx = { headings, cursor: 0, hasCode: false };
+  const body = renderChildren(doc ?? { content: [] }, ctx);
+  return (
+    <div className="prose-blog">
+      {body}
+      {ctx.hasCode && <CodeCopyHandler />}
+    </div>
+  );
 }
