@@ -30,6 +30,8 @@ const CodingTips = lazy('CodingTips');
 const AUTOSAVE_MS = 3000;
 const blank = (kind) => ({
   kind,
+  folder: '',
+  sortOrder: 0,
   id: null, title: '', slug: '', excerpt: '', content: EMPTY_DOC, category: '', tags: [], level: '', keyTakeaways: [],
   resources: [], practiceProblemIds: [], coverImage: '', coverAlt: '', seoTitle: '', metaDescription: '', canonicalUrl: '', featured: false,
   status: 'DRAFT', live: false, scheduledFor: '', version: null,
@@ -44,7 +46,7 @@ const STATE_TEXT = {
 };
 const STATE_DOT = { saved: 'bg-easy', unsaved: 'bg-medium', saving: 'bg-muted', error: 'bg-hard', conflict: 'bg-hard' };
 
-export default function PostEditor({ initial, kind: newKind = 'BLOG' }) {
+export default function PostEditor({ initial, kind: newKind = 'BLOG', folderOptions = {} }) {
   const start = initial ?? blank(newKind);
   const kind = start.kind === 'CODING' ? 'CODING' : 'BLOG';
   const coding = kind === 'CODING';
@@ -376,6 +378,17 @@ export default function PostEditor({ initial, kind: newKind = 'BLOG' }) {
                 {categoriesFor(kind).map((c) => <option key={c.slug} value={c.slug}>{c.group} / {c.name}</option>)}
               </select>
             </Field>
+            {coding && (
+              <>
+                <Field id="post-folder" label="Folder" hint="Notes with the same folder are listed together, like files in a repo. Example: File Handling.">
+                  <input id="post-folder" list="folder-options" value={form.folder ?? ''} maxLength={60} onChange={(e) => set({ folder: e.target.value })} placeholder="e.g. File Handling" className={inputCls} />
+                  <datalist id="folder-options">{(folderOptions[form.category] ?? []).map((f) => <option key={f} value={f} />)}</datalist>
+                </Field>
+                <Field id="post-order" label="Order in folder" hint="Lower numbers come first. Leave 0 to sort by title.">
+                  <input id="post-order" type="number" min={0} max={9999} value={form.sortOrder ?? 0} onChange={(e) => set({ sortOrder: e.target.value })} className={inputCls} />
+                </Field>
+              </>
+            )}
             <Field id="post-tags" label="Tags" hint="Used for search, filters and related articles." error={err('tags')}>
               <TagInput id="post-tags" value={form.tags} onChange={(tags) => set({ tags })} max={LIMITS.tagsMax} />
             </Field>

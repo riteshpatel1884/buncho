@@ -314,3 +314,23 @@ export function groupQaIntoFaq(doc) {
   }
   return { doc: { ...doc, content: out }, converted };
 }
+
+/* ------------------------- numbered questions ------------------------ */
+
+const NUMBERED_QUESTION = /^\s*(?:Q\s*)?\d{1,3}\s*[.)]\s+\S.*\?\s*$/i;
+
+/**
+ * Turns top-level paragraphs like "1. What is Python?" into H3 headings, so pasted interview notes get an outline,
+ * a table of contents and proper question cards. Paragraphs that are not a numbered question are left alone.
+ */
+export function questionsToHeadings(doc) {
+  let converted = 0;
+  const content = (doc?.content ?? []).map((block) => {
+    if (block.type === 'paragraph' && NUMBERED_QUESTION.test(nodeText(block))) {
+      converted += 1;
+      return { type: 'heading', attrs: { level: 3 }, content: block.content };
+    }
+    return block;
+  });
+  return { doc: { ...doc, content }, converted };
+}

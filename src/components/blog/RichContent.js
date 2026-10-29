@@ -236,12 +236,12 @@ function renderNode(node, ctx, key) {
   }
 }
 
-/** `headings` must come from buildHeadingIndex(doc) for the same document. */
-export default function RichContent({ doc, headings }) {
+/** `headings` must come from buildHeadingIndex(doc) for the same document. `variant="notes"` is the coding-notes reading style. */
+export default function RichContent({ doc, headings, variant }) {
   const ctx = { headings, cursor: 0, hasCode: false };
   const body = renderChildren(doc ?? { content: [] }, ctx);
   return (
-    <div className="prose-blog">
+    <div className={variant === 'notes' ? 'prose-blog prose-notes' : 'prose-blog'}>
       {body}
       {ctx.hasCode && <CodeCopyHandler />}
     </div>

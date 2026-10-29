@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useEditorState } from '@tiptap/react';
 import { CALLOUT_VARIANTS, CODE_LANGUAGES, CODE_VARIANTS } from '@/lib/blog-constants';
-import { buildHeadingIndex, codeStats } from '@/lib/blog-content';
+import { buildHeadingIndex, codeStats, questionsToHeadings } from '@/lib/blog-content';
 import { CODING_TEMPLATES } from '@/lib/coding-templates';
 
 const KEY = 'buncho.codingPrefs.v1';
@@ -85,6 +85,45 @@ export function CodingBar({ editor, zen, onZen }) {
     return s.code ? chain().updateAttributes('codeBlock', attrs).run() : chain().setCodeBlock(attrs).run();
   }
 
+  const codeAttrs = () => ({ language: prefs.lang, lineNumbers: prefs.numbers });
+
+  /** Inserts the clipboard as one code block with its indentation intact (pasting into normal text loses it). */
+  async function pasteAsCode() {
+    try {
+      const text = (await navigator.clipboard.readText()).replace(/\r\n/g, '\n').replace(/\n+$/, '');
+      if (!text.trim()) return;
+      chain().insertContent({ type: 'codeBlock', attrs: codeAttrs(), content: [{ type: 'text', text }] }).run();
+    } catch {
+      window.alert('The browser blocked clipboard access. Allow it for this site, or paste inside an existing code block.');
+    }
+  }
+
+  /** Several selected paragraphs (code that was pasted line by line) become a single code block, one line each. */
+  function mergeToCode() {
+    const { state } = editor;
+    const { $from, $to } = state.selection;
+    if ($from.depth < 1) return;
+    const start = $from.before(1);
+    const end = $to.after(1);
+    const lines = [];
+    state.doc.nodesBetween(start, end, (n) => {
+      if (n.isTextblock) {
+        lines.push(n.textContent);
+        return false;
+      }
+      return true;
+    });
+    const text = lines.join('\n');
+    if (!text.trim()) return;
+    chain().insertContentAt({ from: start, to: end }, { type: 'codeBlock', attrs: codeAttrs(), content: [{ type: 'text', text }] }).run();
+  }
+
+  function questionsToH3() {
+    const { doc, converted } = questionsToHeadings(JSON.parse(JSON.stringify(editor.getJSON())));
+    if (!converted) return window.alert('No numbered questions ending in "?" were found, for example "1. What is Python?".');
+    editor.commands.setContent(doc, { emitUpdate: true });
+  }
+
   return (
     <div className="border-t border-line bg-surface-2/60">
       <div role="toolbar" aria-label="Coding tools" className="flex flex-wrap items-center gap-1.5 px-2 py-1.5">
@@ -103,6 +142,19 @@ export function CodingBar({ editor, zen, onZen }) {
           {Object.entries(CALLOUT_VARIANTS).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
         </select>
         <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => (s.faq ? chain().unsetFaq().run() : chain().setFaq().run())} className={`${pill} ${s.faq ? pillOn : ''}`} title="First block is the title, the rest folds away">▸ Collapsible</button>
+
+        <Menu label="⚒ Fix pasted notes" wide>
+          {[
+            ['Paste clipboard as code', 'Keeps indentation exactly as copied', pasteAsCode],
+            ['Selected lines → one code block', 'For code that landed as separate paragraphs', mergeToCode],
+            ['Numbered questions → headings', '“1. What is Python?” becomes an H3', questionsToH3],
+          ].map(([name, hint, fn]) => (
+            <button key={name} type="button" onClick={(e) => { fn(); closeMenu(e); }} className="block w-full rounded-md px-2.5 py-2 text-left hover:bg-surface-2">
+              <span className="block text-sm font-semibold">{name}</span>
+              <span className="block text-xs text-muted">{hint}</span>
+            </button>
+          ))}
+        </Menu>
 
         <Menu label="✦ Templates" wide>
           {CODING_TEMPLATES.map((tpl) => (

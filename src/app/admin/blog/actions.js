@@ -61,6 +61,8 @@ function normalise(input) {
 
   return {
     kind: POST_KINDS.includes(input.kind) ? input.kind : 'BLOG',
+    folder: text(input.folder, 60).replace(/[\/\\]/g, ' ').replace(/\s+/g, ' ').trim(),
+    sortOrder: Math.max(0, Math.min(9999, parseInt(input.sortOrder, 10) || 0)),
     title: text(input.title, LIMITS.title),
     slug: slugify(text(input.slug, 120), LIMITS.slugMax),
     excerpt: text(input.excerpt, LIMITS.excerptMax + 50),

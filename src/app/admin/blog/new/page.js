@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import PostEditor from '@/components/blog/admin/PostEditor';
 import { requireAdminPage } from '@/lib/blog-admin';
+import { getFolderOptions } from '@/lib/notes';
 
 export const metadata = { title: 'New article' };
 export const dynamic = 'force-dynamic';
@@ -26,7 +27,10 @@ const CHOICES = [
 export default async function NewPostPage({ searchParams }) {
   await requireAdminPage();
   const { type } = await searchParams;
-  if (type === 'blog' || type === 'coding') return <PostEditor initial={null} kind={type === 'coding' ? 'CODING' : 'BLOG'} />;
+  if (type === 'blog' || type === 'coding') {
+    const folderOptions = type === 'coding' ? await getFolderOptions() : {};
+    return <PostEditor initial={null} kind={type === 'coding' ? 'CODING' : 'BLOG'} folderOptions={folderOptions} />;
+  }
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6">
