@@ -37,6 +37,34 @@ const blank = (kind) => ({
   status: 'DRAFT', live: false, scheduledFor: '', version: null,
 });
 
+/** The topic folder is the Category. This lists the notes already inside it and lets the admin add another one. */
+function TopicFiles({ category, currentId, notes, onUseOrder }) {
+  if (!category) return <p className="text-xs text-muted">Choose a category above. It is the topic folder this note is filed in. You can add as many notes to it as you like, one per subtopic.</p>;
+  const next = notes.reduce((m, n) => Math.max(m, Number(n.order) || 0), 0) + 1;
+  const name = categoriesFor('CODING').find((c) => c.slug === category)?.name ?? category;
+  return (
+    <div className="rounded-lg border border-line bg-surface-2/50 p-3 text-sm">
+      <p className="font-semibold">Files in {name} <span className="font-normal text-muted">({notes.length})</span></p>
+      {notes.length > 0 ? (
+        <ol className="mt-2 max-h-48 space-y-1 overflow-y-auto pr-1">
+          {notes.map((n) => (
+            <li key={n.id} className="flex items-center gap-2 text-xs">
+              <span className="w-6 shrink-0 text-right font-mono text-muted">{n.order || '–'}</span>
+              {n.id === currentId ? <span className="truncate font-semibold">{n.title || 'Untitled'} (this note)</span> : <Link href={`/admin/blog/${n.id}/edit`} className="truncate text-accent hover:underline">{n.title || 'Untitled'}</Link>}
+              {n.status !== 'PUBLISHED' && <span className="shrink-0 rounded-full bg-surface px-1.5 text-[0.65rem] text-muted">{n.status.toLowerCase()}</span>}
+            </li>
+          ))}
+        </ol>
+      ) : <p className="mt-1 text-xs text-muted">No notes yet. This will be the first.</p>}
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+        {/* A full page load on purpose: the editor then starts completely fresh, with no leftovers from this note */}
+        <button type="button" onClick={() => window.location.assign(`/admin/blog/new?type=coding&category=${category}`)} className="font-semibold text-accent hover:underline">+ Add another note to {name}</button>
+        {!currentId && <button type="button" onClick={() => onUseOrder(next)} className="text-muted underline hover:text-ink">Use next order ({next})</button>}
+      </div>
+    </div>
+  );
+}
+
 const STATE_TEXT = {
   saved: 'All changes saved',
   unsaved: 'Unsaved changes',
@@ -46,8 +74,8 @@ const STATE_TEXT = {
 };
 const STATE_DOT = { saved: 'bg-easy', unsaved: 'bg-medium', saving: 'bg-muted', error: 'bg-hard', conflict: 'bg-hard' };
 
-export default function PostEditor({ initial, kind: newKind = 'BLOG', folderOptions = {} }) {
-  const start = initial ?? blank(newKind);
+export default function PostEditor({ initial, kind: newKind = 'BLOG', newCategory = '', topicNotes = {} }) {
+  const start = initial ?? { ...blank(newKind), category: newCategory };
   const kind = start.kind === 'CODING' ? 'CODING' : 'BLOG';
   const coding = kind === 'CODING';
   const [zen, setZen] = useState(false);
@@ -380,11 +408,17 @@ export default function PostEditor({ initial, kind: newKind = 'BLOG', folderOpti
             </Field>
             {coding && (
               <>
-                <Field id="post-folder" label="Folder" hint="Notes with the same folder are listed together, like files in a repo. Example: File Handling.">
-                  <input id="post-folder" list="folder-options" value={form.folder ?? ''} maxLength={60} onChange={(e) => set({ folder: e.target.value })} placeholder="e.g. File Handling" className={inputCls} />
-                  <datalist id="folder-options">{(folderOptions[form.category] ?? []).map((f) => <option key={f} value={f} />)}</datalist>
+                <TopicFiles
+                  category={form.category}
+                  currentId={meta.id}
+                  notes={topicNotes[form.category] ?? []}
+                  onUseOrder={(n) => set({ sortOrder: n })}
+                />
+                <Field id="post-folder" label="Section (optional)" hint="A small label shown next to this note in the topic, e.g. Basics or File handling. It does not create another folder level.">
+                  <input id="post-folder" list="section-options" value={form.folder ?? ''} maxLength={60} onChange={(e) => set({ folder: e.target.value })} placeholder="e.g. Basics" className={inputCls} />
+                  <datalist id="section-options">{[...new Set((topicNotes[form.category] ?? []).map((n) => n.section).filter(Boolean))].map((f) => <option key={f} value={f} />)}</datalist>
                 </Field>
-                <Field id="post-order" label="Order in folder" hint="Lower numbers come first. Leave 0 to sort by title.">
+                <Field id="post-order" label="Order in topic" hint="Lower numbers come first (1, 2, 3...). Leave 0 to list it after the numbered notes, sorted by title.">
                   <input id="post-order" type="number" min={0} max={9999} value={form.sortOrder ?? 0} onChange={(e) => set({ sortOrder: e.target.value })} className={inputCls} />
                 </Field>
               </>

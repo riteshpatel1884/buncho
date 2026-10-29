@@ -16,6 +16,8 @@ export const BLOG_CATEGORIES = [
 BLOG_CATEGORIES.push(
   { slug: 'python-notes', name: 'Python', group: 'Coding Notes', kind: 'CODING', description: 'Python notes with runnable snippets: syntax, standard library, idioms and gotchas.' },
   { slug: 'data-science-code', name: 'NumPy and Pandas', group: 'Coding Notes', kind: 'CODING', description: 'Data wrangling and numerical code: arrays, dataframes, plotting and performance.' },
+  { slug: 'numpy-notes', name: 'NumPy', group: 'Coding Notes', kind: 'CODING', description: 'NumPy arrays, broadcasting, vectorisation and numerical recipes.' },
+  { slug: 'pandas-notes', name: 'Pandas', group: 'Coding Notes', kind: 'CODING', description: 'Pandas dataframes: cleaning, grouping, merging and time series.' },
   { slug: 'ml-code', name: 'ML Code', group: 'Coding Notes', kind: 'CODING', description: 'Training loops, evaluation code and framework snippets for machine learning.' },
   { slug: 'javascript-notes', name: 'JavaScript and TypeScript', group: 'Coding Notes', kind: 'CODING', description: 'JavaScript and TypeScript notes: language features, async code and tooling.' },
   { slug: 'sql-notes', name: 'SQL', group: 'Coding Notes', kind: 'CODING', description: 'Queries, joins, window functions and schema design notes.' },

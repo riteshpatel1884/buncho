@@ -6,42 +6,49 @@ import { BLOG_CATEGORIES, CATEGORY_BY_SLUG } from './blog-constants';
 /** Slug used for a coding note that has no category yet (drafts in the editor preview). */
 export const UNFILED = 'unfiled';
 
+/*
+ * Structure of the coding notes:
+ *   topic folder (a coding category: Python, NumPy, Pandas, SQL ...)  >  note files (one per subtopic)
+ * The old free-text "folder" column is kept in the database and is now an optional "section" label on a note
+ * (for example "Basics" or "File handling"). It only shows as a small badge; it no longer creates another level.
+ */
+
 const file = (r) => ({
   slug: r.slug,
   title: r.title,
   excerpt: r.excerpt ?? '',
   minutes: r.readingMinutes,
   updated: r.lastEditedAt ?? null,
+  section: r.folder ?? '',
+  order: r.sortOrder ?? 0,
 });
 
-/** Link to a folder view on /notes. No arguments = the root. */
-export function notesHref(category, folder) {
-  const q = new URLSearchParams();
-  if (category) q.set('c', category);
-  if (category && folder) q.set('f', folder);
-  const s = q.toString();
-  return s ? `/notes?${s}` : '/notes';
+/** Notes with an order number (1, 2, 3...) come first in that order, the rest follow by title. */
+const byOrder = (a, b) => {
+  if (a.order !== b.order) {
+    if (!a.order) return 1;
+    if (!b.order) return -1;
+    return a.order - b.order;
+  }
+  return a.title.localeCompare(b.title);
+};
+
+/** Link to a topic folder on /notes. No argument = the list of all topics. */
+export function notesHref(category) {
+  return category ? `/notes?c=${encodeURIComponent(category)}` : '/notes';
 }
 
-/** Groups published coding notes into category > folder > file. Rows must already be sorted. */
+/** Groups published coding notes into topic > files. Topics with no published note are left out. */
 export function buildTree(rows) {
   return BLOG_CATEGORIES.filter((c) => c.kind === 'CODING')
     .map((c) => {
-      const mine = rows.filter((r) => r.category === c.slug);
-      const names = [...new Set(mine.filter((r) => r.folder).map((r) => r.folder))].sort((a, b) => a.localeCompare(b));
-      return {
-        slug: c.slug,
-        name: c.name,
-        description: c.description,
-        count: mine.length,
-        files: mine.filter((r) => !r.folder).map(file),
-        folders: names.map((name) => ({ name, files: mine.filter((r) => r.folder === name).map(file) })),
-      };
+      const files = rows.filter((r) => r.category === c.slug).map(file).sort(byOrder);
+      return { slug: c.slug, name: c.name, description: c.description, count: files.length, files };
     })
     .filter((c) => c.count > 0);
 }
 
-/** The folder tree for the sidebar and the /notes page. One small query, shared by everything in a request. */
+/** The topic tree for the explorer and the /notes page. One small query, shared by everything in a request. */
 export const getNotesTree = cache(async () => {
   const rows = await prisma.blogPost.findMany({
     where: { AND: [liveWhere(), { kind: 'CODING' }] },
@@ -57,8 +64,7 @@ export const getNotesTree = cache(async () => {
  * preview, or a note with no category). Returns a new tree; the cached one is never changed.
  */
 export function withCurrent(tree, post) {
-  const slugs = tree.flatMap((c) => [...c.files, ...c.folders.flatMap((f) => f.files)]).map((f) => f.slug);
-  if (slugs.includes(post.slug)) return tree;
+  if (tree.some((c) => c.files.some((f) => f.slug === post.slug))) return tree;
 
   const entry = {
     slug: post.slug,
@@ -66,49 +72,45 @@ export function withCurrent(tree, post) {
     excerpt: post.excerpt ?? '',
     minutes: post.readingMinutes,
     updated: post.lastEditedAt ?? null,
+    section: post.folder ?? '',
+    order: post.sortOrder ?? 0,
     draft: true,
   };
   const catSlug = CATEGORY_BY_SLUG[post.category]?.kind === 'CODING' ? post.category : UNFILED;
-  const copy = tree.map((c) => ({ ...c, files: [...c.files], folders: c.folders.map((f) => ({ ...f, files: [...f.files] })) }));
+  const copy = tree.map((c) => ({ ...c, files: [...c.files] }));
   let cat = copy.find((c) => c.slug === catSlug);
   if (!cat) {
     const meta = CATEGORY_BY_SLUG[catSlug];
-    cat = { slug: catSlug, name: meta?.name ?? 'Unfiled drafts', description: meta?.description ?? 'Notes that have no category yet.', count: 0, files: [], folders: [] };
+    cat = { slug: catSlug, name: meta?.name ?? 'Unfiled drafts', description: meta?.description ?? 'Notes that have no category yet.', count: 0, files: [] };
     copy.push(cat);
   }
   cat.count += 1;
-  if (post.folder) {
-    let folder = cat.folders.find((f) => f.name === post.folder);
-    if (!folder) cat.folders.push((folder = { name: post.folder, files: [] }));
-    folder.files.push(entry);
-  } else {
-    cat.files.push(entry);
-  }
+  cat.files.push(entry);
+  cat.files.sort(byOrder);
   return copy;
 }
 
-/** Previous and next file in the same category, in reading order (loose files first, then folder by folder). */
+/** Previous and next file in the same topic, in reading order. */
 export function neighbours(tree, { slug, category }) {
   const cat = tree.find((c) => c.slug === category);
   if (!cat) return { prev: null, next: null };
-  const ordered = [
-    ...cat.files.map((f) => ({ ...f, folder: '' })),
-    ...cat.folders.flatMap((fo) => fo.files.map((f) => ({ ...f, folder: fo.name }))),
-  ];
-  const i = ordered.findIndex((f) => f.slug === slug);
+  const i = cat.files.findIndex((f) => f.slug === slug);
   const link = (f) => (f && !f.draft ? f : null);
-  return i === -1 ? { prev: null, next: null } : { prev: link(ordered[i - 1]), next: link(ordered[i + 1]) };
+  return i === -1 ? { prev: null, next: null } : { prev: link(cat.files[i - 1]), next: link(cat.files[i + 1]) };
 }
 
-/** Existing folder names per category (drafts included) for the editor's suggestion list. Admin pages only. */
-export async function getFolderOptions() {
+/**
+ * Every coding note per topic (drafts included), for the admin editor: shows the files already inside the chosen
+ * topic, suggests the next order number and the section names in use. Admin pages only.
+ */
+export async function getTopicNotes() {
   const rows = await prisma.blogPost.findMany({
-    where: { kind: 'CODING', NOT: { folder: '' } },
-    distinct: ['category', 'folder'],
-    select: { category: true, folder: true },
+    where: { kind: 'CODING' },
+    select: { id: true, title: true, category: true, folder: true, sortOrder: true, status: true },
+    orderBy: [{ sortOrder: 'asc' }, { title: 'asc' }],
+    take: 2000,
   });
   const out = {};
-  rows.forEach((r) => (out[r.category] ??= []).push(r.folder));
-  Object.values(out).forEach((list) => list.sort((a, b) => a.localeCompare(b)));
+  rows.forEach((r) => (out[r.category] ??= []).push({ id: r.id, title: r.title, section: r.folder, order: r.sortOrder, status: r.status }));
   return out;
 }

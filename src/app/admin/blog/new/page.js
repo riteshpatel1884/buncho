@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import PostEditor from '@/components/blog/admin/PostEditor';
 import { requireAdminPage } from '@/lib/blog-admin';
-import { getFolderOptions } from '@/lib/notes';
+import { getTopicNotes } from '@/lib/notes';
+import { categoriesFor } from '@/lib/blog-constants';
 
 export const metadata = { title: 'New article' };
 export const dynamic = 'force-dynamic';
@@ -26,10 +27,13 @@ const CHOICES = [
 /* The chooser is plain server-rendered links, so it costs no JavaScript. The editor only loads once a type is picked. */
 export default async function NewPostPage({ searchParams }) {
   await requireAdminPage();
-  const { type } = await searchParams;
+  const { type, category } = await searchParams;
   if (type === 'blog' || type === 'coding') {
-    const folderOptions = type === 'coding' ? await getFolderOptions() : {};
-    return <PostEditor initial={null} kind={type === 'coding' ? 'CODING' : 'BLOG'} folderOptions={folderOptions} />;
+    const coding = type === 'coding';
+    const topicNotes = coding ? await getTopicNotes() : {};
+    // ?category=python-notes opens the editor already inside that topic folder ("Add another note")
+    const preset = coding && categoriesFor('CODING').some((c) => c.slug === category) ? category : '';
+    return <PostEditor initial={null} kind={coding ? 'CODING' : 'BLOG'} newCategory={preset} topicNotes={topicNotes} />;
   }
 
   return (

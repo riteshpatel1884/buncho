@@ -76,13 +76,13 @@ function PrevNext({ prev, next }) {
     <nav aria-label="Previous and next note" className="mt-8 grid gap-3 sm:grid-cols-2">
       {prev ? (
         <Link href={`/blog/${prev.slug}`} className="rounded-xl border border-line bg-surface p-4 transition-colors hover:border-accent/60 hover:bg-surface-2">
-          <span className="text-xs text-muted">← Previous{prev.folder ? ` · ${prev.folder}` : ''}</span>
+          <span className="text-xs text-muted">← Previous{prev.section ? ` · ${prev.section}` : ''}</span>
           <span className="mt-1 block font-semibold leading-snug">{prev.title}</span>
         </Link>
       ) : <span />}
       {next && (
         <Link href={`/blog/${next.slug}`} className="rounded-xl border border-line bg-surface p-4 text-right transition-colors hover:border-accent/60 hover:bg-surface-2">
-          <span className="text-xs text-muted">Next{next.folder ? ` · ${next.folder}` : ''} →</span>
+          <span className="text-xs text-muted">Next{next.section ? ` · ${next.section}` : ''} →</span>
           <span className="mt-1 block font-semibold leading-snug">{next.title}</span>
         </Link>
       )}
@@ -119,20 +119,14 @@ function Footer({ post, preview, viewer, helpfulCounts, comments, loginHref }) {
   );
 }
 
-/** "Notes / Python / Basics / 00_python" - every part is a link into the matching folder view, like a repo path bar. */
-function PathBar({ category, folder, name }) {
+/** "notes / Python / 00_python" - the topic is a link into its folder view, like a repo path bar. */
+function PathBar({ category, name }) {
   const part = 'rounded px-1 py-0.5 text-accent hover:bg-accent-soft hover:underline';
   return (
     <nav aria-label="File path" className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 font-mono text-[0.85rem] text-muted">
       <Link href="/notes" className={part}>notes</Link>
       <span aria-hidden="true">/</span>
       {category ? <Link href={notesHref(category.slug)} className={part}>{category.name}</Link> : <span className="px-1 py-0.5">unfiled</span>}
-      {folder && (
-        <>
-          <span aria-hidden="true">/</span>
-          <Link href={notesHref(category?.slug, folder)} className={part}>{folder}</Link>
-        </>
-      )}
       <span aria-hidden="true">/</span>
       <span aria-current="page" className="max-w-[18rem] truncate px-1 py-0.5 font-semibold text-ink sm:max-w-md">{name}</span>
     </nav>
@@ -195,7 +189,7 @@ export default async function ArticleView({ post, related = [], practice = [], v
   /* ---------------------------- Coding notes layout (file browser) ---------------------------- */
   // The viewed note is always part of the tree, even as a draft in the preview, so the explorer is never empty
   const tree = withCurrent(await getNotesTree(), post);
-  const here = { slug: post.slug, category: category?.kind === 'CODING' ? post.category : UNFILED, folder: post.folder ?? '' };
+  const here = { slug: post.slug, category: category?.kind === 'CODING' ? post.category : UNFILED };
   const { prev, next } = neighbours(tree, here);
   const stats = codeStats(post.content);
 
@@ -206,7 +200,7 @@ export default async function ArticleView({ post, related = [], practice = [], v
 
       <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
         <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-accent-soft text-accent" aria-hidden="true"><FolderIcon width="15" height="15" /></span>
-        <PathBar category={category?.kind === 'CODING' ? category : null} folder={post.folder} name={post.slug} />
+        <PathBar category={category?.kind === 'CODING' ? category : null} name={post.slug} />
         <span className="ml-auto rounded-full border border-line bg-surface px-2.5 py-0.5 font-mono text-xs text-muted">{'</>'} Coding notes</span>
       </div>
 

@@ -26,12 +26,6 @@ const Chevron = () => (
   </svg>
 );
 
-const OpenIcon = () => (
-  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M8 5H5.5A1.5 1.5 0 0 0 4 6.5v8A1.5 1.5 0 0 0 5.5 16h8a1.5 1.5 0 0 0 1.5-1.5V12M11 4h5v5M16 4l-7 7" />
-  </svg>
-);
-
 /** A folder icon that switches between closed and open with the <details> state (CSS only). */
 const FolderGlyph = ({ className = '' }) => (
   <span className={`fico ${className}`} aria-hidden="true">
@@ -67,20 +61,16 @@ export function FileRow({ f, current }) {
 }
 
 /**
- * Explorer for all coding notes (category > folder > file), laid out like the file tree of a repository.
- * Plain server-rendered <details> elements, so folders open and close with no JavaScript. The folders around the
- * current note start open. `folderHref(categorySlug, folderName?)` adds a small "open folder" link on every folder
- * row (used by the /notes page); `currentFolder` highlights the folder being listed there.
+ * Explorer for the coding notes. Two layouts, both server-rendered with no JavaScript:
+ *
+ *  - Topics only (pass `topicHref`, used on /notes): one row per topic folder (Python, NumPy, Pandas...). Clicking a
+ *    topic opens it in the main column, so the files are NOT listed here. `selected` is the topic slug being shown.
+ *  - Topics with files (no `topicHref`, used beside a note): each topic is a folder that opens to its files; the
+ *    topic of the current note starts open.
  */
-export default function NotesTree({ tree, current, folderHref, currentFolder, title = 'Explorer' }) {
-  const open = (cat, folder) => {
-    if (currentFolder) return currentFolder.category === cat.slug && (folder ? currentFolder.folder === folder : true);
-    return current?.category === cat.slug && (folder ? current?.folder === folder : true);
-  };
-  const isListed = (cat, folder) => currentFolder?.category === cat.slug && (currentFolder.folder ?? '') === (folder ?? '');
-
+export default function NotesTree({ tree, current, selected = null, topicHref, title = 'Explorer' }) {
   return (
-    <nav className="notes-tree" aria-label="Coding notes folders">
+    <nav className="notes-tree" aria-label="Coding notes topics">
       <div className="notes-tree-head">
         <FolderIcon className="text-accent" />
         <span>{title}</span>
@@ -89,44 +79,34 @@ export default function NotesTree({ tree, current, folderHref, currentFolder, ti
 
       <div className="notes-tree-body">
         {!tree?.length && <p className="px-3 py-4 text-sm text-muted">No notes yet.</p>}
-        {tree?.map((cat) => (
-          <div key={cat.slug} className={`notes-node ${isListed(cat, '') ? 'is-listed' : ''}`}>
-            {folderHref && (
-              <Link href={folderHref(cat.slug)} prefetch={false} className="notes-open" aria-label={`Open ${cat.name}`}>
-                <OpenIcon />
-              </Link>
-            )}
-            <details open={open(cat)}>
-              <summary>
-                <FolderGlyph className="text-accent" />
-                <span className="truncate">{cat.name}</span>
-                <span className="notes-count">{cat.count}</span>
-                <Chevron />
-              </summary>
-              <ul>
-                {cat.folders.map((folder) => (
-                  <li key={folder.name} className={`notes-node ${isListed(cat, folder.name) ? 'is-listed' : ''}`}>
-                    {folderHref && (
-                      <Link href={folderHref(cat.slug, folder.name)} prefetch={false} className="notes-open" aria-label={`Open ${folder.name}`}>
-                        <OpenIcon />
-                      </Link>
-                    )}
-                    <details open={open(cat, folder.name)}>
-                      <summary>
-                        <FolderGlyph className="opacity-80" />
-                        <span className="truncate">{folder.name}</span>
-                        <span className="notes-count">{folder.files.length}</span>
-                        <Chevron />
-                      </summary>
-                      <ul>{folder.files.map((f) => <FileRow key={f.slug} f={f} current={current} />)}</ul>
-                    </details>
-                  </li>
-                ))}
-                {cat.files.map((f) => <FileRow key={f.slug} f={f} current={current} />)}
-              </ul>
-            </details>
-          </div>
-        ))}
+
+        {topicHref ? (
+          <ul className="notes-topics">
+            {tree?.map((cat) => (
+              <li key={cat.slug}>
+                <Link href={topicHref(cat.slug)} prefetch={false} aria-current={selected === cat.slug ? 'page' : undefined}>
+                  <FolderGlyph className="text-accent" />
+                  <span className="truncate">{cat.name}</span>
+                  <span className="notes-count">{cat.count}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          tree?.map((cat) => (
+            <div key={cat.slug} className="notes-node">
+              <details open={current?.category === cat.slug}>
+                <summary>
+                  <FolderGlyph className="text-accent" />
+                  <span className="truncate">{cat.name}</span>
+                  <span className="notes-count">{cat.count}</span>
+                  <Chevron />
+                </summary>
+                <ul>{cat.files.map((f) => <FileRow key={f.slug} f={f} current={current} />)}</ul>
+              </details>
+            </div>
+          ))
+        )}
       </div>
     </nav>
   );

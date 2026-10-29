@@ -3,7 +3,7 @@ import PostEditor from '@/components/blog/admin/PostEditor';
 import { requireAdminPage } from '@/lib/blog-admin';
 import { getPostForAdmin, isLive } from '@/lib/blog';
 import { toISTInputValue } from '@/lib/datetime';
-import { getFolderOptions } from '@/lib/notes';
+import { getTopicNotes } from '@/lib/notes';
 
 export const metadata = { title: 'Edit article' };
 export const dynamic = 'force-dynamic';
@@ -40,6 +40,6 @@ export default async function EditPostPage({ params }) {
     scheduledFor: post.status === 'SCHEDULED' ? toISTInputValue(post.publishedAt) : '',
     version: post.lastEditedAt.toISOString(),
   };
-  const folderOptions = post.kind === 'CODING' ? await getFolderOptions() : {};
-  return <PostEditor initial={initial} folderOptions={folderOptions} />;
+  const topicNotes = post.kind === 'CODING' ? await getTopicNotes() : {};
+  return <PostEditor initial={initial} topicNotes={topicNotes} />;
 }

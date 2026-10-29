@@ -721,6 +721,8 @@ html, body { overflow-x: clip; }
 .notes-tree .notes-open { position: absolute; top: 0.32rem; right: 1.9rem; z-index: 1; display: grid; width: 1.5rem; height: 1.5rem; place-items: center; padding: 0; border-radius: 0.4rem; opacity: 0; transition: opacity 0.12s; color: var(--accent); }
 .notes-node:hover > .notes-open, .notes-tree .notes-open:focus-visible { opacity: 1; }
 .notes-node:hover > details > summary .notes-count { opacity: 0; }
+.notes-tree ul.notes-topics { margin: 0; padding: 0; border-left: 0; }
+.notes-tree .notes-topics a { font-weight: 600; color: var(--ink); }
 .notes-drawer { margin-bottom: 1.25rem; border: 1px solid var(--line); border-radius: 0.9rem; background: var(--surface); }
 .notes-drawer > summary { display: flex; align-items: center; gap: 0.6rem; padding: 0.75rem 1rem; font-size: 0.9rem; font-weight: 600; cursor: pointer; list-style: none; }
 .notes-drawer > summary::-webkit-details-marker { display: none; }
