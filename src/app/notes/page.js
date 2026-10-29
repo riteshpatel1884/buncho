@@ -1,72 +1,116 @@
 import Link from 'next/link';
-import { getNotesTree } from '@/lib/notes';
-import { FileIcon, FolderIcon } from '@/components/blog/NotesTree';
+import { getNotesTree, notesHref } from '@/lib/notes';
+import NotesTree, { FileIcon, FolderIcon } from '@/components/blog/NotesTree';
+import { formatDateIST } from '@/lib/datetime';
 
 export const metadata = {
   title: 'Coding notes',
   description: 'Folders of practical coding notes for Python, SQL, JavaScript and more, with runnable snippets and their output.',
 };
-export const revalidate = 300;
 
-export default async function NotesPage() {
+const href = (c, f) => notesHref(c, f);
+const rowCls = 'grid items-center gap-x-4 px-4 py-2.5 text-sm transition-colors hover:bg-surface-2/70 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)_6.5rem]';
+
+function Row({ to, icon, name, note, meta, muted }) {
+  return (
+    <li>
+      <Link href={to} prefetch={false} className={rowCls}>
+        <span className="flex min-w-0 items-center gap-2.5 font-medium">
+          <span className={`shrink-0 ${muted ? 'text-muted' : 'text-accent'}`}>{icon}</span>
+          <span className="truncate hover:underline">{name}</span>
+        </span>
+        <span className="hidden truncate text-muted sm:block">{note}</span>
+        <span className="hidden text-right text-xs text-muted sm:block">{meta}</span>
+      </Link>
+    </li>
+  );
+}
+
+export default async function NotesPage({ searchParams }) {
+  const { c, f } = await searchParams;
   const tree = await getNotesTree();
-  const files = tree.reduce((n, c) => n + c.count, 0);
+  const total = tree.reduce((n, cat) => n + cat.count, 0);
+
+  // Which folder is being listed: root, a category, or a folder inside a category. Unknown values fall back to the root.
+  const cat = tree.find((x) => x.slug === c) ?? null;
+  const folder = cat && f ? cat.folders.find((x) => x.name === f) ?? null : null;
+  const files = folder ? folder.files : cat ? cat.files : [];
+  const folders = cat && !folder ? cat.folders : [];
+
+  const crumbs = [{ name: 'notes', to: cat ? href() : null }];
+  if (cat) crumbs.push({ name: cat.name, to: folder ? href(cat.slug) : null });
+  if (folder) crumbs.push({ name: folder.name, to: null });
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 pb-20 pt-10 sm:px-6">
-      <header className="max-w-2xl">
+    <div className="mx-auto w-full max-w-[110rem] px-4 pb-20 pt-8 sm:px-6">
+      <header className="mb-6 max-w-2xl">
         <p className="text-xs font-semibold uppercase tracking-widest text-accent">{'</>'} Coding notes</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Notes, organised like a repo</h1>
         <p className="mt-3 text-lg leading-relaxed text-muted">
-          Pick a folder, open a file. Every note has runnable code, the output it prints and the mistakes to avoid.
-          {files > 0 && <span className="text-ink"> {files} {files === 1 ? 'note' : 'notes'} in {tree.length} {tree.length === 1 ? 'folder' : 'folders'}.</span>}
+          Pick a folder on the left, open a file. Every note has runnable code, the output it prints and the mistakes to avoid.
+          {total > 0 && <span className="text-ink"> {total} {total === 1 ? 'note' : 'notes'} in {tree.length} {tree.length === 1 ? 'folder' : 'folders'}.</span>}
         </p>
       </header>
 
       {tree.length === 0 ? (
-        <p className="mt-10 rounded-xl border border-dashed border-line p-8 text-center text-muted">No coding notes are published yet.</p>
+        <p className="rounded-xl border border-dashed border-line p-8 text-center text-muted">No coding notes are published yet.</p>
       ) : (
-        <div className="mt-10 grid gap-5 md:grid-cols-2">
-          {tree.map((cat) => (
-            <section key={cat.slug} id={cat.slug} aria-labelledby={`h-${cat.slug}`} className="notes-tree scroll-mt-24 overflow-hidden rounded-2xl border border-line bg-surface">
-              <div className="flex items-start gap-3 border-b border-line bg-surface-2/60 px-5 py-4">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent"><FolderIcon width="20" height="20" /></span>
-                <div className="min-w-0">
-                  <h2 id={`h-${cat.slug}`} className="text-lg font-semibold leading-tight">{cat.name}</h2>
-                  <p className="mt-0.5 line-clamp-2 text-sm text-muted">{cat.description}</p>
-                </div>
-                <span className="ml-auto rounded-full bg-surface px-2.5 py-0.5 text-xs font-semibold text-muted">{cat.count}</span>
+        <div className="grid items-start gap-6 lg:grid-cols-[17rem_minmax(0,1fr)]">
+          <aside className="lg:sticky lg:top-20" aria-label="Folders">
+            <NotesTree
+              tree={tree}
+              current={null}
+              currentFolder={cat ? { category: cat.slug, folder: folder?.name ?? '' } : null}
+              folderHref={href}
+            />
+          </aside>
+
+          <main className="min-w-0">
+            <nav aria-label="Folder path" className="mb-3 flex flex-wrap items-center gap-x-1 font-mono text-[0.85rem] text-muted">
+              {crumbs.map((p, i) => (
+                <span key={p.name} className="flex items-center gap-1">
+                  {i > 0 && <span aria-hidden="true">/</span>}
+                  {p.to ? <Link href={p.to} className="rounded px-1 py-0.5 text-accent hover:bg-accent-soft hover:underline">{p.name}</Link> : <span className="px-1 py-0.5 font-semibold text-ink">{p.name}</span>}
+                </span>
+              ))}
+            </nav>
+
+            <div className="overflow-hidden rounded-xl border border-line bg-surface">
+              <div className="flex items-center gap-3 border-b border-line bg-surface-2/70 px-4 py-2.5 text-sm">
+                <span className="font-semibold">{folder ? folder.name : cat ? cat.name : 'All folders'}</span>
+                <span className="rounded-full bg-surface px-2 py-0.5 text-xs font-semibold text-muted">{folder ? folder.files.length : cat ? cat.count : total}</span>
+                <span className="ml-auto hidden text-xs text-muted sm:block">{!cat ? 'Folders' : 'Name · Summary · Updated'}</span>
               </div>
-              <div className="space-y-1 p-3">
-                <ul className="!m-0 !border-0 !p-0">
-                  {cat.files.map((f) => (
-                    <li key={f.slug}>
-                      <Link href={`/blog/${f.slug}`} prefetch={false}>
-                        <FileIcon className="shrink-0" /><span className="truncate">{f.title}</span>{f.minutes ? <span className="notes-count">{f.minutes}m</span> : null}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-                {cat.folders.map((folder) => (
-                  <details key={folder.name} open={cat.folders.length <= 3}>
-                    <summary>
-                      <FolderIcon className="shrink-0 opacity-70" /><span className="truncate">{folder.name}</span><span className="notes-count">{folder.files.length}</span>
-                      <svg className="chev" viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m8 5 5 5-5 5" /></svg>
-                    </summary>
-                    <ul>
-                      {folder.files.map((f) => (
-                        <li key={f.slug}>
-                          <Link href={`/blog/${f.slug}`} prefetch={false}>
-                            <FileIcon className="shrink-0" /><span className="truncate">{f.title}</span>{f.minutes ? <span className="notes-count">{f.minutes}m</span> : null}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
+
+              <ul className="divide-y divide-line">
+                {/* Root: every category is a folder row */}
+                {!cat && tree.map((x) => (
+                  <Row key={x.slug} to={href(x.slug)} icon={<FolderIcon />} name={x.name} note={x.description} meta={`${x.count} ${x.count === 1 ? 'note' : 'notes'}`} />
                 ))}
-              </div>
-            </section>
-          ))}
+
+                {/* Inside a category or folder: ".." first, then folders, then files */}
+                {cat && <Row to={folder ? href(cat.slug) : href()} icon={<FolderIcon />} name=".." note="" meta="" muted />}
+                {folders.map((x) => (
+                  <Row key={x.name} to={href(cat.slug, x.name)} icon={<FolderIcon />} name={x.name} note={`${x.files.length} ${x.files.length === 1 ? 'note' : 'notes'}`} meta="" />
+                ))}
+                {files.map((x) => (
+                  <Row
+                    key={x.slug}
+                    to={`/blog/${x.slug}`}
+                    icon={<FileIcon />}
+                    name={x.title}
+                    note={x.excerpt || (x.minutes ? `${x.minutes} min read` : '')}
+                    meta={x.updated ? formatDateIST(x.updated) : ''}
+                  />
+                ))}
+                {cat && !folders.length && !files.length && <li className="px-4 py-6 text-sm text-muted">This folder is empty.</li>}
+              </ul>
+            </div>
+
+            {cat && !folder && cat.description && (
+              <p className="mt-4 rounded-xl border border-line bg-surface px-4 py-3 text-sm leading-relaxed text-muted">{cat.description}</p>
+            )}
+          </main>
         </div>
       )}
     </div>

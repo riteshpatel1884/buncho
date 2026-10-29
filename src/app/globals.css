@@ -688,35 +688,42 @@ html, body { overflow-x: clip; }
 .prose-notes th { background: var(--surface-2); }
 .prose-notes tbody tr:nth-child(even) { background: color-mix(in srgb, var(--surface-2) 50%, transparent); }
 
-/* Folder tree (note sidebar and /notes page) */
-.notes-tree { font-size: 0.875rem; }
-.notes-tree summary { display: flex; align-items: center; gap: 0.5rem; padding: 0.42rem 0.55rem; border-radius: 0.5rem; font-weight: 600; cursor: pointer; list-style: none; }
+/* Explorer (folder tree): note sidebar and /notes page. GitHub-style file tree. */
+.notes-tree { font-size: 0.875rem; overflow: hidden; border: 1px solid var(--line); border-radius: 0.75rem; background: var(--surface); }
+.notes-tree-head { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--surface-2) 70%, transparent); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+.notes-tree .notes-tree-head a { display: inline; margin-left: auto; padding: 0; background: none; text-transform: none; letter-spacing: 0; font-size: 0.78rem; font-weight: 600; color: var(--accent); }
+.notes-tree .notes-tree-head a:hover { background: none; text-decoration: underline; }
+.notes-tree-body { max-height: calc(100dvh - 10.5rem); overflow-y: auto; overscroll-behavior: contain; padding: 0.4rem; scrollbar-width: thin; }
+.notes-drawer .notes-tree-body { max-height: 60vh; }
+.notes-tree summary { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.55rem; border-radius: 0.5rem; font-weight: 600; cursor: pointer; list-style: none; }
 .notes-tree summary::-webkit-details-marker { display: none; }
 .notes-tree summary:hover { background: var(--surface-2); }
 .notes-tree summary .chev { margin-left: 0.25rem; color: var(--muted); transition: transform 0.15s; }
 .notes-tree details[open] > summary .chev { transform: rotate(90deg); }
-.notes-tree summary .notes-count { margin-left: auto; }
+.notes-tree summary .notes-count { margin-left: auto; transition: opacity 0.12s; }
 .notes-tree summary .notes-count + .chev { margin-left: 0.25rem; }
-.notes-tree ul { margin: 0.1rem 0 0.4rem 0.9rem; padding-left: 0.6rem; border-left: 1px solid var(--line); list-style: none; }
+/* closed / open folder icon follows the <details> state */
+.notes-tree .fico { display: inline-flex; flex: none; }
+.notes-tree .fico-open { display: none; }
+.notes-tree details[open] > summary .fico-closed { display: none; }
+.notes-tree details[open] > summary .fico-open { display: block; }
+.notes-tree ul { margin: 0.1rem 0 0.35rem 0.9rem; padding-left: 0.6rem; border-left: 1px solid var(--line); list-style: none; }
 .notes-tree ul > li { margin: 0; padding: 0; }
 .notes-tree ul > li::before { content: none; }
-.notes-tree a { display: flex; align-items: center; gap: 0.5rem; padding: 0.34rem 0.55rem; border-radius: 0.5rem; color: var(--muted); }
+.notes-tree a, .notes-file { display: flex; align-items: center; gap: 0.5rem; padding: 0.34rem 0.55rem; border-radius: 0.5rem; color: var(--muted); }
 .notes-tree a:hover { background: var(--surface-2); color: var(--ink); }
-.notes-tree a[aria-current='page'] { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); color: var(--ink); font-weight: 600; }
+.notes-tree a[aria-current='page'], .notes-file.is-current { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); color: var(--ink); font-weight: 600; }
 .notes-count { margin-left: auto; padding-left: 0.5rem; font-size: 0.72rem; font-weight: 500; color: var(--muted); }
-.notes-all { margin-top: 0.5rem; font-weight: 600; color: var(--accent) !important; }
+.notes-draft { margin-left: auto; border: 1px dashed var(--medium); border-radius: 9999px; padding: 0 0.4rem; font-size: 0.65rem; font-weight: 600; color: var(--medium); }
+.notes-node { position: relative; }
+.notes-node.is-listed > details > summary { background: var(--accent-soft); }
+/* small "open this folder" link on folder rows (only on the /notes page) */
+.notes-tree .notes-open { position: absolute; top: 0.32rem; right: 1.9rem; z-index: 1; display: grid; width: 1.5rem; height: 1.5rem; place-items: center; padding: 0; border-radius: 0.4rem; opacity: 0; transition: opacity 0.12s; color: var(--accent); }
+.notes-node:hover > .notes-open, .notes-tree .notes-open:focus-visible { opacity: 1; }
+.notes-node:hover > details > summary .notes-count { opacity: 0; }
 .notes-drawer { margin-bottom: 1.25rem; border: 1px solid var(--line); border-radius: 0.9rem; background: var(--surface); }
 .notes-drawer > summary { display: flex; align-items: center; gap: 0.6rem; padding: 0.75rem 1rem; font-size: 0.9rem; font-weight: 600; cursor: pointer; list-style: none; }
 .notes-drawer > summary::-webkit-details-marker { display: none; }
 .notes-drawer > summary::after { content: '⌄'; margin-left: auto; color: var(--muted); }
 .notes-drawer[open] > summary { border-bottom: 1px solid var(--line); }
-.notes-drawer .notes-tree { max-height: 60vh; overflow-y: auto; }
-
-@media (max-width: 640px) {
-  .prose-notes { font-size: 0.97rem; line-height: 1.7; }
-  .prose-notes h2 { margin-top: 2.25rem; font-size: 1.3rem; }
-  .prose-notes h3 { padding: 0.6rem 0.8rem; font-size: 1rem; }
-  .prose-notes .code-block { margin-inline: -0.5rem; border-radius: 0.7rem; }
-  .prose-notes .code-block-title::before { margin-right: 2.2rem; }
-  .prose-notes pre { padding: 0.8rem 0.85rem; font-size: 0.78rem; }
-}
+.notes-drawer .notes-tree { border: 0; border-radius: 0; }
