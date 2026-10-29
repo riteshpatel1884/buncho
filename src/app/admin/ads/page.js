@@ -4,9 +4,10 @@ import { prisma } from '@/lib/prisma';
 import { getOrCreateUser } from '@/lib/user';
 import { isAdmin } from '@/lib/admin';
 import { AD_SLOTS, usd } from '@/lib/ads';
+import { COUNTRY_ROWS, analyticsConfigured, getAdStats } from '@/lib/ad-stats';
 import AdCard from '@/components/ads/AdCard';
 import PendingButton from '@/components/PendingButton';
-import { approveAd, endAd, rejectAd } from './actions';
+import { approveAd, endAd, rejectAd, saveAdStats, syncAdStatsNow } from './actions';
 
 export const metadata = {
   title: 'Sponsor ads',
@@ -20,6 +21,7 @@ const TABS = [
   { id: 'unpaid', label: 'Unpaid attempts' },
   { id: 'past', label: 'Past' },
   { id: 'all', label: 'All' },
+  { id: 'traffic', label: 'Traffic numbers' },
 ];
 
 const dateTime = (d) => d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
@@ -60,25 +62,131 @@ function Row({ label, children }) {
   );
 }
 
+function NumberField({ label, name, value, hint, min = 0, max }) {
+  return (
+    <label className="block text-sm font-medium">
+      {label}
+      <input type="number" name={name} defaultValue={value ?? ''} min={min} max={max} step="1" inputMode="numeric" className={`${input} mt-1`} />
+      {hint && <span className="mt-1 block text-xs font-normal text-muted">{hint}</span>}
+    </label>
+  );
+}
+
+function TrafficPanel({ stats, configured }) {
+  const manual = stats.mode === 'MANUAL';
+  const rows = Array.from({ length: COUNTRY_ROWS }, (_, i) => stats.countries[i] ?? {});
+
+  return (
+    <div className="mt-6 space-y-6">
+      <div className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${manual ? 'bg-medium/15 text-medium' : 'bg-go/15 text-go'}`}>
+            {manual ? 'Manual numbers' : 'Automatic'}
+          </span>
+          <span className="text-xs text-muted">
+            Shown on /advertise as of {stats.asOf}{stats.updatedAt ? ` · saved ${dateTime(stats.updatedAt)}` : ''}
+          </span>
+        </div>
+        <p className="mt-3 text-sm text-muted">
+          {manual
+            ? 'You edited these numbers by hand, so they are not overwritten. Press the button below to go back to numbers from Vercel Analytics.'
+            : 'These numbers come from Vercel Analytics and refresh by themselves when a visitor opens /advertise and they are over 6 hours old. If you edit and save them, automatic updates pause.'}
+        </p>
+        {!configured && (
+          <p role="status" className="mt-3 rounded-xl bg-medium/10 px-4 py-3 text-sm">
+            Vercel is not connected yet. Add <code>VERCEL_API_TOKEN</code> and <code>VERCEL_ANALYTICS_PROJECT</code> (and <code>VERCEL_ANALYTICS_TEAM</code> for a team project) to your environment variables, then redeploy.
+          </p>
+        )}
+        {stats.syncError && (
+          <p role="alert" className="mt-3 break-words rounded-xl bg-hard/10 px-4 py-3 text-sm text-hard">Last fetch from Vercel failed: {stats.syncError}</p>
+        )}
+        <form className="mt-4">
+          <PendingButton formAction={syncAdStatsNow} pendingLabel="Fetching…" className={primary}>
+            Fetch from Vercel now
+          </PendingButton>
+        </form>
+      </div>
+
+      <form className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+        <h2 className="font-semibold">Edit numbers</h2>
+        <p className="mt-1 text-sm text-muted">Growth is the change in percent against the previous period. Leave it empty to hide the badge.</p>
+
+        <div className="mt-5 grid gap-5 sm:grid-cols-3">
+          <div className="space-y-3">
+            <NumberField label="Monthly visitors" name="monthlyVisitors" value={stats.monthlyVisitors} hint="Unique visitors in the last 30 days" />
+            <NumberField label="Growth %" name="monthlyVisitorsGrowth" value={stats.monthlyVisitorsGrowth} min={-100} />
+          </div>
+          <div className="space-y-3">
+            <NumberField label="Page views" name="pageViews" value={stats.pageViews} hint="Last 30 days" />
+            <NumberField label="Growth %" name="pageViewsGrowth" value={stats.pageViewsGrowth} min={-100} />
+          </div>
+          <div className="space-y-3">
+            <NumberField label="Daily visitors" name="dailyVisitors" value={stats.dailyVisitors} hint="Average per day, last 7 days" />
+            <NumberField label="Growth %" name="dailyVisitorsGrowth" value={stats.dailyVisitorsGrowth} min={-100} />
+          </div>
+        </div>
+
+        <label className="mt-5 block text-sm font-medium">
+          Period label
+          <input name="periodLabel" defaultValue={stats.periodLabel} maxLength={40} className={`${input} mt-1 sm:max-w-xs`} />
+        </label>
+
+        <h3 className="mt-7 text-sm font-semibold">Top countries</h3>
+        <p className="mt-1 text-xs text-muted">Use 2-letter codes (IN, US, GB). Empty rows are ignored. The rest is shown as "Other countries".</p>
+        <div className="mt-3 space-y-3">
+          {rows.map((c, i) => (
+            <div key={i} className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <label className="block text-xs font-medium text-muted">
+                Code
+                <input name={`code${i}`} defaultValue={c.code ?? ''} maxLength={2} placeholder="IN" className={`${input} mt-1 uppercase`} />
+              </label>
+              <label className="block text-xs font-medium text-muted">
+                Share %
+                <input type="number" name={`share${i}`} defaultValue={c.share ?? ''} min={0} max={100} className={`${input} mt-1`} />
+              </label>
+              <label className="block text-xs font-medium text-muted">
+                Visitors
+                <input type="number" name={`visitors${i}`} defaultValue={c.visitors ?? ''} min={0} className={`${input} mt-1`} />
+              </label>
+              <label className="block text-xs font-medium text-muted">
+                Page views
+                <input type="number" name={`views${i}`} defaultValue={c.views ?? ''} min={0} className={`${input} mt-1`} />
+              </label>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6">
+          <PendingButton formAction={saveAdStats} pendingLabel="Saving…" className={primary}>Save numbers</PendingButton>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export default async function AdminAdsPage({ searchParams }) {
   const me = await getOrCreateUser();
   if (!isAdmin(me)) notFound(); // don't reveal that the page exists
 
   const sp = await searchParams;
   const tab = TABS.some((t) => t.id === sp?.tab) ? sp.tab : 'awaiting';
+  const isTraffic = tab === 'traffic';
   const now = new Date();
 
-  const [awaiting, live, ads] = await Promise.all([
+  const [awaiting, live, ads, stats] = await Promise.all([
     prisma.adBooking.count({ where: whereFor('awaiting', now) }),
     prisma.adBooking.count({ where: whereFor('live', now) }),
-    prisma.adBooking.findMany({
-      where: whereFor(tab, now),
-      orderBy: { createdAt: tab === 'awaiting' ? 'asc' : 'desc' }, // oldest waiting first
-      take: 100,
-      include: {
-        user: { select: { id: true, name: true, email: true, imageUrl: true, createdAt: true, _count: { select: { adBookings: true } } } },
-      },
-    }),
+    isTraffic
+      ? []
+      : prisma.adBooking.findMany({
+          where: whereFor(tab, now),
+          orderBy: { createdAt: tab === 'awaiting' ? 'asc' : 'desc' }, // oldest waiting first
+          take: 100,
+          include: {
+            user: { select: { id: true, name: true, email: true, imageUrl: true, createdAt: true, _count: { select: { adBookings: true } } } },
+          },
+        }),
+    isTraffic ? getAdStats() : null,
   ]);
 
   const counts = { awaiting, live };
@@ -90,7 +198,7 @@ export default async function AdminAdsPage({ searchParams }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Sponsor ads</h1>
-          <p className="mt-1 text-sm text-muted">People who paid for a banner on /problems. Approve a banner to put it live for one month.</p>
+          <p className="mt-1 text-sm text-muted">People who paid for a banner on /problems. Approve a banner to put it live for one month. The Traffic numbers tab controls the stats advertisers see.</p>
         </div>
         <Link href="/admin" className="text-sm font-semibold text-accent underline underline-offset-4">Admin home</Link>
       </div>
@@ -116,7 +224,9 @@ export default async function AdminAdsPage({ searchParams }) {
         })}
       </nav>
 
-      {ads.length === 0 ? (
+      {isTraffic ? (
+        <TrafficPanel stats={stats} configured={analyticsConfigured()} />
+      ) : ads.length === 0 ? (
         <p className="mt-10 rounded-2xl border border-line bg-surface p-8 text-center text-sm text-muted">Nothing here yet.</p>
       ) : (
         <ul className="mt-6 space-y-6">

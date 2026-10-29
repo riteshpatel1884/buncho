@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { getOrCreateUser } from '@/lib/user';
 import { isAdmin } from '@/lib/admin';
 import { AD_PERIOD_MONTHS, AD_SLOTS } from '@/lib/ads';
+import { COUNTRY_ROWS, STATS_ROW_ID, syncAdStats } from '@/lib/ad-stats';
 import { addMonths } from '@/lib/pricing';
 
 /* Every export is a public endpoint, so each one re-checks admin rights on the server. */
@@ -22,6 +23,12 @@ const noteOf = (formData) => String(formData.get('adminNote') ?? '').trim().slic
 function refresh() {
   revalidatePath('/admin/ads');
   revalidatePath('/admin');
+  revalidatePath('/problems');
+}
+
+function refreshStats() {
+  revalidatePath('/admin/ads');
+  revalidatePath('/advertise');
   revalidatePath('/problems');
 }
 
@@ -80,4 +87,61 @@ export async function endAd(formData) {
   await prisma.adBooking.updateMany({ where: { id, status: 'APPROVED' }, data: { status: 'ENDED', endsAt: new Date() } });
   refresh();
   return go('past', 'ok', `${ad.companyName} was taken down.`);
+}
+
+/* ---------- Traffic numbers shown on /advertise ---------- */
+
+/** A whole number from the form. Blank means null when nullable, otherwise 0. */
+function int(formData, key, { min = 0, max = 1_000_000_000, nullable = false } = {}) {
+  const raw = String(formData.get(key) ?? '').trim().replace(/,/g, '');
+  const v = Math.round(Number(raw));
+  if (raw === '' || !Number.isFinite(v)) return nullable ? null : 0;
+  return Math.min(max, Math.max(min, v));
+}
+
+/** Fetches fresh numbers from Vercel Analytics and turns automatic updates back on. */
+export async function syncAdStatsNow() {
+  await requireAdmin();
+  const result = await syncAdStats({ takeOver: true });
+  refreshStats();
+  if (!result.ok) return go('traffic', 'error', `Could not fetch from Vercel. ${result.error}`);
+  return go('traffic', 'ok', 'Numbers updated from Vercel Analytics. Automatic updates are on.');
+}
+
+/** Saves numbers typed by the admin. This switches to manual mode, so automatic updates stop overwriting them. */
+export async function saveAdStats(formData) {
+  await requireAdmin();
+
+  const countries = [];
+  for (let i = 0; i < COUNTRY_ROWS; i += 1) {
+    const code = String(formData.get(`code${i}`) ?? '').trim().toUpperCase();
+    if (!code) continue;
+    if (!/^[A-Z]{2}$/.test(code)) return go('traffic', 'error', `"${code}" is not a 2-letter country code (for example IN, US, GB).`);
+    countries.push({
+      code,
+      share: int(formData, `share${i}`, { max: 100 }),
+      visitors: int(formData, `visitors${i}`),
+      views: int(formData, `views${i}`),
+    });
+  }
+  if (countries.reduce((t, c) => t + c.share, 0) > 100) return go('traffic', 'error', 'The country shares add up to more than 100%.');
+
+  const growth = { min: -100, max: 100_000, nullable: true };
+  const data = {
+    mode: 'MANUAL',
+    monthlyVisitors: int(formData, 'monthlyVisitors'),
+    monthlyVisitorsGrowth: int(formData, 'monthlyVisitorsGrowth', growth),
+    pageViews: int(formData, 'pageViews'),
+    pageViewsGrowth: int(formData, 'pageViewsGrowth', growth),
+    dailyVisitors: int(formData, 'dailyVisitors'),
+    dailyVisitorsGrowth: int(formData, 'dailyVisitorsGrowth', growth),
+    periodLabel: String(formData.get('periodLabel') ?? '').trim().slice(0, 40) || 'Last 30 days',
+    countries,
+    asOf: new Date(),
+    syncError: null,
+  };
+
+  await prisma.siteStats.upsert({ where: { id: STATS_ROW_ID }, create: { id: STATS_ROW_ID, ...data }, update: data });
+  refreshStats();
+  return go('traffic', 'ok', 'Saved. These numbers are now shown on /advertise, and automatic updates are paused.');
 }

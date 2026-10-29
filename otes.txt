@@ -5,10 +5,3 @@ npm run dev
 seed
 npx prisma db seed
 
-AI System Design
-Evaluation and Testing
-AI Safety, Ethics, and Responsible AI
-Multimodal AI
-Embeddings
-AI Infrastructure and Scalability
-Behavioral and Scenario-Based Questions

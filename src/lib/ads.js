@@ -32,23 +32,24 @@ export const usd = (cents) =>
   `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: cents % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
 
 /**
- * Your real site numbers, shown to advertisers before they pay (source: Vercel Analytics, last 7 days).
- * Update these by hand whenever you want the page to show fresher numbers.
+ * FALLBACK site numbers only. The real numbers now live in the database (SiteStats), are filled from
+ * Vercel Analytics automatically and can be edited in /admin/ads (Traffic numbers tab).
+ * These values are shown only until the first fetch or save works, or if the database cannot be read.
  */
 export const AD_STATS = {
   site: 'www.buncho.live',
-  periodLabel: 'Last 7 days',
+  periodLabel: 'Last 30 days',
   asOf: 'Oct 26, 2026',
-  visitors: 627,
-  visitorsGrowth: 371, // percent vs the previous 7 days
-  pageViews: 2460,
-  pageViewsGrowth: 349,
-  bounceRate: 49,
-  bounceChange: -11, // negative is good: fewer people leave straight away
+  monthlyVisitors: 969,
+  monthlyVisitorsGrowth: 331, // percent vs the previous 30 days (null hides the badge)
+  pageViews: 4180,
+  pageViewsGrowth: 399,
+  dailyVisitors: 138, // average per day over the last 7 days
+  dailyVisitorsGrowth: null,
   countries: [
-    { name: 'India', flag: '🇮🇳', share: 74, visitors: 466, views: '1.8K' },
-    { name: 'United States', flag: '🇺🇸', share: 11, visitors: 70, views: '412' },
-    { name: 'United Kingdom', flag: '🇬🇧', share: 2, visitors: 11, views: '41' },
+    { code: 'IN', share: 74, visitors: 466, views: 1800 },
+    { code: 'US', share: 11, visitors: 70, views: 412 },
+    { code: 'GB', share: 2, visitors: 11, views: 41 },
   ],
 };
 

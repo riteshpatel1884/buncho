@@ -710,3 +710,22 @@ model BlogComment {
   @@index([postId, createdAt])
   @@index([userId, createdAt])
 }
+
+/* ---------- Site traffic numbers shown on /advertise ---------- */
+
+// One row (id "ads"). AUTO = filled from Vercel Analytics, MANUAL = typed in by the admin (auto updates pause).
+model SiteStats {
+  id                    String    @id
+  mode                  String    @default("AUTO")
+  monthlyVisitors       Int       @default(0)
+  monthlyVisitorsGrowth Int?
+  pageViews             Int       @default(0)
+  pageViewsGrowth       Int?
+  dailyVisitors         Int       @default(0)
+  dailyVisitorsGrowth   Int?
+  countries             Json      @default("[]")
+  periodLabel           String    @default("Last 30 days")
+  asOf                  DateTime?
+  syncError             String?
+  updatedAt             DateTime  @updatedAt
+}

@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import AdCard from '@/components/ads/AdCard';
-import { AD_SLOTS, AD_STATS, SLOT_KEYS, slotPriceCents, usd } from '@/lib/ads';
+import { AD_SLOTS, SLOT_KEYS, slotPriceCents, usd } from '@/lib/ads';
+import { getAdStats } from '@/lib/ad-stats';
 
-function EmptySlot({ slot }) {
+function EmptySlot({ slot, visitors }) {
   const { n } = AD_SLOTS[slot];
   return (
     <Link
@@ -13,7 +14,7 @@ function EmptySlot({ slot }) {
         <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-accent">Your banner here</p>
         <h3 className="mt-3 text-base font-semibold leading-snug">Promote your SaaS</h3>
         <p className="mt-1 text-xs text-muted">
-          Reach {AD_STATS.visitors}+ AI and ML engineers every week, right at the top of our question library.
+          Reach {visitors.toLocaleString('en-US')}+ AI and ML engineers every month, right at the top of our question library.
         </p>
       </div>
       <span className="mt-4 inline-flex w-fit items-center rounded-xl bg-accent px-3.5 py-2 text-sm font-semibold text-accent-ink group-hover:opacity-90">
@@ -24,7 +25,8 @@ function EmptySlot({ slot }) {
 }
 
 // The two-column sponsor section on /problems. A live banner fills a column, an empty column invites advertisers.
-export default function PromoSection({ ads = {} }) {
+export default async function PromoSection({ ads = {} }) {
+  const { monthlyVisitors } = await getAdStats(); // stored numbers only, never calls Vercel from this page
   return (
     <section aria-label="Sponsored" className="flex flex-col rounded-2xl border border-line bg-surface-2/40 p-3 sm:p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -34,7 +36,7 @@ export default function PromoSection({ ads = {} }) {
         </Link>
       </div>
       <div className="grid flex-1 gap-3 sm:grid-cols-2">
-        {SLOT_KEYS.map((slot) => (ads[slot] ? <AdCard key={slot} ad={ads[slot]} /> : <EmptySlot key={slot} slot={slot} />))}
+        {SLOT_KEYS.map((slot) => (ads[slot] ? <AdCard key={slot} ad={ads[slot]} /> : <EmptySlot key={slot} slot={slot} visitors={monthlyVisitors} />))}
       </div>
     </section>
   );

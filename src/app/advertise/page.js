@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { getOrCreateUser } from '@/lib/user';
 import AdCheckoutForm from '@/components/ads/AdCheckoutForm';
-import { AD_SLOTS, AD_STATS, SLOT_KEYS, getSlotAvailability, slotFromParam, slotPriceCents, usd } from '@/lib/ads';
+import { AD_SLOTS, SLOT_KEYS, getSlotAvailability, slotFromParam, slotPriceCents, usd } from '@/lib/ads';
+import { getAdStats } from '@/lib/ad-stats';
 
 export const metadata = {
   title: 'Advertise on Buncho',
@@ -10,35 +11,46 @@ export const metadata = {
 export const dynamic = 'force-dynamic';
 
 const dateFmt = (d) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
-const n = (v) => v.toLocaleString('en-US');
+const n = (v) => Number(v ?? 0).toLocaleString('en-US');
 
-function Stat({ label, value, badge, good = true }) {
+function Stat({ label, hint, value, growth }) {
+  const hasGrowth = Number.isFinite(growth);
   return (
     <div className="rounded-2xl border border-line bg-surface p-5">
       <p className="text-sm text-muted">{label}</p>
       <div className="mt-2 flex items-center gap-2">
         <p className="text-3xl font-semibold tabular-nums tracking-tight">{value}</p>
-        <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${good ? 'bg-go/15 text-go' : 'bg-hard/15 text-hard'}`}>{badge}</span>
+        {hasGrowth && (
+          <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${growth >= 0 ? 'bg-go/15 text-go' : 'bg-hard/15 text-hard'}`}>
+            {growth > 0 ? '+' : ''}{growth}%
+          </span>
+        )}
       </div>
+      {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
     </div>
   );
 }
 
-const BENEFITS = [
-  ['The right audience', 'Visitors come to practise AI, ML and GenAI interview questions, so they are engineers who build with this stuff and care about tools.'],
-  ['Traffic that is growing fast', 'Visitors are up sharply week on week, so a banner booked now is seen by more people each week.'],
-  ['Top of the question library', 'Your banner sits at the top of /problems, above the question list, not in a footer nobody scrolls to.'],
-  ['Simple and fair', 'One month, one flat price, no bidding and no contract. Every banner is checked by a person before it goes live.'],
-];
-
 export default async function AdvertisePage({ searchParams }) {
   const sp = await searchParams;
   const slot = slotFromParam(sp?.slot);
-  const user = await getOrCreateUser();
-  const availability = await getSlotAvailability();
+  const [user, availability, stats] = await Promise.all([
+    getOrCreateUser(),
+    getSlotAvailability(),
+    getAdStats({ refresh: true }), // fills itself from Vercel Analytics when the stored numbers are old
+  ]);
 
-  const other = AD_STATS.countries.reduce((sum, c) => sum + c.share, 0);
-  const rows = [...AD_STATS.countries, { name: 'Other countries', flag: '🌍', share: Math.max(0, 100 - other) }];
+  const other = stats.countries.reduce((sum, c) => sum + c.share, 0);
+  const rows = [...stats.countries, { name: 'Other countries', flag: '🌍', share: Math.max(0, 100 - other) }];
+
+  const benefits = [
+    ['The right audience', 'Visitors come to practise AI, ML and GenAI interview questions, so they are engineers who build with this stuff and care about tools.'],
+    ...(stats.monthlyVisitorsGrowth > 0
+      ? [['Traffic that is growing', `Monthly visitors are up ${stats.monthlyVisitorsGrowth}% on the previous 30 days, so a banner booked now is seen by more people each month.`]]
+      : []),
+    ['Top of the question library', 'Your banner sits at the top of /problems, above the question list, not in a footer nobody scrolls to.'],
+    ['Simple and fair', 'One month, one flat price, no bidding and no contract. Every banner is checked by a person before it goes live.'],
+  ];
 
   const loginHref = `/login?redirect_url=${encodeURIComponent(`/advertise${slot ? `?slot=${AD_SLOTS[slot].n}` : ''}`)}`;
   const state = slot ? availability[slot] : null;
@@ -57,40 +69,42 @@ export default async function AdvertisePage({ searchParams }) {
       <section aria-labelledby="numbers-h" className="mt-10">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="numbers-h" className="text-lg font-semibold">Our traffic</h2>
-          <p className="text-xs text-muted">{AD_STATS.site} · {AD_STATS.periodLabel} · as of {AD_STATS.asOf} · Vercel Analytics</p>
+          <p className="text-xs text-muted">{stats.site} · {stats.periodLabel} · as of {stats.asOf} · Vercel Analytics</p>
         </div>
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          <Stat label="Visitors" value={n(AD_STATS.visitors)} badge={`+${AD_STATS.visitorsGrowth}%`} />
-          <Stat label="Page views" value={n(AD_STATS.pageViews)} badge={`+${AD_STATS.pageViewsGrowth}%`} />
-          <Stat label="Bounce rate" value={`${AD_STATS.bounceRate}%`} badge={`${AD_STATS.bounceChange}%`} good={AD_STATS.bounceChange <= 0} />
+          <Stat label="Monthly visitors" hint="Unique visitors" value={n(stats.monthlyVisitors)} growth={stats.monthlyVisitorsGrowth} />
+          <Stat label="Page views" hint="All pages" value={n(stats.pageViews)} growth={stats.pageViewsGrowth} />
+          <Stat label="Daily visitors" hint="Average per day, last 7 days" value={n(stats.dailyVisitors)} growth={stats.dailyVisitorsGrowth} />
         </div>
 
-        <div className="mt-4 rounded-2xl border border-line bg-surface p-5">
-          <h3 className="text-sm font-semibold">Where our visitors are</h3>
-          <ul className="mt-4 space-y-3">
-            {rows.map((c) => (
-              <li key={c.name}>
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="flex items-center gap-2"><span aria-hidden="true">{c.flag}</span>{c.name}</span>
-                  <span className="tabular-nums text-muted">
-                    {c.share}%{c.visitors ? ` · ${n(c.visitors)} visitors · ${c.views} views` : ''}
-                  </span>
-                </div>
-                <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-surface-2">
-                  <div className="h-full rounded-full bg-accent" style={{ width: `${c.share}%` }} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <p className="mt-2 text-xs text-muted">Traffic can go up or down from week to week. These are the numbers as they stand today.</p>
+        {rows.length > 1 && (
+          <div className="mt-4 rounded-2xl border border-line bg-surface p-5">
+            <h3 className="text-sm font-semibold">Where our visitors are</h3>
+            <ul className="mt-4 space-y-3">
+              {rows.map((c) => (
+                <li key={c.name}>
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="flex items-center gap-2"><span aria-hidden="true">{c.flag}</span>{c.name}</span>
+                    <span className="tabular-nums text-muted">
+                      {c.share}%{c.visitors ? ` · ${n(c.visitors)} visitors · ${c.viewsLabel} views` : ''}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-surface-2">
+                    <div className="h-full rounded-full bg-accent" style={{ width: `${c.share}%` }} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <p className="mt-2 text-xs text-muted">Traffic can go up or down from month to month. These are the numbers as they stand today.</p>
       </section>
 
       {/* Why it benefits */}
       <section aria-labelledby="why-h" className="mt-12">
         <h2 id="why-h" className="text-lg font-semibold">Why this is good for your SaaS</h2>
         <ul className="mt-4 grid gap-4 sm:grid-cols-2">
-          {BENEFITS.map(([title, text]) => (
+          {benefits.map(([title, text]) => (
             <li key={title} className="rounded-2xl border border-line bg-surface p-5">
               <h3 className="font-semibold">{title}</h3>
               <p className="mt-1 text-sm text-muted">{text}</p>

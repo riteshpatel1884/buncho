@@ -12,7 +12,7 @@ const MAX_CHARS = 30000;
 
 /*
  * The highlighter TipTap calls after every edit inside a code block. Results are cached per (language, code), so
- * blocks you are not typing in cost a lookup instead of a re-highlight, which keeps long coding notes snappy.
+ * blocks you are not typing in cost a lookup instead of a re-highlight, which keeps long coding n otes snappy.
  * Auto-detection is off in the editor (it tries many languages per keystroke); the public page still auto-detects.
  */
 export const lowlight = {
