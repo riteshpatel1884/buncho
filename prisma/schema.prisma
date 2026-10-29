@@ -614,6 +614,8 @@ model BlogPost {
   // Old slugs keep working: the article route redirects them (301) to the current slug
   previousSlugs String[]
   kind PostKind @default(BLOG)
+  folder    String   @default("")
+  sortOrder Int      @default(0)
   title         String
   excerpt       String     @default("") @db.Text // subtitle shown under the title and on cards
   // TipTap/ProseMirror JSON. Never HTML: the public page renders it node by node into React elements.
@@ -651,6 +653,7 @@ model BlogPost {
   revisions BlogRevision[]
   
   @@index([kind, status, publishedAt]) 
+  @@index([kind, category, folder])
   @@index([status, publishedAt])
   @@index([category, status, publishedAt])
   @@index([featured, status])
