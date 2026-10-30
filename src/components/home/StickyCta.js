@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
-// Phone-only call to action pinned to the bottom of the screen.
+// Phone-only call to action pinned to the bottom of the screen, just above the bottom navigation bar.
 // Appears after the hero scrolls away and hides again near the page end (where the big CTA is).
 export default function StickyCta({ href, label }) {
   const [show, setShow] = useState(false);
@@ -29,7 +29,7 @@ export default function StickyCta({ href, label }) {
   return (
     <div
       aria-hidden={!show}
-      className={`fixed inset-x-0 bottom-0 z-40 bg-gradient-to-t from-bg via-bg/85 to-transparent px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-8 transition-all duration-300 md:hidden ${
+      className={`fixed inset-x-0 bottom-[calc(var(--bottom-nav-h)+env(safe-area-inset-bottom,0px))] z-40 bg-gradient-to-t from-bg via-bg/85 to-transparent px-4 pb-3 pt-8 transition-all duration-300 md:hidden ${
         show ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-full opacity-0'
       }`}
     >

@@ -30,12 +30,6 @@ const ICONS = {
       <path d="M3 9h18M9 9v11" />
     </>
   ),
-  blog: (
-    <>
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <path d="M14 2v6h6M8 13h8M8 17h8" />
-    </>
-  ),
   reports: (
     <>
       <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
@@ -59,11 +53,9 @@ export default async function AdminHomePage() {
   const now = new Date();
   // A failed count shows "—" instead of breaking the whole page
   const safe = (p) => p.catch(() => null);
-  const [users, activePro, posts, drafts, openAnswers, openSupport, adsAwaiting, adsLive] = await Promise.all([
+  const [users, activePro, openAnswers, openSupport, adsAwaiting, adsLive] = await Promise.all([
     safe(prisma.user.count()),
     safe(prisma.subscription.count({ where: { currentPeriodEnd: { gt: now } } })),
-    safe(prisma.blogPost.count()),
-    safe(prisma.blogPost.count({ where: { status: { in: ['DRAFT', 'UNPUBLISHED'] } } })),
     safe(prisma.communityAnswer.count({ where: { reports: { some: { status: 'OPEN' } } } })),
     safe(prisma.supportReport.count({ where: { status: 'OPEN' } })),
     safe(prisma.adBooking.count({ where: { status: 'PAID' } })),
@@ -97,13 +89,6 @@ export default async function AdminHomePage() {
       attention: (adsAwaiting ?? 0) > 0,
     },
     {
-      href: '/admin/blog',
-      icon: 'blog',
-      title: 'Blog',
-      text: 'Write, schedule, edit and publish articles.',
-      stat: `${n(posts)} posts · ${n(drafts)} drafts`,
-    },
-    {
       href: '/admin/reports',
       icon: 'reports',
       title: 'Reports',
@@ -114,7 +99,6 @@ export default async function AdminHomePage() {
   ];
 
   const quick = [
-    { href: '/admin/blog/new', label: 'New blog post' },
     { href: '/admin/users/export', label: 'Download all users (CSV)', plain: true },
     { href: '/pricing', label: 'View pricing page' },
     { href: '/advertise', label: 'View advertise page' },
