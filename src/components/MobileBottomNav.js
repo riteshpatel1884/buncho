@@ -39,7 +39,8 @@ export default function MobileBottomNav({ signedIn = false, isPro = false, profi
   const isOn = (href, match = []) => [href, ...match].some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
   const activeColor = isPro ? 'text-amber-700 dark:text-amber-300' : 'text-accent';
-  const tabBase = 'relative flex flex-1 flex-col items-center justify-center gap-0.5 text-[0.68rem] font-medium transition-colors active:bg-surface-2/60';
+  const tabBase = 'relative flex flex-1 flex-col items-center justify-center gap-1 text-[0.68rem] font-medium leading-4 transition-colors active:bg-surface-2/60';
+  const slot = 'grid h-6 w-full place-items-center';
   const barLook = isPro
     ? 'border-amber-400/50 bg-gradient-to-r from-amber-50/95 via-yellow-100/95 to-amber-50/95 dark:border-amber-400/40 dark:from-[#2b210a]/95 dark:via-[#3b2d08]/95 dark:to-[#2b210a]/95'
     : 'border-line bg-surface/95';
@@ -120,7 +121,7 @@ export default function MobileBottomNav({ signedIn = false, isPro = false, profi
         </>
       )}
 
-      <nav
+            <nav
         aria-label="Primary"
         className={`fixed inset-x-0 bottom-0 z-50 border-t backdrop-blur-md pb-[env(safe-area-inset-bottom,0px)] md:hidden ${barLook}`}
       >
@@ -128,21 +129,23 @@ export default function MobileBottomNav({ signedIn = false, isPro = false, profi
           {/* 1. Problems */}
           <Link href="/problems" aria-current={problemsOn ? 'page' : undefined} className={`${tabBase} ${problemsOn ? activeColor : 'text-muted'}`}>
             {problemsOn && indicator}
-            <Code {...ICON} />
+            <span className={slot}><Code {...ICON} /></span>
             <span>Problems</span>
           </Link>
 
           {/* 2. Dashboard (visitors who are not logged in are sent to the login page) */}
           <Link href="/dashboard" aria-current={dashboardOn ? 'page' : undefined} className={`${tabBase} ${dashboardOn ? activeColor : 'text-muted'}`}>
             {dashboardOn && indicator}
-            <Grid {...ICON} />
+            <span className={slot}><Grid {...ICON} /></span>
             <span>Dashboard</span>
           </Link>
 
-        {/* 3. Pro: the gold PRO pill, same as the navbar badge, with a label like the other tabs */}
+          {/* 3. Pro: the gold PRO pill, same as the navbar badge, with a label like the other tabs */}
           <Link href="/pricing" aria-current={proOn ? 'page' : undefined} className={`${tabBase} ${proOn ? activeColor : 'text-muted'}`}>
             {proOn && indicator}
-            <ProBadge className={proOn ? 'ring-2 ring-amber-500/60' : ''} />
+            <span className={slot}>
+              <ProBadge className={proOn ? 'ring-2 ring-amber-500/60' : ''} />
+            </span>
             <span>Buncho Pro</span>
           </Link>
 
@@ -155,12 +158,14 @@ export default function MobileBottomNav({ signedIn = false, isPro = false, profi
             className={`${tabBase} ${accountOn ? activeColor : 'text-muted'}`}
           >
             {accountOn && indicator}
-            {signedIn && profile?.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={profile.imageUrl} alt="" width={24} height={24} className={`h-[22px] w-[22px] rounded-full object-cover ${accountOn ? 'ring-2 ring-current' : ''}`} />
-            ) : (
-              <UserIcon {...ICON} />
-            )}
+            <span className={slot}>
+              {signedIn && profile?.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={profile.imageUrl} alt="" width={24} height={24} className={`h-6 w-6 rounded-full object-cover ${accountOn ? 'ring-2 ring-current' : ''}`} />
+              ) : (
+                <UserIcon {...ICON} />
+              )}
+            </span>
             <span>{signedIn ? 'Account' : 'Log in'}</span>
           </button>
         </div>
