@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useClerk } from '@clerk/nextjs';
 import { Code, Grid } from './icons';
-import { Crown } from './ProBadge';
+import { ProBadge } from './ProBadge';
 
 const ICON = { width: 22, height: 22 };
 const sheetRow = 'block w-full rounded-xl px-3 py-3 text-left text-base font-medium hover:bg-surface-2';
@@ -20,8 +20,9 @@ function UserIcon(props) {
 }
 
 // Phone-only bottom navigation bar (hidden from the md breakpoint up, where the top navbar links take over).
-// signedIn / isPro / admin come from the server navbar. profile: { name, email, imageUrl } or null.
-export default function MobileBottomNav({ signedIn = false, isPro = false, admin = false, profile = null }) {
+// Tabs: Problems, Dashboard, Pro (gold badge), Account.
+// signedIn / isPro come from the server navbar. profile: { name, email, imageUrl } or null.
+export default function MobileBottomNav({ signedIn = false, isPro = false, profile = null }) {
   const pathname = usePathname();
   const { openUserProfile, signOut } = useClerk();
   const [open, setOpen] = useState(false);
@@ -37,19 +38,17 @@ export default function MobileBottomNav({ signedIn = false, isPro = false, admin
 
   const isOn = (href, match = []) => [href, ...match].some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
-  const tabs = [
-    { href: '/problems', label: 'Problems', match: ['/topics'], icon: <Code {...ICON} /> },
-    ...(signedIn ? [{ href: '/dashboard', label: 'Dashboard', icon: <Grid {...ICON} /> }] : []),
-    { href: '/pricing', label: 'Pro', icon: <Crown {...ICON} />, gold: isPro },
-  ];
-
   const activeColor = isPro ? 'text-amber-700 dark:text-amber-300' : 'text-accent';
   const tabBase = 'relative flex flex-1 flex-col items-center justify-center gap-0.5 text-[0.68rem] font-medium transition-colors active:bg-surface-2/60';
   const barLook = isPro
     ? 'border-amber-400/50 bg-gradient-to-r from-amber-50/95 via-yellow-100/95 to-amber-50/95 dark:border-amber-400/40 dark:from-[#2b210a]/95 dark:via-[#3b2d08]/95 dark:to-[#2b210a]/95'
     : 'border-line bg-surface/95';
+  const indicator = <span aria-hidden="true" className="absolute top-0 h-0.5 w-8 rounded-full bg-current" />;
 
-  const accountOn = open || isOn('/account');
+  const problemsOn = isOn('/problems', ['/topics']);
+  const dashboardOn = isOn('/dashboard');
+  const proOn = isOn('/pricing');
+  const accountOn = open;
 
   return (
     <>
@@ -87,14 +86,6 @@ export default function MobileBottomNav({ signedIn = false, isPro = false, admin
                   </div>
                 </div>
                 <ul className="pt-2">
-                  <li>
-                    <Link href="/jobs" className={sheetRow}>Job prep</Link>
-                  </li>
-                  {admin && (
-                    <li>
-                      <Link href="/admin" className={sheetRow}>Admin</Link>
-                    </li>
-                  )}
                   <li>
                     <button
                       type="button"
@@ -134,18 +125,27 @@ export default function MobileBottomNav({ signedIn = false, isPro = false, admin
         className={`fixed inset-x-0 bottom-0 z-50 border-t backdrop-blur-md pb-[env(safe-area-inset-bottom,0px)] md:hidden ${barLook}`}
       >
         <div className="flex h-[var(--bottom-nav-h)] items-stretch">
-          {tabs.map((t) => {
-            const on = isOn(t.href, t.match);
-            const color = on ? activeColor : t.gold ? 'text-amber-600 dark:text-amber-300' : 'text-muted';
-            return (
-              <Link key={t.href} href={t.href} aria-current={on ? 'page' : undefined} className={`${tabBase} ${color}`}>
-                {on && <span aria-hidden="true" className="absolute top-0 h-0.5 w-8 rounded-full bg-current" />}
-                {t.icon}
-                <span>{t.label}</span>
-              </Link>
-            );
-          })}
+          {/* 1. Problems */}
+          <Link href="/problems" aria-current={problemsOn ? 'page' : undefined} className={`${tabBase} ${problemsOn ? activeColor : 'text-muted'}`}>
+            {problemsOn && indicator}
+            <Code {...ICON} />
+            <span>Problems</span>
+          </Link>
 
+          {/* 2. Dashboard (visitors who are not logged in are sent to the login page) */}
+          <Link href="/dashboard" aria-current={dashboardOn ? 'page' : undefined} className={`${tabBase} ${dashboardOn ? activeColor : 'text-muted'}`}>
+            {dashboardOn && indicator}
+            <Grid {...ICON} />
+            <span>Dashboard</span>
+          </Link>
+
+          {/* 3. Pro: the gold PRO pill, same as the navbar badge */}
+          <Link href="/pricing" aria-label="Pro plan" aria-current={proOn ? 'page' : undefined} className={`${tabBase} ${proOn ? activeColor : ''}`}>
+            {proOn && indicator}
+            <ProBadge className={`scale-110 ${proOn ? 'ring-2 ring-amber-500/60 ring-offset-1 ring-offset-transparent' : ''}`} />
+          </Link>
+
+          {/* 4. Account */}
           <button
             type="button"
             aria-expanded={open}
@@ -153,7 +153,7 @@ export default function MobileBottomNav({ signedIn = false, isPro = false, admin
             onClick={() => setOpen((v) => !v)}
             className={`${tabBase} ${accountOn ? activeColor : 'text-muted'}`}
           >
-            {accountOn && <span aria-hidden="true" className="absolute top-0 h-0.5 w-8 rounded-full bg-current" />}
+            {accountOn && indicator}
             {signedIn && profile?.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={profile.imageUrl} alt="" width={24} height={24} className={`h-[22px] w-[22px] rounded-full object-cover ${accountOn ? 'ring-2 ring-current' : ''}`} />

@@ -5,6 +5,7 @@ import Logo from './Logo';
 import NavLinks from './NavLinks';
 import NavShell from './NavShell';
 import ThemeToggle from './ThemeToggle';
+import MobileMenu from './MobileMenu';
 import MobileBottomNav from './MobileBottomNav';
 import { ProBadge } from './ProBadge';
 import { Search } from './icons';
@@ -31,7 +32,13 @@ export default async function Navbar() {
     ...(admin ? [{ href: '/admin', label: 'Admin' }] : []),
   ];
 
-  // On phones the account lives in the bottom navigation bar
+  // Phones: Problems, Dashboard, Pro and Account are in the bottom bar. The top hamburger holds the rest.
+  const menuLinks = [
+    { href: '/jobs', label: 'Job prep' },
+    ...(admin ? [{ href: '/admin', label: 'Admin' }] : []),
+  ];
+
+  // Used by the account sheet in the bottom bar
   const profile = userId ? { name: user?.name ?? null, email: user?.email ?? null, imageUrl: user?.imageUrl ?? null } : null;
 
   // Pro members: a soft yellow tint that sits on the navbar colour (pale in light mode, faint gold in dark mode)
@@ -99,10 +106,12 @@ export default async function Navbar() {
                 </Link>
               </>
             )}
+
+            <MobileMenu links={menuLinks} premium={isPro} />
           </div>
         </div>
       </NavShell>
-      <MobileBottomNav signedIn={Boolean(userId)} isPro={isPro} admin={admin} profile={profile} />
+      <MobileBottomNav signedIn={Boolean(userId)} isPro={isPro} profile={profile} />
     </>
   );
 }
