@@ -139,12 +139,13 @@ export default function MobileBottomNav({ signedIn = false, isPro = false, profi
             <span>Dashboard</span>
           </Link>
 
-          {/* 3. Pro: the gold PRO pill, same as the navbar badge */}
-          <Link href="/pricing" aria-label="Pro plan" aria-current={proOn ? 'page' : undefined} className={`${tabBase} ${proOn ? activeColor : ''}`}>
+                    {/* 3. Pro: the gold PRO pill, same as the navbar badge, with a label like the other tabs */}
+          <Link href="/pricing" aria-current={proOn ? 'page' : undefined} className={`${tabBase} ${proOn ? activeColor : 'text-muted'}`}>
             {proOn && indicator}
-            <ProBadge className={`scale-110 ${proOn ? 'ring-2 ring-amber-500/60 ring-offset-1 ring-offset-transparent' : ''}`} />
+            <ProBadge className={proOn ? 'ring-2 ring-amber-500/60' : ''} />
+            <span>Pro</span>
           </Link>
-
+          
           {/* 4. Account */}
           <button
             type="button"
