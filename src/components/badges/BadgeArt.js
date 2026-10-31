@@ -13,6 +13,23 @@ const TIERS = {
 };
 const LOCKED = { light: '#8b9198', mid: '#5f656b', dark: '#33373b', text: '#c4c9ce' };
 
+// Every earned badge always moves. Body motion (6) x overlay effect (4) = 24 unique combinations,
+// picked from badge.fx (set in lib/badges.js). Nothing here fades the whole badge in and out.
+const MOTIONS = ['float', 'sway', 'breathe', 'drift', 'swing', 'tumble'];
+const OVERLAYS = ['sweep', 'orbit', 'radar', 'rise'];
+
+const RISE = [
+  { x: 30, r: 1.6, t: 0 },
+  { x: 46, r: 2, t: 700 },
+  { x: 62, r: 1.4, t: 1400 },
+  { x: 76, r: 1.8, t: 2100 },
+];
+const ORBIT = [
+  { a: 0, r: 2.6 },
+  { a: 120, r: 2 },
+  { a: 240, r: 1.5 },
+];
+
 function burst(n, outer, inner) {
   const pts = [];
   for (let i = 0; i < n * 2; i += 1) {
@@ -81,14 +98,23 @@ const GLYPHS = {
 
 /**
  * One badge, drawn as SVG. Milestones show the problem count, achievements show an icon.
- * earned=false renders a dim grey version. animate=true adds the slow light sweep on earned badges
- * (the pop-in is done by the wrapper with the .badge-pop class). Works in server and client components.
+ * earned=false renders a dim grey version with no motion.
+ * Earned badges are always animated (animate defaults to true): each one has its own body motion
+ * plus its own overlay effect, both looping smoothly with no idle gap and no blinking.
+ * The pop-in is still done by the wrapper with the .badge-pop class. Works in server and client components.
  */
-export default function BadgeArt({ badge, size = 72, earned = badge.earned, animate = false, delay = 0, className = '' }) {
+export default function BadgeArt({ badge, size = 72, earned = badge.earned, animate = true, delay = 0, className = '' }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
   const pal = earned ? (TIERS[badge.tier] ?? TIERS.bronze) : LOCKED;
   const id = (k) => `${uid}${k}`;
   const digits = String(badge.threshold ?? '').length;
+
+  const animated = Boolean(earned && animate);
+  const fx = Number.isFinite(badge.fx) ? badge.fx : 0;
+  const motion = MOTIONS[fx % MOTIONS.length];
+  const overlay = OVERLAYS[Math.floor(fx / MOTIONS.length) % OVERLAYS.length];
+  // Negative delay = every badge starts at a different point of its loop, so they never move in lockstep.
+  const phase = -((fx * 370) % 3000);
 
   return (
     <svg
@@ -97,9 +123,10 @@ export default function BadgeArt({ badge, size = 72, earned = badge.earned, anim
       height={size}
       role="img"
       aria-label={`${badge.name}${earned ? '' : ' (locked)'}`}
-      className={className}
+      className={`${className} ${animated ? `bm-${motion}` : ''}`.trim()}
       style={{
         '--d': `${delay}ms`,
+        '--p': `${phase}ms`,
         filter: earned ? `drop-shadow(0 5px 8px ${pal.mid}59)` : undefined,
         opacity: earned ? 1 : 0.55,
       }}
@@ -122,6 +149,10 @@ export default function BadgeArt({ badge, size = 72, earned = badge.earned, anim
           <stop offset="0%" stopColor="#fff" stopOpacity="0" />
           <stop offset="50%" stopColor="#fff" stopOpacity="0.75" />
           <stop offset="100%" stopColor="#fff" stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id={id('r')} gradientUnits="userSpaceOnUse" x1="50" y1="50" x2="135" y2="50">
+          <stop offset="0%" stopColor="#fff" stopOpacity="0" />
+          <stop offset="100%" stopColor="#fff" stopOpacity="0.6" />
         </linearGradient>
         <clipPath id={id('c')}>
           <Shape shape={badge.shape} />
@@ -172,11 +203,49 @@ export default function BadgeArt({ badge, size = 72, earned = badge.earned, anim
         </g>
       )}
 
-      {/* gloss + moving shine, clipped to the badge outline */}
+      {/* gloss + overlay effect, clipped to the badge outline */}
       <g clipPath={`url(#${id('c')})`}>
         <ellipse cx="36" cy="24" rx="34" ry="20" transform="rotate(-28 36 24)" fill={`url(#${id('g')})`} opacity="0.55" />
-        {earned && animate && <rect className="badge-shine" x="0" y="-10" width="22" height="120" fill={`url(#${id('s')})`} />}
+
+        {animated && overlay === 'sweep' && (
+          <rect className="bo-sweep" x="0" y="-10" width="22" height="120" fill={`url(#${id('s')})`} />
+        )}
+
+        {animated && overlay === 'radar' && (
+          <polygon className="bo-radar" points="50,50 135,28 135,72" fill={`url(#${id('r')})`} />
+        )}
+
+        {animated &&
+          overlay === 'rise' &&
+          RISE.map((p) => (
+            <circle
+              key={p.x}
+              className="bo-rise"
+              cx={p.x}
+              cy="80"
+              r={p.r}
+              fill={pal.text}
+              style={{ animationDelay: `calc(var(--p, 0ms) - ${p.t}ms)` }}
+            />
+          ))}
       </g>
+
+      {/* sparkles circling the rim (not clipped, so they orbit the outside edge) */}
+      {animated && overlay === 'orbit' && (
+        <g className="bo-orbit">
+          {ORBIT.map((o) => {
+            const a = (o.a * Math.PI) / 180;
+            const cx = 50 + 47 * Math.cos(a);
+            const cy = 50 + 47 * Math.sin(a);
+            return (
+              <g key={o.a}>
+                <circle cx={cx} cy={cy} r={o.r + 1.6} fill={pal.light} fillOpacity="0.45" />
+                <circle cx={cx} cy={cy} r={o.r} fill="#fff" />
+              </g>
+            );
+          })}
+        </g>
+      )}
     </svg>
   );
 }

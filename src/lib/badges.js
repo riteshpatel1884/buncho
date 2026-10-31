@@ -51,7 +51,7 @@ const ACHIEVEMENT_BADGES = [
   { id: 'pro', name: 'Patron', desc: 'Supports Buncho with Pro', tier: 'gold', shape: 'shield', glyph: 'crown', test: (m) => m.pro },
 ].map((b) => ({ kind: 'achievement', ...b }));
 
-const ALL = [...MILESTONE_BADGES, ...ACHIEVEMENT_BADGES];
+const ALL = [...MILESTONE_BADGES, ...ACHIEVEMENT_BADGES].map((b, i) => ({ ...b, fx: i }));
 
 /** Every badge with an `earned` flag. m = { solved, streak, hard, evals, avgScore, helpful, shared, activeDays, pro } */
 export const badgeList = (m) => ALL.map(({ test, ...b }) => ({ ...b, earned: Boolean(test(m)) }));

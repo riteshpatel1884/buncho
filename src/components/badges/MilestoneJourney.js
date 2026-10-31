@@ -108,7 +108,7 @@ export default function MilestoneJourney({ solved, badges }) {
                 <div className="relative grid place-items-center" style={{ width: MEDAL + 12, height: MEDAL + 12 }}>
                   {isNext && (
                     <>
-                      <span aria-hidden="true" className="glow-pulse absolute inset-1 rounded-full bg-accent/30 blur-md" />
+                     <span aria-hidden="true" className="glow-spin absolute inset-1 rounded-full blur-md" />
                       <svg aria-hidden="true" viewBox="0 0 100 100" className="absolute inset-0 -rotate-90">
                         <circle cx="50" cy="50" r={RING_R} fill="none" stroke="var(--line)" strokeWidth="4" />
                         <circle
