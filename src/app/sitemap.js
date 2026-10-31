@@ -19,7 +19,7 @@ export default async function sitemap() {
   ];
 
   try {
-    const [topics, problems] = await Promise.all([
+    const [topics, problems, profiles] = await Promise.all([
       prisma.topic.findMany({
         select: { slug: true, problems: { where: { published: true }, select: { updatedAt: true }, orderBy: { updatedAt: 'desc' }, take: 1 } },
       }),
@@ -28,7 +28,18 @@ export default async function sitemap() {
         select: { slug: true, updatedAt: true },
         orderBy: { updatedAt: 'desc' },
       }),
+      // Public profiles with at least one solved problem (empty profiles are noindex, so keep them out)
+      prisma.user.findMany({
+        where: { username: { not: null }, profilePublic: true, showStats: true, progress: { some: { status: 'COMPLETED' } } },
+        select: { username: true, updatedAt: true },
+        orderBy: { updatedAt: 'desc' },
+        take: 5000,
+      }),
     ]);
+
+    profiles.forEach((u) => {
+      entries.push({ url: `${SITE_URL}/user/${u.username}`, lastModified: u.updatedAt, changeFrequency: 'weekly', priority: 0.4 });
+    });
 
     topics.forEach((t) => {
       // A topic with no published problems would render an empty page, so keep it out of the sitemap

@@ -3,9 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
 }
 
 /* ---------- Enums ---------- */
@@ -114,7 +112,22 @@ model User {
   imageUrl  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+    // Public profile (/user/<username>). username is stored lowercase, so the unique index is case-insensitive in practice.
+  username          String?   @unique
+  usernameChangedAt DateTime?
+  profileName       String? // optional public display name. Falls back to "First L." from `name`
+  headline          String?
+  bio               String?
+  location          String?
+  website           String?
+  githubHandle      String?
+  linkedinHandle    String?
+  xHandle           String?
+  profilePublic     Boolean   @default(true) // a profile only exists once a username is chosen
+  showStats         Boolean   @default(true) // level, stats, badges, topic strengths, activity grid
+  showAnswers       Boolean   @default(true) // answers the user chose to share with the community
+  profileViews      Int       @default(0)
+  
   submissions      Submission[]
   bookmarks        Bookmark[]
   progress         ProblemProgress[]

@@ -12,6 +12,7 @@ export default function robots() {
           '/admin',
           '/jobs',
           '/billing',
+          '/settings',
           // Internal search results and login redirects are endless URL variations with no search value
           '/*?q=',
           '/*&q=',

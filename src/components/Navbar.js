@@ -39,7 +39,24 @@ export default async function Navbar() {
   ];
 
   // Used by the account sheet in the bottom bar
-  const profile = userId ? { name: user?.name ?? null, email: user?.email ?? null, imageUrl: user?.imageUrl ?? null } : null;
+  const profile = userId ? { name: user?.name ?? null, email: user?.email ?? null, imageUrl: user?.imageUrl ?? null, username: user?.username ?? null } : null;
+  const profileHref = user?.username ? `/user/${user.username}` : '/settings/profile';
+
+  // Extra entries in the Clerk account menu (desktop)
+  const profileMenu = (
+    <UserButton.MenuItems>
+      <UserButton.Link
+        label={user?.username ? 'My public profile' : 'Claim your username'}
+        href={profileHref}
+        labelIcon={
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
+          </svg>
+        }
+      />
+    </UserButton.MenuItems>
+  );
 
   // Pro members: a soft yellow tint that sits on the navbar colour (pale in light mode, faint gold in dark mode)
   const searchBox = isPro
@@ -89,11 +106,11 @@ export default async function Navbar() {
               // Tablets and desktops only. On phones the profile is in the bottom bar.
               isPro ? (
                 <span className="hidden place-items-center rounded-full bg-gradient-to-br from-amber-300 via-amber-400 to-amber-600 p-[2px] shadow-sm shadow-amber-500/40 md:grid">
-                  <UserButton />
+                  <UserButton>{profileMenu}</UserButton>
                 </span>
               ) : (
                 <span className="hidden md:block">
-                  <UserButton />
+                  <UserButton>{profileMenu}</UserButton>
                 </span>
               )
             ) : (

@@ -15,6 +15,8 @@ import JobPrepCard from '@/components/jobs/JobPrepCard';
 import StatTile from '@/components/dashboard/StatTile';
 import Greeting from '@/components/dashboard/Greeting';
 import SavedCard from '@/components/dashboard/SavedCard';
+import ShareProfile from '@/components/profile/ShareProfile';
+import { SITE_URL } from '@/lib/seo';
 
 export const metadata = { title: 'Dashboard' };
 
@@ -62,7 +64,33 @@ export default async function DashboardPage() {
           </span>
           <Greeting name={firstName} pro={pro} />
         </div>
+
+        {user.username && (
+          <div className="shrink-0">
+            <ShareProfile url={`${SITE_URL}/user/${user.username}`} name={user.profileName || firstName || 'my'} compact />
+            <Link href={`/user/${user.username}`} className="-mt-3 inline-block text-sm font-semibold text-accent hover:underline">
+              View public profile
+            </Link>
+            <span className="mx-2 text-muted" aria-hidden="true">·</span>
+            <Link href="/settings/profile" className="-mt-3 inline-block text-sm font-medium text-muted hover:text-ink">
+              Edit
+            </Link>
+          </div>
+        )}
       </header>
+
+      {!user.username && (
+        <Link
+          href="/settings/profile"
+          className="group mt-6 flex items-center justify-between gap-4 rounded-2xl border border-accent/40 bg-accent-soft px-5 py-4 transition hover:border-accent"
+        >
+          <span>
+            <span className="block font-semibold">Claim your username and get a shareable profile</span>
+            <span className="mt-0.5 block text-sm text-muted">Show your level, streak and badges at buncho.live/user/your-name.</span>
+          </span>
+          <span className="shrink-0 rounded-full bg-accent px-4 py-1.5 text-sm font-semibold text-accent-ink group-hover:opacity-90">Claim it</span>
+        </Link>
+      )}
 
       {pro && (
         <div className="mt-6">

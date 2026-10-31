@@ -22,6 +22,7 @@ function UserIcon(props) {
 // Phone-only bottom navigation bar (hidden from the md breakpoint up, where the top navbar links take over).
 // Tabs: Problems, Dashboard, Pro (gold badge), Account.
 // signedIn / isPro come from the server navbar. profile: { name, email, imageUrl } or null.
+// profile.username (optional) adds a "Public profile" row to the account sheet.
 export default function MobileBottomNav({ signedIn = false, isPro = false, profile = null }) {
   const pathname = usePathname();
   const { openUserProfile, signOut } = useClerk();
@@ -88,6 +89,18 @@ export default function MobileBottomNav({ signedIn = false, isPro = false, profi
                 </div>
                 <ul className="pt-2">
                   <li>
+                    <Link href={profile?.username ? `/user/${profile.username}` : '/settings/profile'} className={sheetRow}>
+                      {profile?.username ? 'My public profile' : 'Claim your username'}
+                    </Link>
+                  </li>
+                  {profile?.username && (
+                    <li>
+                      <Link href="/settings/profile" className={sheetRow}>
+                        Edit profile
+                      </Link>
+                    </li>
+                  )}
+                  <li>
                     <button
                       type="button"
                       onClick={() => {
@@ -121,7 +134,7 @@ export default function MobileBottomNav({ signedIn = false, isPro = false, profi
         </>
       )}
 
-            <nav
+      <nav
         aria-label="Primary"
         className={`fixed inset-x-0 bottom-0 z-50 border-t backdrop-blur-md pb-[env(safe-area-inset-bottom,0px)] md:hidden ${barLook}`}
       >
