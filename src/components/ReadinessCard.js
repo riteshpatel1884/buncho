@@ -67,6 +67,10 @@ function TopicScores({ competencies, className }) {
   );
 }
 
+/**
+ * The card shows only the score ring and summary. Topic scores and the "how is this calculated"
+ * notes live in a popup, on every screen size.
+ */
 export default function ReadinessCard({ readiness, competencies }) {
   const { score, label, provisional, assessed, totalCompetencies, evaluatedProblems } = readiness;
 
@@ -91,16 +95,9 @@ export default function ReadinessCard({ readiness, competencies }) {
         </div>
       </div>
 
-      {/* Tablets and desktops: scores shown inline */}
-      <TopicScores
-        competencies={competencies}
-        className="mt-8 hidden gap-x-12 gap-y-6 border-t border-line pt-8 md:grid md:grid-cols-2"
-      />
-
-      {/* Phones: scores open in a popup */}
-      <div className="mt-6 md:hidden">
+      <div className="mt-6 border-t border-line pt-5">
         <Popup
-          title="Topic scores"
+          title="Readiness breakdown"
           subtitle={`${assessed} of ${totalCompetencies} topics assessed`}
           buttonLabel={
             <>
@@ -111,21 +108,21 @@ export default function ReadinessCard({ readiness, competencies }) {
           buttonClassName="flex w-full items-center justify-between gap-3 rounded-xl border border-line bg-surface-2/60 px-4 py-3 text-sm font-semibold transition-colors hover:bg-surface-2"
         >
           <TopicScores competencies={competencies} className="space-y-6" />
+
+          <div className="mt-8 border-t border-line pt-5 text-sm">
+            <h3 className="font-semibold">How is this calculated?</h3>
+            <ul className="mt-3 list-disc space-y-1.5 pl-5 text-muted">
+              <li>Each topic score is the average AI feedback score of your latest answers in that topic.</li>
+              <li>It is scaled down until you have answered at least 3 questions in that topic, so one lucky answer does not count in full.</li>
+              <li>
+                The readiness score is the weighted average of the topic scores (
+                {competencies.map((c) => `${c.name} ${c.weight}%`).join(', ')}). Topics you haven&rsquo;t answered count as 0.
+              </li>
+              <li>It is an early estimate until you have several answers evaluated. It is a practice indicator, not a prediction or guarantee of interview results.</li>
+            </ul>
+          </div>
         </Popup>
       </div>
-
-      <details className="mt-8 border-t border-line pt-5 text-sm">
-        <summary className="cursor-pointer font-semibold">How is this calculated?</summary>
-        <ul className="mt-3 list-disc space-y-1.5 pl-5 text-muted">
-          <li>Each topic score is the average AI feedback score of your latest answers in that topic.</li>
-          <li>It is scaled down until you have answered at least 3 questions in that topic, so one lucky answer does not count in full.</li>
-          <li>
-            The readiness score is the weighted average of the topic scores (
-            {competencies.map((c) => `${c.name} ${c.weight}%`).join(', ')}). Topics you haven&rsquo;t answered count as 0.
-          </li>
-          <li>It is an early estimate until you have several answers evaluated. It is a practice indicator, not a prediction or guarantee of interview results.</li>
-        </ul>
-      </details>
     </section>
   );
 }

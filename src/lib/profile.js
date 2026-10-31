@@ -5,6 +5,7 @@ import { getIsPro } from './subscription';
 import { displayName } from './community';
 import { normalizeUsername, validateUsername } from './username';
 import { plainText, truncate } from './seo';
+import { badgeList } from './badges';
 
 /* ------------------------------------------------------------------ */
 /* Public profile data. Everything here is safe to show to strangers:  */
@@ -32,23 +33,40 @@ export function getLevel(solved) {
   return { ...level, index: i, next, progress, toNext: next ? next.min - solved : 0 };
 }
 
-// Badges are computed from real activity. Nothing is stored, so they can never drift from the numbers.
-const BADGES = [
-  { id: 'first', icon: '🚀', name: 'First solve', desc: 'Solved a first problem', test: (m) => m.solved >= 1 },
-  { id: 'ten', icon: '🔟', name: '10 solved', desc: 'Solved 10 problems', test: (m) => m.solved >= 10 },
-  { id: 'fifty', icon: '🏅', name: '50 solved', desc: 'Solved 50 problems', test: (m) => m.solved >= 50 },
-  { id: 'hundred', icon: '💯', name: 'Century', desc: 'Solved 100 problems', test: (m) => m.solved >= 100 },
-  { id: 'streak7', icon: '🔥', name: 'On fire', desc: 'Reached a 7 day streak', test: (m) => m.streak >= 7 },
-  { id: 'streak30', icon: '⚡', name: 'Unstoppable', desc: 'Reached a 30 day streak', test: (m) => m.streak >= 30 },
-  { id: 'hard', icon: '🧗', name: 'Hard mode', desc: 'Solved 5 hard problems', test: (m) => m.hard >= 5 },
-  { id: 'scholar', icon: '🎓', name: 'AI scholar', desc: 'Average AI score of 80+ over 5 answers', test: (m) => m.evals >= 5 && m.avgScore >= 80 },
-  { id: 'helper', icon: '🤝', name: 'Helpful', desc: 'Got 10 helpful votes on shared answers', test: (m) => m.helpful >= 10 },
-  { id: 'sharer', icon: '📣', name: 'Community voice', desc: 'Shared 3 answers publicly', test: (m) => m.shared >= 3 },
-  { id: 'regular', icon: '📅', name: 'Regular', desc: 'Practised on 20 different days', test: (m) => m.activeDays >= 20 },
-  { id: 'pro', icon: '👑', name: 'Pro member', desc: 'Supports Buncho with Pro', test: (m) => m.pro },
-];
+// Badge definitions live in lib/badges.js (milestones + achievements, all computed from real activity).
+export { badgeList };
 
-export const badgeList = (m) => BADGES.map(({ test, ...b }) => ({ ...b, earned: Boolean(test(m)) }));
+/**
+ * Badge progress for the signed-in user's own dashboard. This is the owner's private view, so it
+ * ignores the public-profile privacy toggles. Pass `stats` (from getUserStats) to avoid a second query.
+ */
+export async function getUserBadges(userId, { pro = false, stats } = {}) {
+  const [s, hard, evals, helpful, shared] = await Promise.all([
+    stats ?? getUserStats(userId),
+    prisma.problemProgress.count({ where: { userId, status: 'COMPLETED', problem: { published: true, difficulty: 'HARD' } } }),
+    prisma.evaluation.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, select: { problemId: true, score: true } }),
+    prisma.answerVote.count({ where: { answer: { userId, status: 'PUBLISHED', anonymous: false } } }),
+    prisma.communityAnswer.count({ where: { userId, status: 'PUBLISHED', anonymous: false, problem: { published: true, proOnly: false } } }),
+  ]);
+
+  const latest = new Map();
+  for (const e of evals) if (!latest.has(e.problemId)) latest.set(e.problemId, e.score);
+  const scores = [...latest.values()];
+  const avgScore = scores.length ? Math.round(scores.reduce((sum, x) => sum + x, 0) / scores.length) : 0;
+
+  const metrics = {
+    solved: s.solved,
+    streak: s.streak,
+    hard,
+    evals: scores.length,
+    avgScore,
+    helpful,
+    shared,
+    activeDays: Object.keys(s.activeDays).length,
+    pro,
+  };
+  return { metrics, badges: badgeList(metrics) };
+}
 
 /** One query by unique username. Cached per request so generateMetadata and the page share it. */
 export const findProfileUser = cache(async (raw) => {

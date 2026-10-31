@@ -354,3 +354,47 @@ html[data-busy='true'] body { cursor: progress; }
 }
 
 html, body { overflow-x: clip; }
+
+
+/* ---------- Badge animations (milestone path on the dashboard) ---------- */
+@keyframes badge-pop {
+  0% { opacity: 0; transform: scale(0.2) rotate(-25deg); }
+  60% { opacity: 1; transform: scale(1.18) rotate(6deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+@keyframes badge-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+/* pop in once, then float gently */
+.badge-pop {
+  opacity: 0;
+  animation:
+    badge-pop 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.2) forwards,
+    badge-float 3.2s ease-in-out infinite;
+  animation-delay: var(--d, 0ms), calc(var(--d, 0ms) + 900ms);
+}
+/* slow light sweep across earned badges (SVG user units, so px = viewBox units) */
+@keyframes badge-shine {
+  0%, 35% { transform: translateX(-60px) skewX(-20deg); }
+  75%, 100% { transform: translateX(130px) skewX(-20deg); }
+}
+.badge-shine {
+  animation: badge-shine 4.2s ease-in-out infinite;
+  animation-delay: calc(var(--d, 0ms) + 700ms);
+}
+@keyframes track-fill { from { width: 0; } to { width: var(--w); } }
+.track-fill { animation: track-fill 1.6s cubic-bezier(0.3, 0.7, 0.2, 1) 0.2s both; }
+@keyframes ring-draw { from { stroke-dashoffset: var(--c); } to { stroke-dashoffset: var(--o); } }
+.ring-draw { animation: ring-draw 1.4s cubic-bezier(0.3, 0.7, 0.2, 1) 0.6s both; }
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.15); }
+}
+.glow-pulse { animation: glow-pulse 2.2s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .badge-pop { opacity: 1; animation: none; }
+  .badge-shine, .glow-pulse { animation: none; }
+  .track-fill, .ring-draw { animation: none; }
+}

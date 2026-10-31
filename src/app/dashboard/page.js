@@ -6,6 +6,7 @@ import ReadinessCard from '@/components/ReadinessCard';
 import { StatsCard } from '@/components/StatsCard';
 import { getUserStats, dayKey } from '@/lib/problems';
 import { getInsights } from '@/lib/insights';
+import { getUserBadges } from '@/lib/profile';
 import { attachInsights, getEntitlements } from '@/lib/subscription';
 import PlanCard from '@/components/billing/PlanCard';
 import ProBanner from '@/components/ProBanner';
@@ -16,6 +17,7 @@ import Greeting from '@/components/dashboard/Greeting';
 import SavedCard from '@/components/dashboard/SavedCard';
 import ActivityChart from '@/components/dashboard/ActivityChart';
 import StreakCalendar from '@/components/dashboard/StreakCalendar';
+import MilestoneJourney from '@/components/badges/MilestoneJourney';
 import ShareProfile from '@/components/profile/ShareProfile';
 import { Check, Flame, Grid, Bookmark } from '@/components/icons';
 import { SITE_URL } from '@/lib/seo';
@@ -29,16 +31,20 @@ export default async function DashboardPage() {
   const ent = await getEntitlements(user.id);
   const pro = ent.isPro;
 
-  const [bookmarks, stats, insights, jobs] = await Promise.all([
+  // Stats are needed by both the dashboard and the badges, so fetch them once and share the promise
+  const statsPromise = getUserStats(user.id);
+
+  const [bookmarks, stats, insights, jobs, badgeData] = await Promise.all([
     prisma.bookmark.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
       take: 500,
       include: { problem: { select: { slug: true, title: true, difficulty: true } } },
     }),
-    getUserStats(user.id),
+    statsPromise,
     getInsights(user.id),
     listJobs(user.id),
+    statsPromise.then((s) => getUserBadges(user.id, { pro, stats: s })),
   ]);
 
   const savedList = await attachInsights(bookmarks.map((b) => b.problem), pro);
@@ -78,6 +84,11 @@ export default async function DashboardPage() {
 
           {pro && <ProBanner periodEnd={ent.periodEnd} className="min-w-0 lg:flex-1" />}
         </header>
+
+        {/* Milestones: animated badge path, right at the top */}
+        <div className="mt-6">
+          <MilestoneJourney solved={stats.solved} badges={badgeData.badges} />
+        </div>
 
         {/* Public profile: share + links (or a prompt to claim a username) */}
         {user.username ? (
