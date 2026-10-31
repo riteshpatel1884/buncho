@@ -60,12 +60,13 @@ export function ListSkeleton({ rows = 8 }) {
 export function DashboardSkeleton() {
   return (
     <Shell className="mx-auto w-full max-w-[80rem] px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-      <div className="flex items-center gap-4">
-        <Skeleton className="h-14 w-14 rounded-full" />
-        <div className="space-y-2">
-          <Skeleton className="h-7 w-64" />
-          <Skeleton className="h-4 w-52" />
+      {/* greeting + banner row */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-6">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-14 w-14 rounded-full" />
+          <Skeleton className="h-8 w-56" />
         </div>
+        <Skeleton className="h-[4.5rem] w-full rounded-2xl lg:flex-1" />
       </div>
 
       <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-6">
@@ -80,43 +81,40 @@ export function DashboardSkeleton() {
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="space-y-8">
-          <div className="card p-8">
-            <Skeleton className="h-5 w-56" />
-            <div className="mt-6 flex items-center gap-8">
-              <Skeleton className="h-32 w-32 shrink-0 rounded-full" />
-              <div className="flex-1 space-y-3">
-                <Skeleton className="h-7 w-32" />
-                <Skeleton className="h-3 w-3/4" />
-              </div>
-            </div>
-            <div className="mt-8 grid gap-x-12 gap-y-6 border-t border-line pt-8 md:grid-cols-2">
-              {[0, 1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="space-y-2">
-                  <Skeleton className="h-3 w-1/2" />
-                  <Skeleton className="h-2 w-full" />
-                </div>
-              ))}
-            </div>
+          {/* activity chart */}
+          <div className="card p-6">
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="mt-2 h-3 w-36" />
+            <Skeleton className="mt-6 h-48 w-full" />
           </div>
-          <div className="grid gap-8 xl:grid-cols-2">
-            {[0, 1].map((i) => (
-              <div key={i} className="card space-y-4 p-6">
-                <Skeleton className="h-5 w-40" />
-                {[0, 1, 2, 3].map((j) => (
-                  <Skeleton key={j} className="h-9 w-full" />
+          <div className="card p-6">
+            <Skeleton className="h-5 w-40" />
+            <div className="mt-6 flex items-center gap-8">
+              <Skeleton className="h-28 w-28 shrink-0 rounded-full" />
+              <div className="flex-1 space-y-4">
+                {[0, 1, 2].map((i) => (
+                  <Skeleton key={i} className="h-3 w-full" />
                 ))}
               </div>
-            ))}
+            </div>
           </div>
         </div>
 
         <div className="space-y-8">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="card space-y-4 p-6">
-              <Skeleton className="h-5 w-36" />
-              <Skeleton className="h-28 w-full" />
+          {/* calendar */}
+          <div className="card p-6">
+            <Skeleton className="mx-auto h-4 w-24" />
+            <Skeleton className="mx-auto mt-4 h-6 w-40" />
+            <div className="mt-6 grid grid-cols-7 gap-1">
+              {Array.from({ length: 35 }, (_, i) => (
+                <Skeleton key={i} className="aspect-square w-full rounded-xl" />
+              ))}
             </div>
-          ))}
+          </div>
+          <div className="card space-y-3 p-6">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-3 w-48" />
+          </div>
         </div>
       </div>
     </Shell>
