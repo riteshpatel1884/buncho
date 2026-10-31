@@ -53,16 +53,15 @@ export default async function AdminHomePage() {
   const now = new Date();
   // A failed count shows "—" instead of breaking the whole page
   const safe = (p) => p.catch(() => null);
-  const [users, activePro, openAnswers, openSupport, adsAwaiting, adsLive] = await Promise.all([
+  const [users, activePro, openSupport, adsAwaiting, adsLive] = await Promise.all([
     safe(prisma.user.count()),
     safe(prisma.subscription.count({ where: { currentPeriodEnd: { gt: now } } })),
-    safe(prisma.communityAnswer.count({ where: { reports: { some: { status: 'OPEN' } } } })),
     safe(prisma.supportReport.count({ where: { status: 'OPEN' } })),
     safe(prisma.adBooking.count({ where: { status: 'PAID' } })),
     safe(prisma.adBooking.count({ where: { status: 'APPROVED', endsAt: { gt: now } } })),
   ]);
   const n = (v) => (v === null ? '—' : v.toLocaleString('en-IN'));
-  const waiting = (openAnswers ?? 0) + (openSupport ?? 0);
+  const waiting = openSupport ?? 0;
 
   // To add a new admin page later, add one object here.
   const sections = [
@@ -92,7 +91,7 @@ export default async function AdminHomePage() {
       href: '/admin/reports',
       icon: 'reports',
       title: 'Reports',
-      text: 'Problems users report in questions, Pro plan and payment issues, and flagged community answers.',
+      text: 'Problems users report in questions, plus Pro plan and payment issues.',
       stat: waiting ? `${n(waiting)} waiting for review` : 'Nothing waiting',
       attention: waiting > 0,
     },

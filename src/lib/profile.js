@@ -2,16 +2,14 @@ import { cache } from 'react';
 import { prisma } from './prisma';
 import { getUserStats } from './problems';
 import { getIsPro } from './subscription';
-import { displayName } from './community';
 import { normalizeUsername, validateUsername } from './username';
-import { plainText, truncate } from './seo';
 import { badgeList } from './badges';
 
 /* ------------------------------------------------------------------ */
 /* Public profile data. Everything here is safe to show to strangers:  */
-/* no email, no private submissions, no Pro-only question content, no  */
-/* anonymous answers. Owner toggles (showStats, showAnswers) are       */
-/* applied here, so the page cannot forget them.                        */
+/* no email, no private submissions and no Pro-only question content. */
+/* The owner toggle (showStats) is applied here, so the page cannot     */
+/* forget it.                                                           */
 /* ------------------------------------------------------------------ */
 
 export const LEVELS = [
@@ -36,17 +34,23 @@ export function getLevel(solved) {
 // Badge definitions live in lib/badges.js (milestones + achievements, all computed from real activity).
 export { badgeList };
 
+/** "Priya Sharma" -> "Priya S." so full names are not exposed publicly. */
+function displayName(name) {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'A Buncho learner';
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
+}
+
 /**
  * Badge progress for the signed-in user's own dashboard. This is the owner's private view, so it
  * ignores the public-profile privacy toggles. Pass `stats` (from getUserStats) to avoid a second query.
  */
 export async function getUserBadges(userId, { pro = false, stats } = {}) {
-  const [s, hard, evals, helpful, shared] = await Promise.all([
+  const [s, hard, evals] = await Promise.all([
     stats ?? getUserStats(userId),
     prisma.problemProgress.count({ where: { userId, status: 'COMPLETED', problem: { published: true, difficulty: 'HARD' } } }),
     prisma.evaluation.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, select: { problemId: true, score: true } }),
-    prisma.answerVote.count({ where: { answer: { userId, status: 'PUBLISHED', anonymous: false } } }),
-    prisma.communityAnswer.count({ where: { userId, status: 'PUBLISHED', anonymous: false, problem: { published: true, proOnly: false } } }),
   ]);
 
   const latest = new Map();
@@ -60,8 +64,6 @@ export async function getUserBadges(userId, { pro = false, stats } = {}) {
     hard,
     evals: scores.length,
     avgScore,
-    helpful,
-    shared,
     activeDays: Object.keys(s.activeDays).length,
     pro,
   };
@@ -89,7 +91,6 @@ export const findProfileUser = cache(async (raw) => {
       xHandle: true,
       profilePublic: true,
       showStats: true,
-      showAnswers: true,
       profileViews: true,
       createdAt: true,
     },
@@ -101,9 +102,9 @@ export const publicName = (u) => u.profileName || displayName(u.name);
 /** Everything the profile page and the share image show. Cached per request. */
 export const getProfileData = cache(async (user) => {
   const pro = await getIsPro(user.id);
-  const base = { name: publicName(user), pro, stats: null, level: null, topics: [], avgScore: null, evals: 0, helpful: 0, answers: [], sharedCount: 0, badges: [] };
+  const base = { name: publicName(user), pro, stats: null, level: null, topics: [], avgScore: null, evals: 0, badges: [] };
 
-  const [stats, completed, evals, helpful, sharedCount, answers] = await Promise.all([
+  const [stats, completed, evals] = await Promise.all([
     user.showStats ? getUserStats(user.id) : null,
     user.showStats
       ? prisma.problemProgress.findMany({
@@ -114,33 +115,9 @@ export const getProfileData = cache(async (user) => {
     user.showStats
       ? prisma.evaluation.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, select: { problemId: true, score: true } })
       : [],
-    prisma.answerVote.count({ where: { answer: { userId: user.id, status: 'PUBLISHED', anonymous: false } } }),
-    prisma.communityAnswer.count({ where: { userId: user.id, status: 'PUBLISHED', anonymous: false, problem: { published: true, proOnly: false } } }),
-    user.showAnswers
-      ? prisma.communityAnswer.findMany({
-          where: { userId: user.id, status: 'PUBLISHED', anonymous: false, problem: { published: true, proOnly: false } },
-          orderBy: [{ votes: { _count: 'desc' } }, { createdAt: 'desc' }],
-          take: 4,
-          select: {
-            id: true,
-            content: true,
-            createdAt: true,
-            _count: { select: { votes: true } },
-            problem: { select: { slug: true, title: true, difficulty: true, topic: { select: { name: true } } } },
-          },
-        })
-      : [],
   ]);
 
-  const out = { ...base, helpful, sharedCount };
-
-  out.answers = answers.map((a) => ({
-    id: a.id,
-    excerpt: truncate(plainText(a.content), 220),
-    votes: a._count.votes,
-    date: a.createdAt,
-    problem: a.problem,
-  }));
+  const out = { ...base };
 
   if (!stats) return out;
 
@@ -175,8 +152,6 @@ export const getProfileData = cache(async (user) => {
     hard,
     evals: scores.length,
     avgScore: avgScore ?? 0,
-    helpful,
-    shared: sharedCount,
     activeDays: Object.keys(stats.activeDays).length,
     pro,
   };

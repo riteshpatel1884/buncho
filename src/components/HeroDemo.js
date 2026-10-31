@@ -132,7 +132,7 @@ export default function HeroDemo() {
             <div className="flex gap-4 border-b border-line pb-0 text-xs font-medium">
               <span className={tab(!showFeedback)}>Description</span>
               <span className={tab(showFeedback)}>AI Feedback</span>
-              <span className={tab(false)}>Community</span>
+             
             </div>
 
             {showFeedback ? (

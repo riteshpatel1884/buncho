@@ -27,27 +27,6 @@ enum ProgressStatus {
   COMPLETED
 }
 
-// Phase 3
-enum AnswerStatus {
-  PUBLISHED
-  UNSHARED
-  HIDDEN
-}
-
-enum ReportReason {
-  INCORRECT
-  COPIED
-  INAPPROPRIATE
-  SPAM
-  OTHER
-}
-
-enum ReportStatus {
-  OPEN
-  ACTIONED
-  DISMISSED
-}
-
 // Phase 7
 enum MockStatus {
   IN_PROGRESS
@@ -125,18 +104,11 @@ model User {
   xHandle           String?
   profilePublic     Boolean   @default(true) // a profile only exists once a username is chosen
   showStats         Boolean   @default(true) // level, stats, badges, topic strengths, activity grid
-  showAnswers       Boolean   @default(true) // answers the user chose to share with the community
   profileViews      Int       @default(0)
   
   submissions      Submission[]
   bookmarks        Bookmark[]
   progress         ProblemProgress[]
-  // Phase 3
-  communityAnswers CommunityAnswer[]
-  answerVotes      AnswerVote[]
-  answerBookmarks  AnswerBookmark[]
-  reports          Report[]
-  comments         AnswerComment[]
   // Phase 4
   evaluations      Evaluation[]
   // Phase 7
@@ -181,7 +153,7 @@ model Problem {
   // If true, users may reveal the solution without submitting an attempt
   allowDirectReveal Boolean     @default(false)
   // Pro-only question: free users see the title and a short preview, but not the full question, hints, answer editor,
-  // AI feedback, reference answer or community answers. Enforced on the server (see lib/pro-access.js).
+  // AI feedback or reference answer. Enforced on the server (see lib/pro-access.js).
   proOnly           Boolean     @default(false)
   published         Boolean     @default(true)
   position          Int         @default(0)
@@ -205,8 +177,6 @@ model Problem {
   submissions      Submission[]
   bookmarks        Bookmark[]
   progress         ProblemProgress[]
-  // Phase 3
-  communityAnswers CommunityAnswer[]
   // Phase 4
   evaluations      Evaluation[]
   // Phase 7
@@ -235,7 +205,7 @@ model ExpertSolution {
   updatedAt    DateTime  @updatedAt
 }
 
-// Private to the user. Public sharing creates a separate CommunityAnswer copy.
+// Private to the user.
 model Submission {
   id        String   @id @default(cuid())
   userId    String
@@ -279,88 +249,6 @@ model ProblemProgress {
 
   @@unique([userId, problemId])
   @@index([userId, status])
-}
-
-/* ---------- Community (Phase 3) ---------- */
-
-// Public copy of a user's answer, created only when they choose to share.
-// Editing the private Submission never changes this until the user updates the shared version.
-model CommunityAnswer {
-  id        String       @id @default(cuid())
-  userId    String
-  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  problemId String
-  problem   Problem      @relation(fields: [problemId], references: [id], onDelete: Cascade)
-  content   String       @db.Text // Markdown
-  anonymous Boolean      @default(false)
-  status    AnswerStatus @default(PUBLISHED)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-
-  votes     AnswerVote[]
-  bookmarks AnswerBookmark[]
-  reports   Report[]
-  comments  AnswerComment[]
-
-  // One shared answer per user per problem
-  @@unique([userId, problemId])
-  @@index([problemId, status])
-}
-
-// "Helpful" votes. The unique constraint prevents duplicate votes.
-model AnswerVote {
-  id        String          @id @default(cuid())
-  userId    String
-  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  answerId  String
-  answer    CommunityAnswer @relation(fields: [answerId], references: [id], onDelete: Cascade)
-  createdAt DateTime        @default(now())
-
-  @@unique([userId, answerId])
-  @@index([answerId])
-}
-
-model AnswerBookmark {
-  id        String          @id @default(cuid())
-  userId    String
-  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  answerId  String
-  answer    CommunityAnswer @relation(fields: [answerId], references: [id], onDelete: Cascade)
-  createdAt DateTime        @default(now())
-
-  @@unique([userId, answerId])
-  @@index([userId])
-}
-
-// One report per user per answer. Open reports from distinct users drive auto-hide.
-model Report {
-  id         String          @id @default(cuid())
-  reporterId String
-  reporter   User            @relation(fields: [reporterId], references: [id], onDelete: Cascade)
-  answerId   String
-  answer     CommunityAnswer @relation(fields: [answerId], references: [id], onDelete: Cascade)
-  reason     ReportReason
-  details    String?         @db.Text
-  status     ReportStatus    @default(OPEN)
-  createdAt  DateTime        @default(now())
-  resolvedAt DateTime?
-
-  @@unique([reporterId, answerId])
-  @@index([status, createdAt])
-  @@index([answerId])
-}
-
-model AnswerComment {
-  id        String          @id @default(cuid())
-  answerId  String
-  answer    CommunityAnswer @relation(fields: [answerId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  content   String          @db.Text
-  createdAt DateTime        @default(now())
-
-  @@index([answerId, createdAt])
-  @@index([userId, createdAt])
 }
 
 /* ---------- AI feedback (Phase 4) ---------- */
@@ -571,7 +459,6 @@ model AdBooking {
 /* ---------- User reports (the /report page, shown in /admin/reports) ---------- */
 
 // A problem a user reports: a mistake in a question or its solution, a Pro plan or payment issue, or anything else.
-// Not to be confused with Report above, which is a user flagging someone else's community answer.
 model SupportReport {
   id            String        @id @default(cuid())
   userId        String

@@ -112,7 +112,6 @@ export async function saveProfileSettings(input = {}) {
     xHandle: x.value,
     profilePublic: Boolean(input.profilePublic),
     showStats: Boolean(input.showStats),
-    showAnswers: Boolean(input.showAnswers),
   };
   if (changing) {
     data.username = v.username;

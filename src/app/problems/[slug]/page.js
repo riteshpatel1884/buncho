@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { getOrCreateUser } from '@/lib/user';
-import { getCommunityAnswers } from '@/lib/community';
 import { getIsPro } from '@/lib/subscription';
 import { canAccessProblem, previewMarkdown } from '@/lib/pro-access';
 import ProLock from '@/components/ProLock';
@@ -14,8 +13,6 @@ import Markdown from '@/components/Markdown';
 import Hints from '@/components/Hints';
 import DifficultyBadge from '@/components/DifficultyBadge';
 import AnswerEditor from '@/components/AnswerEditor';
-import ShareControl from '@/components/ShareControl';
-import CommunitySection from '@/components/CommunitySection';
 import BookmarkButton from '@/components/BookmarkButton';
 import FeedbackView from '@/components/FeedbackView';
 import FeedbackControls from '@/components/FeedbackControls';
@@ -28,7 +25,7 @@ import { getProblemNeighbors, getUpNext } from '@/lib/problems';
 import JsonLd from '@/components/JsonLd';
 import { buildMetadata, breadcrumbJsonLd, fitTitle, graph, plainText, problemJsonLd, truncate } from '@/lib/seo';
 
-import { ChevronLeft, ChevronRight, Code, FileText, Flag, Flask, Lock, Users } from '@/components/icons';
+import { ChevronLeft, ChevronRight, Code, FileText, Flag, Flask, Lock } from '@/components/icons';
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
@@ -57,10 +54,8 @@ const asArray = (v) => (Array.isArray(v) ? v : []);
 // Four backticks so a log that contains ``` can't break out of the code block
 const fence = (a) => `\`\`\`\`${a.kind === 'json' ? 'json' : 'text'}\n${a.content}\n\`\`\`\``;
 
-export default async function ProblemPage({ params, searchParams }) {
+export default async function ProblemPage({ params }) {
   const { slug } = await params;
-  const sp = await searchParams;
-  const cpage = Math.max(1, parseInt(sp?.cpage, 10) || 1);
 
   const problem = await prisma.problem.findFirst({
     where: { slug, published: true },
@@ -75,7 +70,7 @@ export default async function ProblemPage({ params, searchParams }) {
   const [neighbors, pro] = await Promise.all([getProblemNeighbors(slug), user ? getIsPro(user.id) : false]);
 
   // Pro-only question and no active Pro plan: only a short preview of the question is used below. The full text, hints,
-  // steps, scenario data, reference answer and community answers are never read into the page.
+  // steps, scenario data and reference answer are never read into the page.
   const locked = !canAccessProblem(problem, pro);
   const teaser = locked ? previewMarkdown(problem.description) : null;
   const steps = locked ? [] : asArray(problem.steps);
@@ -86,21 +81,18 @@ export default async function ProblemPage({ params, searchParams }) {
   let progress = null;
   let submission = null;
   let evaluation = null;
-  let ownShared = null;
   let bookmarked = false;
 
   if (user) {
     const key = { userId_problemId: { userId: user.id, problemId: problem.id } };
-    const [pr, sub, bm, shared] = await Promise.all([
+    const [pr, sub, bm] = await Promise.all([
       prisma.problemProgress.findUnique({ where: key }),
       prisma.submission.findUnique({ where: key }),
       prisma.bookmark.findUnique({ where: key }),
-      prisma.communityAnswer.findUnique({ where: key, select: { status: true, anonymous: true, content: true } }),
     ]);
     progress = pr;
     submission = sub;
     bookmarked = Boolean(bm);
-    ownShared = shared;
 
     // Latest AI feedback for this user's answer
     if (sub) {
@@ -111,23 +103,10 @@ export default async function ProblemPage({ params, searchParams }) {
     }
   }
 
-  // The reference answer and community content are only queried once the user has earned access,
-  // so neither reaches the browser of someone who hasn't unlocked them.
+  // The reference answer is only queried once the user has earned access,
+  // so it never reaches the browser of someone who hasn't unlocked it.
   const unlocked = Boolean(user && !locked && (submission || progress?.solutionRevealed));
-  const [solution, community] = unlocked
-    ? await Promise.all([
-        prisma.expertSolution.findUnique({ where: { problemId: problem.id } }),
-        getCommunityAnswers({ problemId: problem.id, viewerId: user.id, page: cpage }),
-      ])
-    : [null, null];
-
-  const shared = ownShared
-    ? {
-        status: ownShared.status,
-        anonymous: ownShared.anonymous,
-        outOfDate: Boolean(submission) && ownShared.content !== submission.content,
-      }
-    : null;
+  const solution = unlocked ? await prisma.expertSolution.findUnique({ where: { problemId: problem.id } }) : null;
 
   // True when the user edited their answer after the feedback was generated
   const stale = Boolean(evaluation && submission && evaluation.contentHash !== hashContent(submission.content));
@@ -332,30 +311,9 @@ export default async function ProblemPage({ params, searchParams }) {
     </section>
   );
 
-  const communityPane = (
-    <section aria-labelledby="community-heading">
-      <h2 id="community-heading" className="text-lg font-semibold">Community solutions</h2>
-      {locked ? (
-        <div className="mt-4">
-          <ProLock compact signedIn={Boolean(user)} title="Community answers are a Pro feature for this question" />
-        </div>
-      ) : community ? (
-        <CommunitySection data={community} slug={slug} />
-      ) : (
-        <p className="mt-4 flex items-center gap-2 text-sm text-muted">
-          <Lock width={16} height={16} />
-          {user
-            ? 'Community answers unlock after you submit an attempt or reveal the solution.'
-            : 'Log in and attempt this problem to read how other learners answered it.'}
-        </p>
-      )}
-    </section>
-  );
-
   const tabs = [
     { id: 'description', label: 'Description', icon: <FileText width={16} height={16} />, content: description },
     { id: 'feedback', label: 'AI Feedback', icon: unlocked ? <Flask width={16} height={16} /> : <Lock width={15} height={15} />, content: feedbackPane },
-    { id: 'community', label: 'Community', icon: <Users width={16} height={16} />, content: communityPane },
   ];
 
   const arrow = 'grid h-8 w-8 place-items-center rounded-md text-ink transition-colors hover:bg-surface';
@@ -407,7 +365,7 @@ export default async function ProblemPage({ params, searchParams }) {
             <nav aria-label="Breadcrumb" className="sr-only">
               <Link href="/problems">Problems</Link> / <Link href={`/topics/${problem.topic.slug}`}>{problem.topic.name}</Link>
             </nav>
-            <ProblemTabs tabs={tabs} initial={sp?.cpage ? 'community' : 'description'} />
+            <ProblemTabs tabs={tabs} initial="description" />
           </>
         }
         right={
@@ -421,24 +379,16 @@ export default async function ProblemPage({ params, searchParams }) {
                   <ProLock signedIn={Boolean(user)} />
                 </div>
               ) : user ? (
-                <>
-                  <AnswerEditor
-                    problemId={problem.id}
-                    initialContent={submission?.content ?? ''}
-                    hasSubmission={Boolean(submission)}
-                    steps={steps.length ? steps : null}
-                  />
-                  {/* Only shown once an answer has been submitted */}
-                  {submission && (
-                    <div className="shrink-0 border-t border-line p-3">
-                      <ShareControl problemId={problem.id} hasSubmission shared={shared} />
-                    </div>
-                  )}
-                </>
+                <AnswerEditor
+                  problemId={problem.id}
+                  initialContent={submission?.content ?? ''}
+                  hasSubmission={Boolean(submission)}
+                  steps={steps.length ? steps : null}
+                />
               ) : (
                 <div className="flex min-h-[26rem] flex-[1_0_auto] flex-col">
                   <div className="flex-1 px-4 py-3 font-mono text-[0.85rem] text-muted/70">
-                    Write your answer here. Your answer is private unless you choose to share it.
+                    Write your answer here. Your answer is private to you.
                   </div>
                   <div className="shrink-0 border-t border-line bg-surface-2 px-4 py-3 text-sm">
                     You need to{' '}

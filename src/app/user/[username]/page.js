@@ -6,11 +6,9 @@ import { prisma } from '@/lib/prisma';
 import { getOrCreateUser } from '@/lib/user';
 import { findProfileUser, getProfileData, publicName } from '@/lib/profile';
 import { profileTheme } from '@/lib/profile-theme';
-import { formatDate } from '@/lib/community';
 import { absoluteUrl, buildMetadata, graph, truncate } from '@/lib/seo';
 import ActivityChart from '@/components/dashboard/ActivityChart';
 import { dayKey } from '@/lib/problems';
-import DifficultyBadge from '@/components/DifficultyBadge';
 import JsonLd from '@/components/JsonLd';
 import { Crown } from '@/components/ProBadge';
 import StatTile from '@/components/dashboard/StatTile';
@@ -18,6 +16,8 @@ import BadgeGrid from '@/components/profile/BadgeGrid';
 import LevelCard from '@/components/profile/LevelCard';
 import ShareProfile from '@/components/profile/ShareProfile';
 import SkillRadar from '@/components/profile/SkillRadar';
+
+const formatDate = (d) => d.toLocaleDateString('en-IN', { dateStyle: 'medium', timeZone: 'Asia/Kolkata' });
 
 const BOT = /bot|crawl|spider|slurp|preview|facebookexternalhit|whatsapp|telegram|discord|slack|embed|headless/i;
 
@@ -31,7 +31,7 @@ export async function generateMetadata({ params }) {
   // The profile is only worth indexing when it is public and has something on it
   const data = user.profilePublic ? await getProfileData(user) : null;
   const solved = data?.stats?.solved ?? 0;
-  const worthIndexing = Boolean(user.profilePublic && (solved > 0 || data?.answers.length));
+  const worthIndexing = Boolean(user.profilePublic && solved > 0);
 
   const description = truncate(
     user.headline
@@ -103,7 +103,7 @@ export default async function PublicProfilePage({ params }) {
   const evaluatedTopics = data.topics.filter((t) => t.avg != null);
   const showRadar = evaluatedTopics.length >= 3;
   const maxSolved = Math.max(1, ...data.topics.map((t) => t.solved));
-  const hasAnything = stats || data.answers.length > 0;
+  const hasAnything = Boolean(stats);
 
   const ring = data.pro ? 'bg-gradient-to-br from-amber-300 via-amber-400 to-amber-600' : '';
 
@@ -199,7 +199,7 @@ export default async function PublicProfilePage({ params }) {
           <StatTile label="Solved" value={stats.solved} sub={`of ${stats.total} problems`} accent />
           <StatTile label="Day streak" value={stats.streak} sub={stats.streak ? 'Practising daily' : 'Starts with one day'} />
           <StatTile label="Avg AI score" value={data.avgScore ?? '–'} sub={data.avgScore != null ? `over ${data.evals} answer${data.evals === 1 ? '' : 's'}` : 'No AI feedback yet'} />
-          <StatTile label="Helpful votes" value={data.helpful} sub={`${data.sharedCount} shared answer${data.sharedCount === 1 ? '' : 's'}`} />
+          <StatTile label="Days practised" value={Object.keys(stats.activeDays).length} sub="different days with activity" />
         </dl>
       )}
 
@@ -243,31 +243,6 @@ export default async function PublicProfilePage({ params }) {
                 todayKey={dayKey(new Date())}
                 color={theme.a}
               />
-            )}
-
-            {user.showAnswers && (
-              <section aria-labelledby="answers-h" className="card p-5 sm:p-6">
-                <h2 id="answers-h" className="text-base font-semibold tracking-tight">Shared answers</h2>
-                {data.answers.length === 0 ? (
-                  <p className="mt-2 text-sm text-muted">{name} has not shared any answers yet.</p>
-                ) : (
-                  <ul className="mt-4 divide-y divide-line">
-                    {data.answers.map((a) => (
-                      <li key={a.id} className="py-4 first:pt-0 last:pb-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <DifficultyBadge difficulty={a.problem.difficulty} />
-                          <span className="text-xs text-muted">{a.problem.topic.name}</span>
-                          <span className="ml-auto text-xs tabular-nums text-muted">{a.votes} helpful</span>
-                        </div>
-                        <Link href={`/problems/${a.problem.slug}`} className="mt-1.5 block font-semibold hover:text-accent">
-                          {a.problem.title}
-                        </Link>
-                        <p className="mt-1 text-sm leading-relaxed text-muted">{a.excerpt}</p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
             )}
           </div>
 

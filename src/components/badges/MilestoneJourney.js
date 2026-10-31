@@ -108,7 +108,7 @@ export default function MilestoneJourney({ solved, badges }) {
                 <div className="relative grid place-items-center" style={{ width: MEDAL + 12, height: MEDAL + 12 }}>
                   {isNext && (
                     <>
-                     <span aria-hidden="true" className="glow-spin absolute inset-1 rounded-full blur-md" />
+                      <span aria-hidden="true" className="glow-spin absolute inset-1 rounded-full blur-md" />
                       <svg aria-hidden="true" viewBox="0 0 100 100" className="absolute inset-0 -rotate-90">
                         <circle cx="50" cy="50" r={RING_R} fill="none" stroke="var(--line)" strokeWidth="4" />
                         <circle
@@ -156,7 +156,7 @@ export default function MilestoneJourney({ solved, badges }) {
             </span>
           ))
         ) : (
-          <span className="text-sm text-muted">Streaks, hard problems and shared answers unlock more badges.</span>
+          <span className="text-sm text-muted">Streaks, hard problems and practice days unlock more badges.</span>
         )}
       </div>
     </section>

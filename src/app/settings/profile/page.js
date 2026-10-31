@@ -28,7 +28,6 @@ export default async function ProfileSettingsPage() {
     xHandle: user.xHandle ?? '',
     profilePublic: user.profilePublic,
     showStats: user.showStats,
-    showAnswers: user.showAnswers,
   };
 
   return (

@@ -34,14 +34,14 @@ const FAQ = [
   },
   {
     q: 'Is Buncho free?',
-    a: 'You can start practicing for free. Create a free account to save answers, track your streak and progress, and read community answers.',
+    a: 'You can start practicing for free. Create a free account to save answers and track your streak and progress.',
   },
 ];
 
 const STEPS = [
   { n: '1', title: 'Pick a problem', body: 'Browse by topic, difficulty or type from the problem list, or search for a concept.', time: 'About 1 min' },
   { n: '2', title: 'Answer it first', body: 'Use the two-pane workspace: the problem on the left, your spoken or written answer on the right.', time: '5 to 15 min' },
-  { n: '3', title: 'Compare and learn', body: 'Unlock the expert solution and community answers, then mark the problem complete.', time: 'About 5 min' },
+  { n: '3', title: 'Compare and learn', body: ' Unlock the expert solution and compare it with your answer, then mark the problem complete.', time: 'About 5 min' },
 ];
 
 const FALLBACK_TOPICS = [
@@ -257,9 +257,9 @@ export default async function LandingPage() {
               <IconChip>
                 <Users width={22} height={22} />
               </IconChip>
-              <h3 className="mt-5 text-xl font-bold tracking-tight">Compare with experts and peers</h3>
+              <h3 className="mt-5 text-xl font-bold tracking-tight">Compare with the experts</h3>
               <p className="mt-2 leading-relaxed text-muted">
-                Submitting your answer unlocks the expert solution and community answers, so you learn from the gap.
+               Submitting your answer unlocks the expert solution, so you learn from the gap.
               </p>
               <div className="mt-6 grid grid-cols-2 gap-3" aria-hidden="true">
                 <div className="rounded-2xl bg-surface-2 p-3">

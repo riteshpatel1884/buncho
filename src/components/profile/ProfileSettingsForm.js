@@ -197,7 +197,7 @@ export default function ProfileSettingsForm({ initial, siteUrl, lockedDays = 0, 
         <div className="mt-4 space-y-3">
           <Toggle checked={f.profilePublic} onChange={setBool('profilePublic')} title="Profile is public" desc="Anyone with your link can view it. Turn off to make the page visible only to you." />
           <Toggle checked={f.showStats} onChange={setBool('showStats')} title="Show level, stats and badges" desc="Solved count, streak, AI score, topic strengths and the activity grid." />
-          <Toggle checked={f.showAnswers} onChange={setBool('showAnswers')} title="Show answers I shared" desc="Only answers you already shared with the community, never anonymous ones." />
+         
         </div>
       </section>
 

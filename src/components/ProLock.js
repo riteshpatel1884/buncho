@@ -5,12 +5,11 @@ const PERKS = [
   'Full question, hints and step-by-step prompts',
   'AI feedback on your answer, scored against a rubric',
   'Reference answer with alternative approaches and trade-offs',
-  'Community answers',
 ];
 
 /**
  * Shown in place of locked content on a Pro-only question. Server component.
- * `signedIn` changes the call to action. `compact` is for narrow panes (feedback / community tabs).
+ * `signedIn` changes the call to action. `compact` is for narrow panes (the feedback tab).
  */
 export default function ProLock({ signedIn, title = 'This is a Pro question', compact = false }) {
   const loginHref = `/login?redirect_url=${encodeURIComponent(`/pricing`)}`;

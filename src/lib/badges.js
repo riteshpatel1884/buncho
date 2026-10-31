@@ -50,7 +50,6 @@ const ACHIEVEMENT_BADGES = [
   { id: 'streak30', name: 'Inferno', desc: 'Reached a 30 day streak', tier: 'ruby', shape: 'burst', glyph: 'inferno', test: (m) => m.streak >= 30 },
   { id: 'hard', name: 'Summit', desc: 'Solved 5 hard problems', tier: 'sapphire', shape: 'diamond', glyph: 'peak', test: (m) => m.hard >= 5 },
   { id: 'scholar', name: 'Prodigy', desc: 'Average AI score of 80+ over 5 answers', tier: 'amethyst', shape: 'seal', glyph: 'cap', test: (m) => m.evals >= 5 && m.avgScore >= 80 },
-  { id: 'helper', name: 'Mentor', desc: 'Got 10 helpful votes on shared answers', tier: 'ruby', shape: 'circle', glyph: 'heart', test: (m) => m.helpful >= 10 },
   { id: 'regular', name: 'Clockwork', desc: 'Practised on 20 different days', tier: 'silver', shape: 'hexagon', glyph: 'calendar', test: (m) => m.activeDays >= 20 },
   { id: 'pro', name: 'Patron', desc: 'Supports Buncho with Pro', tier: 'gold', shape: 'shield', glyph: 'crown', test: (m) => m.pro },
 ].map((b, i) => ({ kind: 'achievement', ...b, fx: FAMILIES.length + i }));
