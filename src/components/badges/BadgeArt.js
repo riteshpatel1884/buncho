@@ -1,6 +1,6 @@
 import { useId } from 'react';
 
-// Colour tiers: light = rim highlight, mid = main metal, dark = shadow, text = number / glyph colour.
+// Colour tiers: light = rim highlight, mid = main metal, dark = shadow, text = glyph colour.
 const TIERS = {
   bronze: { light: '#f8c995', mid: '#cd7f32', dark: '#6e3b12', text: '#fff1e0' },
   silver: { light: '#ffffff', mid: '#aab4c3', dark: '#566174', text: '#ffffff' },
@@ -40,6 +40,17 @@ function burst(n, outer, inner) {
   return pts.join(' ');
 }
 
+// 5-point star centred on (cx, cy).
+function starPoints(cx, cy, outer, inner) {
+  const pts = [];
+  for (let i = 0; i < 10; i += 1) {
+    const r = i % 2 ? inner : outer;
+    const a = (Math.PI * i) / 5 - Math.PI / 2;
+    pts.push(`${(cx + r * Math.cos(a)).toFixed(2)},${(cy + r * Math.sin(a)).toFixed(2)}`);
+  }
+  return pts.join(' ');
+}
+
 const SHAPES = {
   circle: { circle: true },
   hexagon: { points: '50,4 90,27 90,73 50,96 10,73 10,27' },
@@ -57,8 +68,59 @@ function Shape({ shape, ...props }) {
   return <path d={s.path} strokeLinejoin="round" {...props} />;
 }
 
-// Small line icons (24x24 grid) drawn in the middle of achievement badges.
+// Small line icons (24x24 grid) drawn in the middle of the badges.
 const GLYPHS = {
+  // --- milestone families ---
+  neuron: (
+    <>
+      <circle cx="12" cy="12" r="2.6" />
+      <circle cx="5" cy="6" r="1.7" />
+      <circle cx="19" cy="6" r="1.7" />
+      <circle cx="5" cy="18" r="1.7" />
+      <circle cx="19" cy="18" r="1.7" />
+      <path d="M6.4 7.2l3.8 3.4M17.6 7.2l-3.8 3.4M6.4 16.8l3.8-3.4M17.6 16.8l-3.8-3.4" />
+    </>
+  ),
+  perceptron: (
+    <>
+      <circle cx="5" cy="6" r="1.6" />
+      <circle cx="5" cy="12" r="1.6" />
+      <circle cx="5" cy="18" r="1.6" />
+      <circle cx="15" cy="12" r="3" />
+      <path d="M6.5 6.8l6 3.8M6.7 12h5.3M6.5 17.2l6-3.8M18 12h4" />
+    </>
+  ),
+  attention: (
+    <>
+      <circle cx="5" cy="5" r="1.6" />
+      <circle cx="12" cy="5" r="1.6" />
+      <circle cx="19" cy="5" r="1.6" />
+      <circle cx="5" cy="19" r="1.6" />
+      <circle cx="12" cy="19" r="1.6" />
+      <circle cx="19" cy="19" r="1.6" />
+      <path d="M5 6.8v10.4M12 6.8v10.4M19 6.8v10.4M5.9 6.3l5.2 11.4M12.9 6.3l5.2 11.4M18.1 6.3l-5.2 11.4" />
+    </>
+  ),
+  agent: (
+    <>
+      <rect x="4.5" y="8" width="15" height="11.5" rx="3" />
+      <path d="M12 8V4.5M9.5 13h.01M14.5 13h.01M9 16.5h6" />
+      <circle cx="12" cy="3.4" r="1.1" />
+    </>
+  ),
+  eye: (
+    <>
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  singularity: (
+    <path
+      fill="none"
+      d="M12 12a1.5 1.5 0 0 1 3 0a3.5 3.5 0 0 1-7 0a5.5 5.5 0 0 1 11 0a7.5 7.5 0 0 1-15 0"
+    />
+  ),
+  // --- achievements ---
   spark: <path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" />,
   flame: <path d="M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z" />,
   inferno: (
@@ -81,12 +143,6 @@ const GLYPHS = {
     </>
   ),
   heart: <path d="M12 21s-8-5-8-11a4.5 4.5 0 0 1 8-2.7A4.5 4.5 0 0 1 20 10c0 6-8 11-8 11z" />,
-  wave: (
-    <>
-      <circle cx="12" cy="12" r="2" />
-      <path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2" />
-    </>
-  ),
   calendar: (
     <>
       <rect x="3" y="5" width="18" height="16" rx="2.5" />
@@ -96,10 +152,14 @@ const GLYPHS = {
   crown: <path d="M3 7l4.5 4L12 4l4.5 7L21 7l-2 11H5zM5.4 20.5h13.2" />,
 };
 
+// x positions of the star row for 1, 2 and 3 stars.
+const STAR_X = { 1: [50], 2: [42, 58], 3: [34, 50, 66] };
+
 /**
- * One badge, drawn as SVG. Milestones show the problem count, achievements show an icon.
+ * One badge, drawn as SVG.
+ * Milestones show a family icon and 0-3 stars (the level), achievements show an icon.
  * earned=false renders a dim grey version with no motion.
- * Earned badges are always animated (animate defaults to true): each one has its own body motion
+ * Earned badges are always animated (animate defaults to true): each design has its own body motion
  * plus its own overlay effect, both looping smoothly with no idle gap and no blinking.
  * The pop-in is still done by the wrapper with the .badge-pop class. Works in server and client components.
  */
@@ -107,14 +167,21 @@ export default function BadgeArt({ badge, size = 72, earned = badge.earned, anim
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
   const pal = earned ? (TIERS[badge.tier] ?? TIERS.bronze) : LOCKED;
   const id = (k) => `${uid}${k}`;
-  const digits = String(badge.threshold ?? '').length;
+
+  const stars = badge.kind === 'milestone' ? Math.min(3, badge.stars ?? 0) : 0;
 
   const animated = Boolean(earned && animate);
   const fx = Number.isFinite(badge.fx) ? badge.fx : 0;
   const motion = MOTIONS[fx % MOTIONS.length];
   const overlay = OVERLAYS[Math.floor(fx / MOTIONS.length) % OVERLAYS.length];
-  // Negative delay = every badge starts at a different point of its loop, so they never move in lockstep.
+  // Negative delay = every design starts at a different point of its loop, so they never move in lockstep.
   const phase = -((fx * 370) % 3000);
+
+  // Milestone glyph sits a little higher when there is a star row under it.
+  const gScale = 1.7;
+  const gCy = stars ? 42 : 50;
+  const gx = 50 - 12 * gScale;
+  const gy = gCy - 12 * gScale;
 
   return (
     <svg
@@ -167,28 +234,19 @@ export default function BadgeArt({ badge, size = 72, earned = badge.earned, anim
         <Shape shape={badge.shape} fill={`url(#${id('i')})`} stroke={pal.light} strokeOpacity="0.55" strokeWidth="1.8" />
       </g>
 
-      {/* centre: problem count or icon */}
+      {/* centre icon */}
       {badge.kind === 'milestone' ? (
-        <>
-          <g transform="translate(43.5 21) scale(0.58)" fill={pal.text} fillOpacity="0.9">
-            {GLYPHS.spark}
-          </g>
-          <text
-            x="50"
-            y="63"
-            textAnchor="middle"
-            fontSize={digits >= 3 ? 27 : 33}
-            fontWeight="800"
-            fill={pal.text}
-            stroke={pal.dark}
-            strokeWidth="3"
-            strokeOpacity="0.55"
-            paintOrder="stroke"
-            style={{ letterSpacing: '-0.02em' }}
-          >
-            {badge.threshold}
-          </text>
-        </>
+        <g
+          transform={`translate(${gx} ${gy}) scale(${gScale})`}
+          fill={pal.text}
+          fillOpacity="0.22"
+          stroke={pal.text}
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          {GLYPHS[badge.glyph]}
+        </g>
       ) : (
         <g
           transform="translate(27 27) scale(1.95)"
@@ -202,6 +260,20 @@ export default function BadgeArt({ badge, size = 72, earned = badge.earned, anim
           {GLYPHS[badge.glyph]}
         </g>
       )}
+
+      {/* level stars (milestone families only: 1, 2 or 3) */}
+      {stars > 0 &&
+        STAR_X[stars].map((x) => (
+          <polygon
+            key={x}
+            points={starPoints(x, 71, 6.4, 2.7)}
+            fill={earned ? '#ffd84d' : pal.text}
+            stroke={earned ? '#5b3a00' : pal.dark}
+            strokeOpacity="0.7"
+            strokeWidth="0.9"
+            strokeLinejoin="round"
+          />
+        ))}
 
       {/* gloss + overlay effect, clipped to the badge outline */}
       <g clipPath={`url(#${id('c')})`}>

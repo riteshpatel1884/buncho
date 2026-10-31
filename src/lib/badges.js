@@ -4,41 +4,46 @@
 /* Pure data and helpers: safe to import in server and client code.    */
 /* ------------------------------------------------------------------ */
 
+const ROMAN = ['I', 'II', 'III'];
+
+/**
+ * Milestone families. A family with 3 thresholds is ONE badge design earned at 3 levels (1, 2, 3 stars),
+ * named "<name> I / II / III". A family with a single threshold is its own one-off badge (no stars).
+ * Every family has its own shape, colour, icon and animation (fx).
+ */
+const FAMILIES = [
+  { name: 'Debut', at: [10], tier: 'emerald', shape: 'circle', glyph: 'neuron' },
+  { name: 'Breeze', at: [25, 50, 100], tier: 'sapphire', shape: 'hexagon', glyph: 'perceptron' },
+  { name: 'Climber', at: [150, 200, 250], tier: 'amethyst', shape: 'shield', glyph: 'attention' },
+  { name: 'Thunder', at: [300, 350, 400], tier: 'ember', shape: 'octagon', glyph: 'agent' },
+  { name: 'Champion', at: [450, 500, 550], tier: 'gold', shape: 'diamond', glyph: 'eye' },
+  { name: 'Immortal', at: [600], tier: 'ruby', shape: 'seal', glyph: 'singularity' },
+];
+
 /** Problem-count milestones, in order. */
-export const MILESTONES = [10, 25, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600];
+export const MILESTONES = FAMILIES.flatMap((f) => f.at);
 
-const MILESTONE_NAMES = {
-  10: 'Neuron',
-  25: 'Perceptron',
-  50: 'Gradient',
-  100: 'Tensor',
-  150: 'Embedding',
-  200: 'Transformer',
-  250: 'Attention',
-  300: 'Fine-tuner',
-  350: 'Agent',
-  400: 'Orchestrator',
-  450: 'Architect',
-  500: 'Oracle',
-  550: 'Frontier',
-  600: 'Singularity',
-};
+const MILESTONE_BADGES = FAMILIES.flatMap((f, fi) =>
+  f.at.map((n, j) => {
+    const multi = f.at.length > 1;
+    return {
+      id: `solved-${n}`,
+      kind: 'milestone',
+      threshold: n,
+      family: f.name.toLowerCase(),
+      stars: multi ? j + 1 : 0,
+      name: multi ? `${f.name} ${ROMAN[j]}` : f.name,
+      desc: `Solved ${n} problems`,
+      tier: f.tier,
+      shape: f.shape,
+      glyph: f.glyph,
+      fx: fi,
+      test: (m) => m.solved >= n,
+    };
+  }),
+);
 
-// Every milestone gets its own shape + colour combination (14 milestones, 7 shapes, 7 tiers).
-const TIER_ORDER = ['bronze', 'silver', 'gold', 'emerald', 'sapphire', 'amethyst', 'ruby'];
-const SHAPE_ORDER = ['circle', 'hexagon', 'shield', 'octagon', 'diamond', 'burst', 'seal'];
-
-const MILESTONE_BADGES = MILESTONES.map((n, i) => ({
-  id: `solved-${n}`,
-  kind: 'milestone',
-  threshold: n,
-  name: MILESTONE_NAMES[n],
-  desc: `Solved ${n} problems`,
-  tier: TIER_ORDER[Math.floor(i / 2)],
-  shape: SHAPE_ORDER[i % SHAPE_ORDER.length],
-  test: (m) => m.solved >= n,
-}));
-
+// fx continues after the milestone families so every design gets its own animation combination.
 const ACHIEVEMENT_BADGES = [
   { id: 'first', name: 'Ignition', desc: 'Solved your first problem', tier: 'emerald', shape: 'circle', glyph: 'spark', test: (m) => m.solved >= 1 },
   { id: 'streak7', name: 'Blaze', desc: 'Reached a 7 day streak', tier: 'ember', shape: 'hexagon', glyph: 'flame', test: (m) => m.streak >= 7 },
@@ -46,12 +51,11 @@ const ACHIEVEMENT_BADGES = [
   { id: 'hard', name: 'Summit', desc: 'Solved 5 hard problems', tier: 'sapphire', shape: 'diamond', glyph: 'peak', test: (m) => m.hard >= 5 },
   { id: 'scholar', name: 'Prodigy', desc: 'Average AI score of 80+ over 5 answers', tier: 'amethyst', shape: 'seal', glyph: 'cap', test: (m) => m.evals >= 5 && m.avgScore >= 80 },
   { id: 'helper', name: 'Mentor', desc: 'Got 10 helpful votes on shared answers', tier: 'ruby', shape: 'circle', glyph: 'heart', test: (m) => m.helpful >= 10 },
-  { id: 'sharer', name: 'Beacon', desc: 'Shared 3 answers publicly', tier: 'sapphire', shape: 'octagon', glyph: 'wave', test: (m) => m.shared >= 3 },
   { id: 'regular', name: 'Clockwork', desc: 'Practised on 20 different days', tier: 'silver', shape: 'hexagon', glyph: 'calendar', test: (m) => m.activeDays >= 20 },
   { id: 'pro', name: 'Patron', desc: 'Supports Buncho with Pro', tier: 'gold', shape: 'shield', glyph: 'crown', test: (m) => m.pro },
-].map((b) => ({ kind: 'achievement', ...b }));
+].map((b, i) => ({ kind: 'achievement', ...b, fx: FAMILIES.length + i }));
 
-const ALL = [...MILESTONE_BADGES, ...ACHIEVEMENT_BADGES].map((b, i) => ({ ...b, fx: i }));
+const ALL = [...MILESTONE_BADGES, ...ACHIEVEMENT_BADGES];
 
 /** Every badge with an `earned` flag. m = { solved, streak, hard, evals, avgScore, helpful, shared, activeDays, pro } */
 export const badgeList = (m) => ALL.map(({ test, ...b }) => ({ ...b, earned: Boolean(test(m)) }));
