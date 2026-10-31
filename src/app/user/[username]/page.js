@@ -8,7 +8,8 @@ import { findProfileUser, getProfileData, publicName } from '@/lib/profile';
 import { profileTheme } from '@/lib/profile-theme';
 import { formatDate } from '@/lib/community';
 import { absoluteUrl, buildMetadata, graph, truncate } from '@/lib/seo';
-import ActivityGrid from '@/components/ActivityGrid';
+import ActivityChart from '@/components/dashboard/ActivityChart';
+import { dayKey } from '@/lib/problems';
 import DifficultyBadge from '@/components/DifficultyBadge';
 import JsonLd from '@/components/JsonLd';
 import { Crown } from '@/components/ProBadge';
@@ -235,7 +236,14 @@ export default async function PublicProfilePage({ params }) {
               </section>
             )}
 
-            {stats && <ActivityGrid stats={stats} weeks={16} roomy />}
+            {stats && (
+              <ActivityChart
+                title="Practice activity"
+                activeDays={stats.activeDays}
+                todayKey={dayKey(new Date())}
+                color={theme.a}
+              />
+            )}
 
             {user.showAnswers && (
               <section aria-labelledby="answers-h" className="card p-5 sm:p-6">

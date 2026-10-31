@@ -1,11 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 
 const DAY = 86400000;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-// bucket = days per bar (7 = one bar per week)
+// bucket = days per point (7 = one point per week)
 const RANGES = [
   { id: '6m', label: '6 Months', long: 'last 6 months', days: 182, bucket: 7 },
   { id: '3m', label: '3 Months', long: 'last 3 months', days: 91, bucket: 7 },
@@ -38,11 +38,29 @@ function buildSeries(activeDays, todayKey, range) {
   });
 }
 
+// Smooth curve through the points with flat tangents at each point, so it never dips below the data.
+function smoothPath(pts) {
+  if (!pts.length) return '';
+  let d = `M${pts[0].x},${pts[0].y}`;
+  for (let i = 1; i < pts.length; i += 1) {
+    const a = pts[i - 1];
+    const b = pts[i];
+    const mx = (a.x + b.x) / 2;
+    d += ` C${mx},${a.y} ${mx},${b.y} ${b.x},${b.y}`;
+  }
+  return d;
+}
+
 const W = 640;
 const H = 250;
-const PAD = { l: 34, r: 10, t: 12, b: 30 };
+const PAD = { l: 34, r: 14, t: 14, b: 30 };
 
-export default function ActivityChart({ activeDays, todayKey }) {
+/**
+ * Line graph of problems solved over time (7 days, 30 days, 3 months, 6 months).
+ * activeDays: { 'YYYY-MM-DD': count }, todayKey: today in the same format (India time).
+ */
+export default function ActivityChart({ activeDays, todayKey, title = 'Activity', color = 'var(--accent)' }) {
+  const gradId = `area-${useId().replace(/:/g, '')}`;
   const [rangeId, setRangeId] = useState('7d');
   const [hover, setHover] = useState(null);
   const range = RANGES.find((r) => r.id === rangeId);
@@ -55,19 +73,27 @@ export default function ActivityChart({ activeDays, todayKey }) {
   const innerW = W - PAD.l - PAD.r;
   const innerH = H - PAD.t - PAD.b;
   const slot = innerW / series.length;
-  const barW = Math.min(slot * 0.6, 34);
   const labelStep = Math.ceil(series.length / 7);
-  const y = (v) => PAD.t + innerH - (v / yMax) * innerH;
+  const baseline = PAD.t + innerH;
+  const y = (v) => baseline - (v / yMax) * innerH;
+  const x = (i) => PAD.l + slot * i + slot / 2;
+
+  const pts = series.map((s, i) => ({ x: x(i), y: y(s.value) }));
+  const line = smoothPath(pts);
+  const area = pts.length ? `${line} L${pts[pts.length - 1].x},${baseline} L${pts[0].x},${baseline} Z` : '';
+  const showDots = series.length <= 31;
   const active = hover !== null ? series[hover] : null;
 
   return (
-    <section aria-label="Activity" className="card p-5 sm:p-6">
+    <section aria-label={title} className="card p-5 sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h2 className="text-lg font-semibold tracking-tight">Activity</h2>
+          <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
           <p className="mt-1 text-sm text-muted">Total of {range.long}</p>
           <p className="mt-3 flex items-baseline gap-2">
-            <span className="text-4xl font-semibold tabular-nums tracking-tight text-accent">{active ? active.value : total}</span>
+            <span className="text-4xl font-semibold tabular-nums tracking-tight" style={{ color }}>
+              {active ? active.value : total}
+            </span>
             <span className="text-sm text-muted">
               {active ? `${active.value === 1 ? 'problem' : 'problems'} · ${active.full}` : total === 1 ? 'problem solved' : 'problems solved'}
             </span>
@@ -100,9 +126,16 @@ export default function ActivityChart({ activeDays, todayKey }) {
           viewBox={`0 0 ${W} ${H}`}
           className="h-auto w-full"
           role="img"
-          aria-label={`${total} problems solved in the ${range.long}`}
+          aria-label={`Line graph: ${total} problems solved in the ${range.long}`}
           onMouseLeave={() => setHover(null)}
         >
+          <defs>
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity="0.32" />
+              <stop offset="100%" stopColor={color} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+
           {/* grid + y labels */}
           {[0, 1, 2, 3, 4].map((t) => {
             const v = (yMax / 4) * t;
@@ -124,48 +157,61 @@ export default function ActivityChart({ activeDays, todayKey }) {
             );
           })}
 
-          {/* bars */}
+          {/* x labels */}
+          {series.map((s, i) =>
+            i % labelStep === 0 ? (
+              <text key={i} x={x(i)} y={H - 8} textAnchor="middle" fontSize="11" fill="var(--muted)">
+                {s.label}
+              </text>
+            ) : null,
+          )}
+
+          {/* area + line */}
+          {total > 0 && <path d={area} fill={`url(#${gradId})`} />}
+          <path d={line} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+
+          {/* hover guide */}
+          {hover !== null && (
+            <line x1={x(hover)} x2={x(hover)} y1={PAD.t} y2={baseline} stroke={color} strokeOpacity="0.35" strokeWidth="1.5" strokeDasharray="4 4" />
+          )}
+
+          {/* dots */}
           {series.map((s, i) => {
-            const cx = PAD.l + slot * i + slot / 2;
-            const h = (s.value / yMax) * innerH;
+            const isActive = hover === i;
+            if (!showDots && !isActive) return null;
             return (
-              <g key={i}>
-                {s.value > 0 && (
-                  <rect
-                    x={cx - barW / 2}
-                    y={y(s.value)}
-                    width={barW}
-                    height={h}
-                    rx={Math.min(6, barW / 2)}
-                    fill="var(--accent)"
-                    opacity={hover === null || hover === i ? 1 : 0.45}
-                  />
-                )}
-                {i % labelStep === 0 && (
-                  <text x={cx} y={H - 8} textAnchor="middle" fontSize="11" fill="var(--muted)">
-                    {s.label}
-                  </text>
-                )}
-                {/* full-height hit area for hover / touch */}
-                <rect
-                  x={PAD.l + slot * i}
-                  y={PAD.t}
-                  width={slot}
-                  height={innerH}
-                  fill="transparent"
-                  onMouseEnter={() => setHover(i)}
-                  onTouchStart={() => setHover(i)}
-                >
-                  <title>{`${s.full}: ${s.value} ${s.value === 1 ? 'problem' : 'problems'}`}</title>
-                </rect>
-              </g>
+              <circle
+                key={i}
+                cx={x(i)}
+                cy={y(s.value)}
+                r={isActive ? 6 : series.length > 14 ? 2.5 : 4}
+                fill={isActive ? color : 'var(--surface)'}
+                stroke={color}
+                strokeWidth={isActive ? 3 : 2}
+              />
             );
           })}
+
+          {/* full-height hit areas for hover / touch */}
+          {series.map((s, i) => (
+            <rect
+              key={i}
+              x={PAD.l + slot * i}
+              y={PAD.t}
+              width={slot}
+              height={innerH}
+              fill="transparent"
+              onMouseEnter={() => setHover(i)}
+              onTouchStart={() => setHover(i)}
+            >
+              <title>{`${s.full}: ${s.value} ${s.value === 1 ? 'problem' : 'problems'}`}</title>
+            </rect>
+          ))}
         </svg>
 
         {total === 0 && (
           <p className="pointer-events-none absolute inset-0 grid place-items-center pb-8 text-sm text-muted">
-            No activity in this period yet. Solve a problem to start your graph.
+            No activity in this period yet.
           </p>
         )}
       </div>
