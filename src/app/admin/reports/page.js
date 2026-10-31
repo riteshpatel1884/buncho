@@ -3,11 +3,8 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { getOrCreateUser } from '@/lib/user';
 import { isAdmin } from '@/lib/admin';
-import { moderateAnswer } from '@/app/community-actions';
-import { REPORT_REASON_LABEL } from '@/lib/constants';
 import { KIND_LABEL, STATUS_LABEL, SUPPORT_KINDS, issueLabel } from '@/lib/support';
 import { formatMoney } from '@/lib/money';
-import Markdown from '@/components/Markdown';
 import PendingButton from '@/components/PendingButton';
 import { updateSupportReport } from './actions';
 
@@ -35,7 +32,6 @@ const input =
   'rounded-lg border border-line bg-surface-2/40 px-3 py-2 text-sm outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/15';
 const primary = 'rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:opacity-90';
 const neutral = 'rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold hover:bg-surface-2';
-const danger = 'rounded-lg bg-hard px-4 py-2.5 text-sm font-semibold text-white';
 
 function hrefFor(params) {
   const sp = new URLSearchParams();
@@ -51,55 +47,21 @@ export default async function ReportsPage({ searchParams }) {
   if (!isAdmin(me)) notFound(); // don't reveal that the page exists
 
   const sp = await searchParams;
-  const tab = sp.tab === 'answers' ? 'answers' : 'support';
   const status = STATUS_FILTERS.includes(sp.status) ? sp.status : 'OPEN';
   const kind = SUPPORT_KINDS.includes(sp.kind) ? sp.kind : 'ALL';
   const page = Math.max(1, parseInt(sp.page, 10) || 1);
-
-  const [openSupport, openAnswers] = await Promise.all([
-    prisma.supportReport.count({ where: { status: 'OPEN' } }),
-    prisma.communityAnswer.count({ where: { reports: { some: { status: 'OPEN' } } } }),
-  ]);
-
-  const tabs = [
-    { id: 'support', label: 'User reports', count: openSupport },
-    { id: 'answers', label: 'Reported answers', count: openAnswers },
-  ];
 
   return (
     <div className="wrap max-w-4xl py-10 lg:py-14">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Reports</h1>
-          <p className="mt-1 text-sm text-muted">Problems users have reported, and community answers flagged by other users.</p>
+          <p className="mt-1 text-sm text-muted">Problems, Pro plan and payment issues reported by users.</p>
         </div>
         <Link href="/admin" className="text-sm font-semibold text-accent underline underline-offset-4">Admin home</Link>
       </div>
 
-      <nav aria-label="Report types" className="mt-6 flex gap-2 border-b border-line">
-        {tabs.map((t) => {
-          const on = tab === t.id;
-          return (
-            <Link
-              key={t.id}
-              href={hrefFor({ tab: t.id })}
-              aria-current={on ? 'page' : undefined}
-              className={`-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
-                on ? 'border-accent text-ink' : 'border-transparent text-muted hover:text-ink'
-              }`}
-            >
-              {t.label}
-              {t.count > 0 && <span className="rounded-full bg-hard px-2 py-0.5 text-[0.7rem] font-bold text-white tabular-nums">{t.count}</span>}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {tab === 'support' ? (
-        <SupportTab status={status} kind={kind} page={page} />
-      ) : (
-        <AnswersTab />
-      )}
+      <SupportTab status={status} kind={kind} page={page} />
     </div>
   );
 }
@@ -303,77 +265,6 @@ async function SupportTab({ status, kind, page }) {
           ) : <span />}
         </nav>
       )}
-    </div>
-  );
-}
-
-/* ---------- Community answers reported by other users (unchanged behaviour) ---------- */
-
-async function AnswersTab() {
-  const answers = await prisma.communityAnswer.findMany({
-    where: { reports: { some: { status: 'OPEN' } } },
-    orderBy: { updatedAt: 'asc' },
-    select: {
-      id: true,
-      content: true,
-      status: true,
-      problem: { select: { slug: true, title: true } },
-      user: { select: { name: true, email: true } },
-      reports: {
-        where: { status: 'OPEN' },
-        orderBy: { createdAt: 'asc' },
-        select: { id: true, reason: true, details: true, createdAt: true },
-      },
-    },
-  });
-
-  return (
-    <div className="mt-6">
-      <p className="text-muted">
-        {answers.length
-          ? `${answers.length} answer${answers.length > 1 ? 's' : ''} with open reports.`
-          : 'Nothing to review right now.'}
-      </p>
-
-      <ul className="mt-6 space-y-8">
-        {answers.map((a) => (
-          <li key={a.id} className="rounded-lg border border-line bg-surface">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3 text-sm">
-              <Link href={`/problems/${a.problem.slug}`} className="font-semibold text-accent underline underline-offset-4">
-                {a.problem.title}
-              </Link>
-              <span className="text-muted">
-                By {a.user.name ?? a.user.email ?? 'unknown'} ·{' '}
-                {a.status === 'HIDDEN' ? 'currently hidden' : a.status === 'UNSHARED' ? 'author stopped sharing' : 'currently public'}
-              </span>
-            </div>
-
-            <div className="px-5 py-5">
-              <Markdown>{a.content}</Markdown>
-            </div>
-
-            <ul className="space-y-2 border-t border-line px-5 py-4 text-sm">
-              {a.reports.map((r) => (
-                <li key={r.id}>
-                  <span className="font-semibold">{REPORT_REASON_LABEL[r.reason]}</span>
-                  {r.details && <span className="text-muted">: {r.details}</span>}
-                </li>
-              ))}
-            </ul>
-
-            <div className="flex flex-wrap gap-3 border-t border-line px-5 py-4">
-              <form action={moderateAnswer.bind(null, a.id, 'hide')}>
-                <PendingButton className={danger} pendingLabel="Hiding…">Hide answer</PendingButton>
-              </form>
-              <form action={moderateAnswer.bind(null, a.id, 'dismiss')}>
-                <PendingButton className={`${neutral} py-2.5`} pendingLabel="Dismissing…">
-                  Dismiss reports{a.status === 'HIDDEN' ? ' and restore' : ''}
-                </PendingButton>
-              </form>
-            </div>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }
