@@ -42,14 +42,17 @@ export function countryInfo(code) {
 /* ---------- Vercel Web Analytics API ---------- */
 
 async function query({ since, until, by, limit }) {
+  // The aggregate endpoint answers 400 "missing required property `by`" without a grouping.
+  if (!by) throw new Error('Vercel Analytics queries need a "by" grouping');
+
   const params = new URLSearchParams({
     projectId: process.env.VERCEL_ANALYTICS_PROJECT.trim(),
     since: since.toISOString(),
     until: until.toISOString(),
+    by,
   });
   const team = process.env.VERCEL_ANALYTICS_TEAM?.trim();
   if (team) params.set(team.startsWith('team_') ? 'teamId' : 'slug', team);
-  if (by) params.set('by', by);
   if (limit) params.set('limit', String(limit));
 
   const res = await fetch(`${ENDPOINT}?${params}`, {
@@ -83,12 +86,13 @@ export async function syncAdStats({ takeOver = false } = {}) {
     const end = startOfTodayUtc(); // full days only, today is still incomplete
     const ago = (days) => new Date(end.getTime() - days * DAY_MS);
 
-    const [current, days, countryRows, previous] = await Promise.all([
-      query({ since: ago(30), until: end }),
+    // Vercel's aggregate endpoint requires `by` on every request, so the 30 day totals are summed from the
+    // per-country rows (anything beyond the limit is grouped into an "Others" row, so the sum is still the full total).
+    const [days, countryRows, previous] = await Promise.all([
       query({ since: ago(14), until: end, by: 'day' }),
       query({ since: ago(30), until: end, by: 'country', limit: 10 }),
       // The previous 30 days may fall outside your plan's reporting window, so a failure here only hides the badge.
-      query({ since: ago(60), until: new Date(ago(30).getTime() - 1) }).catch(() => null),
+      query({ since: ago(60), until: new Date(ago(30).getTime() - 1), by: 'country', limit: 10 }).catch(() => null),
     ]);
 
     const inRange = (r, from, to) => {
@@ -100,8 +104,8 @@ export async function syncAdStats({ takeOver = false } = {}) {
     const dailyNow = sum(lastWeek, 'visitors') / 7;
     const dailyBefore = sum(weekBefore, 'visitors') / 7;
 
-    const monthlyNow = sum(current, 'visitors');
-    const viewsNow = sum(current, 'pageviews');
+    const monthlyNow = sum(countryRows, 'visitors');
+    const viewsNow = sum(countryRows, 'pageviews');
 
     const countries = countryRows
       .filter((r) => /^[A-Za-z]{2}$/.test(String(r.country ?? '')))
